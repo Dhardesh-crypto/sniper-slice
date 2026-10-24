@@ -228,7 +228,7 @@ export class Hud {
     }
   }
 
-  update(dt, { camera, player, arsenal, world, fps, search, waypoint, stealth, mission, hotspots }) {
+  update(dt, { camera, player, arsenal, world, fps, search, waypoint, stealth, mission, hotspots, res }) {
     const a = arsenal.hudState();
     const el = this.el;
 
@@ -404,7 +404,7 @@ export class Hud {
 
     if (this.debugOn) {
       const p = player.pos;
-      el.debug.textContent = `${fps.toFixed(0)} fps · pos ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ` +
+      el.debug.textContent = `${fps.toFixed(0)} fps · res ×${(res ?? 0).toFixed(2)} · pos ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ` +
         `HR ${player.heartRate.toFixed(0)} · wind ${world.wind.x.toFixed(1)},${world.wind.z.toFixed(1)} · ` +
         `bullets ${arsenal.bullets.length} · grass ${world.tuftCount} · stats ${JSON.stringify(arsenal.stats)}`;
     }

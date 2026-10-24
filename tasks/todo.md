@@ -256,3 +256,9 @@ crouched one, and only the head while peeking to aim.
 - Concealed in tall grass (crouched or prone), any guard who hasn't spotted you can be taken down from any side, calm, wary or searching after an alarm, within 2.8 m (1.7 m otherwise). He's spun to face away as you grab him (over the 0.22 s step-in).
 - Reaction window: a guard who stumbles onto you in hiding is startled for 1 s ("?", turns to look) before he has spotted you; then he's alerted and can fire. F during the window is an ambush.
 - Verified by script: calm guard at 2.2 m: startled, prompt, takedown, no shots; same without F: startled until ~1 s, then spotted and alerted; alerted searching guard 2.4 m in front of you prone in the grass: takedown.
+
+### Performance pass (done, 2026-10-24)
+- Measured on a full-screen MacBook size (1512×945): GPU frame time High 26–43 ms, Medium 16–33 ms, Low 6–12 ms (this pane is noisy). Game logic ~3 ms. The cost is pixels (High renders 2× = ~6 Mpx with 4× MSAA), ambient occlusion (~16 ms at High) and bloom (~7 ms); the scene is 2.3 M visible triangles (grass 350k, terrain 320k, trees ~600k drawn for shadow, AO and image). Recent features add nothing steady.
+- AO and bloom now run at half the render size (bloom blurs at a quarter): High 43 → 37 ms, Medium 33 → 28 ms in the same conditions; no visible change.
+- Shadow map redrawn every other frame (~2 ms saved).
+- Resolution scaler: the graphics setting is now a ceiling; while you play, average frame time over 1.5 s above 19 ms drops the render scale by 0.25 (down to 1×, 0.75× on Low), below 14 ms twice in a row raises it back. Paused behind the menu or map it holds; single hitches are ignored. F3 shows the current scale.

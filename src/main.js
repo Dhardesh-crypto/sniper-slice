@@ -31,6 +31,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false; // redrawn every other frame (see step): half the cost, no visible difference
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.85;
 
@@ -183,6 +184,7 @@ input.onLockChange = (locked) => {
   if (audio.ctx) menuPaused ? audio.ctx.suspend() : audio.ctx.resume();
 };
 let birdT = 4;
+let shadowFrame = 0;
 let menuPaused = true;   // the world waits behind the menu until you click play
 let forceRun = false;    // window.game.advance() steps even behind the menu
 
@@ -231,9 +233,25 @@ function tick(dt) {
   input.consume();
 }
 
+// Resolution scaler: keeps the frame rate up on big screens by rendering a notch below the
+// graphics setting when frames run long, and back up when there's headroom.
+const scaler = { t: 0, sum: 0, n: 0, calm: 0 };
+function scaleResolution(realDt) {
+  if (menuPaused || mapView.open) { scaler.t = scaler.sum = scaler.n = 0; return; }
+  if (realDt >= 0.1) return; // a hitch (coming back to the tab, loading a shader), not the frame rate
+  scaler.t += realDt; scaler.sum += realDt; scaler.n++;
+  if (scaler.t < 1.5) return;
+  const avg = scaler.sum / scaler.n, pr = post.pixelRatio;
+  scaler.t = scaler.sum = scaler.n = 0;
+  if (avg > 1 / 52 && pr > post.minPixelRatio) { post.setPixelRatio(Math.max(post.minPixelRatio, pr - 0.25)); scaler.calm = 0; }
+  else if (avg < 1 / 72 && pr < post.maxPixelRatio && ++scaler.calm >= 2) { post.setPixelRatio(Math.min(post.maxPixelRatio, pr + 0.25)); scaler.calm = 0; }
+}
+
 function frame(time) {
   timer.update(time);
-  step(Math.min(timer.getDelta(), 0.1));
+  const realDt = Math.min(timer.getDelta(), 0.1);
+  scaleResolution(realDt);
+  step(realDt);
 }
 
 function step(realDt, draw = true) {
@@ -261,6 +279,7 @@ function step(realDt, draw = true) {
     fx.update(realDt * ws);
     avatar.root.visible = false;
     if (!draw) return;
+    renderer.shadowMap.needsUpdate = (shadowFrame++ & 1) === 0;
     killCam.render(renderer, post);
     hud.update(realDt, { camera, player, arsenal, world, fps });
     return;
@@ -330,20 +349,21 @@ function step(realDt, draw = true) {
   }
 
   if (!draw) return;
+  renderer.shadowMap.needsUpdate = (shadowFrame++ & 1) === 0;
   post.draw();
   const st = stealth.state();
   const ss = search.state(), cs = carry.state(), co = player.climbOption(), cut = ai.sabotageOption(), rad = mission.radioOption();
   const td = takedown.state();
   const prompts = carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
-  hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots });
+  hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio });
   mapView.drawMini({ player, stealth: st });
 }
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown,
+  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).

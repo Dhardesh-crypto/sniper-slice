@@ -61,13 +61,20 @@ export class Post {
     this.composer.addPass(new OutputPass());
   }
 
-  // high: full pixel ratio + AO; medium: 1.5x + AO; low: 1x, no AO or bloom.
+  // high: up to 2x pixel ratio + AO; medium: up to 1.5x + AO; low: 1x, no AO or bloom.
+  // The setting is a ceiling: the resolution scaler in main.js may render below it.
   setQuality(q) {
-    const pr = Math.min(devicePixelRatio, q === 'high' ? 2 : q === 'medium' ? 1.5 : 1);
-    this.renderer.setPixelRatio(pr);
-    this.composer.setPixelRatio(pr);
+    this.maxPixelRatio = Math.min(devicePixelRatio, q === 'high' ? 2 : q === 'medium' ? 1.5 : 1);
+    this.minPixelRatio = Math.min(this.maxPixelRatio, q === 'low' ? 0.75 : 1);
     this.gtao.enabled = q !== 'low';
     this.bloom.enabled = q !== 'low';
+    this.setPixelRatio(this.maxPixelRatio);
+  }
+
+  setPixelRatio(pr) {
+    this.pixelRatio = pr;
+    this.renderer.setPixelRatio(pr);
+    this.composer.setPixelRatio(pr);
     this.setSize(innerWidth, innerHeight);
   }
 
@@ -78,6 +85,12 @@ export class Post {
 
   setSize(w, h) {
     this.composer.setSize(w, h);
+    // Ambient occlusion is soft shading and the bloom only catches very bright things: both are
+    // computed at half the render size (the bloom blurs at a quarter), which looks the same and
+    // saves most of their cost on a large Retina screen.
+    const pr = this.renderer.getPixelRatio(), W = Math.round(w * pr), H = Math.round(h * pr);
+    this.gtao.setSize(Math.max(1, W >> 1), Math.max(1, H >> 1));
+    this.bloom.setSize(Math.max(1, W >> 1), Math.max(1, H >> 1));
   }
 
   draw() {
