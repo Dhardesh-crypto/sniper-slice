@@ -23,6 +23,9 @@ const CONCEAL_SIGHT = { crouch: 7, prone: 4 };
 // make him wary. In the open any clear line of sight counts, as before.
 const SPOT_RATE = 0.3;
 const POINT_BLANK = 2.5;
+// A guard who stumbles onto you in hiding needs a moment to take it in before he shouts or
+// fires: your window for an ambush takedown.
+const REACTION = 1.0;
 
 export class Stealth {
   constructor({ world, player, arsenal, masking, audio, hud }) {
@@ -148,7 +151,15 @@ export class Stealth {
         a.headOnly = !c && a.seeing > 0;
       }
       seenRate = a.seeing ?? 0;
-      a.spotted = seenRate > 0 && (!this.concealed || seenRate >= SPOT_RATE || d < POINT_BLANK);
+      const sees = seenRate > 0 && (!this.concealed || seenRate >= SPOT_RATE || d < POINT_BLANK);
+      if (!sees) a.seenSince = null;
+      else if (a.seenSince == null) a.seenSince = this.time;
+      // Out of cover a clear look is a sighting at once. Flushed out of hiding, he's startled
+      // for a moment first: he turns to look, but can't shout or shoot yet.
+      a.startled = sees && this.concealed && this.time - a.seenSince < REACTION;
+      a.spotted = sees && !a.startled;
+      if (a.startled && a.state === 'calm') this.raise(s, 'suspicious', p.pos.clone(), 'glimpse');
+      if (a.spotted && this.concealed && d < POINT_BLANK && a.state !== 'alerted') { a.meter = 1; this.raise(s, 'alerted', p.pos.clone(), 'seen'); }
       // Footsteps within earshot add suspicion and point the guard at you.
       if (this.noiseRadius > 0 && d < this.noiseRadius) {
         a.meter += (1 - d / this.noiseRadius) * 0.9 * dt;

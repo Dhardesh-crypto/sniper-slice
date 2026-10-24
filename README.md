@@ -26,7 +26,8 @@ npm run dev    # then open the URL Vite prints
 - **Enemy AI:** patrols, investigating, searching, cover and return fire, an alarm siren and
   reinforcements by truck (A* over a nav grid).
 - **Weak spots:** shoot the siren horn, the generator, or a truck's engine (two hits: it explodes).
-- **Knife takedowns:** sneak up behind a guard and press F (Higgsfield thrust and grabbed-and-fall clips).
+- **Knife takedowns:** sneak up behind a guard and press F, or ambush one who comes too close to your
+  hiding spot in the grass (Higgsfield thrust and grabbed-and-fall clips).
 - **Moving around:** third-person camera, crouch behind cover, climb walls and ladders, tower stairs.
 
 ## Controls
@@ -45,7 +46,7 @@ npm run dev    # then open the URL Vite prints
 | R | Reload |
 | 1 / 2 | Rifle / suppressed pistol |
 | E (hold) | Search bodies, cut the alarm wire, wreck the radio |
-| F | Knife takedown (close behind an unalerted guard) · drag / drop a body |
+| F | Knife takedown (behind an unalerted guard, or from hiding in tall grass) · drag / drop a body |
 | M | Map |
 | Esc | Pause |
 

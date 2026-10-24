@@ -251,3 +251,8 @@ crouched one, and only the head while peeking to aim.
 ### Fix: concealment really hides you (2026-10-24)
 - Concealed (crouched/prone in tall grass): guards can't see you beyond 7 m crouched / 4 m prone (×1.5 while you move). Inside that, a faint glimpse only makes a calm guard wary toward a rough guess (±4 m); he has *spotted* you only with a clear look (detection ≥ 0.3/s) or within 2.5 m. The AI targets, fires and records your position only when spotted. Outside cover nothing changed.
 - Verified: alerted guard staring from 15 m (crouched) or 6 m (prone) or 5 m (crouched): never spotted, 0 hits in 20 s; at 2 m he finds you; standing in the grass at 15 m: spotted at once. Standing in the open 60 m from a gate guard: alerted in 2.0 s, as before.
+
+### Extra: ambush takedowns from hiding (done, 2026-10-24)
+- Concealed in tall grass (crouched or prone), any guard who hasn't spotted you can be taken down from any side, calm, wary or searching after an alarm, within 2.8 m (1.7 m otherwise). He's spun to face away as you grab him (over the 0.22 s step-in).
+- Reaction window: a guard who stumbles onto you in hiding is startled for 1 s ("?", turns to look) before he has spotted you; then he's alerted and can fire. F during the window is an ambush.
+- Verified by script: calm guard at 2.2 m: startled, prompt, takedown, no shots; same without F: startled until ~1 s, then spotted and alerted; alerted searching guard 2.4 m in front of you prone in the grass: takedown.

@@ -3,9 +3,13 @@
 // wary; from the side or front only while he's calm. You step in behind him, grab and
 // strike (Higgsfield thrust clip on you, strangled-fall clip on him) with a beat of slow
 // motion, and he drops almost without a sound. F still drags bodies when no one's in reach.
+// Ambush: hidden in tall grass, any guard who hasn't spotted you can be taken from any side
+// (calm, wary or searching), even in the moment he stumbles onto you; he's spun round as
+// you grab him.
 import * as THREE from 'three';
 
 const REACH = 1.7;
+const AMBUSH_REACH = 2.8;    // from hiding you can spring a little further
 const BEHIND = Math.cos(THREE.MathUtils.degToRad(70));
 const STEP_IN = 0.22;        // seconds to slide into place behind him
 const STAND_OFF = 1.45;      // metres behind him: the thrust clip lunges ~0.8 m and reaches 1.6 m
@@ -35,17 +39,20 @@ export class Takedown {
 
   // The guard you could take down right now, or null.
   candidate() {
-    const p = this.player;
-    if (this.active || p.dead || p.climb || p.carrying || p.stance === 'prone' || !p.grounded) return null;
-    let best = null, bestD = REACH;
+    const p = this.player, hidden = !!this.stealth.concealed;
+    if (this.active || p.dead || p.climb || p.carrying || !p.grounded || (p.stance === 'prone' && !hidden)) return null;
+    let best = null, bestD = hidden ? AMBUSH_REACH : REACH;
     for (const s of this.world.soldiers) {
       if (!s.alive || s.range || !s.aware) continue;
       const dx = p.pos.x - s.root.position.x, dz = p.pos.z - s.root.position.z, d = Math.hypot(dx, dz);
       if (d > bestD || Math.abs(p.pos.y - s.root.position.y) > 0.8) continue;
-      if (s.aware.state === 'alerted') continue;
-      const fx = Math.sin(s.root.rotation.y), fz = Math.cos(s.root.rotation.y);  // where he faces
-      const behind = (dx * fx + dz * fz) / Math.max(d, 1e-3) < -BEHIND;
-      if (!behind && s.aware.state !== 'calm') continue;
+      const ambush = hidden && !s.aware.spotted;   // includes the startled moment
+      if (!ambush) {
+        if (d > REACH || s.aware.state === 'alerted') continue;
+        const fx = Math.sin(s.root.rotation.y), fz = Math.cos(s.root.rotation.y);  // where he faces
+        const behind = (dx * fx + dz * fz) / Math.max(d, 1e-3) < -BEHIND;
+        if (!behind && s.aware.state !== 'calm') continue;
+      }
       best = s; bestD = d;
     }
     return best;
@@ -68,12 +75,15 @@ export class Takedown {
 
   start(s) {
     const p = this.player;
-    const yaw = s.root.rotation.y;
+    // He ends up facing away from you: from behind that's how he stands already; from the
+    // front or side (an ambush) he's spun round as you grab him.
+    const yaw0 = s.root.rotation.y;
+    const yaw = Math.atan2(s.root.position.x - p.pos.x, s.root.position.z - p.pos.z);
     const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     // Stand right behind him, facing the way he faces.
     const spot = s.root.position.clone().addScaledVector(fwd, -STAND_OFF);
     spot.y = this.world.floorAt(spot.x, spot.z, s.root.position.y + 0.3);
-    this.active = { s, t: 0, from: p.pos.clone(), to: spot, struck: false, fwd, yaw: yaw + Math.PI, hips0: this.hipsAhead(fwd) };
+    this.active = { s, t: 0, from: p.pos.clone(), to: spot, struck: false, fwd, yaw: yaw + Math.PI, yaw0, guardYaw: yaw, hips0: this.hipsAhead(fwd) };
     p.locked = true;
     p.vel.set(0, 0, 0);
     if (p.stance !== 'stand') p.setStance('stand');
@@ -93,9 +103,12 @@ export class Takedown {
     const a = this.active, p = this.player, s = a.s;
     a.t += dt;
     // Slide into place behind him.
-    const k = Math.min(1, a.t / STEP_IN);
+    const k = Math.min(1, a.t / STEP_IN), e = k * k * (3 - 2 * k);
     p.prevPos.copy(p.pos);
-    p.pos.lerpVectors(a.from, a.to, k * k * (3 - 2 * k));
+    p.pos.lerpVectors(a.from, a.to, e);
+    // Spin him to face away over the same moment.
+    const dy = Math.atan2(Math.sin(a.guardYaw - a.yaw0), Math.cos(a.guardYaw - a.yaw0));
+    s.root.rotation.y = s.targetYaw = a.yaw0 + dy * e;
     if (!a.struck && a.t >= STRIKE_AT) {
       a.struck = true;
       s.applyHit('torso', { damage: { torso: 999 } }, new THREE.Vector3(Math.sin(s.root.rotation.y), 0, Math.cos(s.root.rotation.y)), { quiet: true });
