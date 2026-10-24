@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sniper Slice</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <canvas id="overlay"></canvas>
+  <canvas id="markers"></canvas>
+
+  <div id="hud">
+    <div id="crosshair"></div>
+    <canvas id="compass"></canvas>
+    <div id="objectives"></div>
+    <div id="wind"><div id="wind-arrow">↑</div><span id="wind-text"></span><small>WIND</small></div>
+    <div id="mask"></div>
+    <div id="alertstate"></div>
+    <div id="vitals">
+      <div id="health"><div id="health-fill"></div></div>
+      <div id="stance">STAND</div>
+      <div class="hr"><span id="heart">♥</span> <span id="heart-text">74</span> <small>BPM</small></div>
+      <div id="breath"><div id="breath-fill"></div></div>
+    </div>
+    <div id="ammo">
+      <div id="weapon-name"></div>
+      <div id="mag"></div>
+      <div id="zero"></div>
+    </div>
+    <div id="scope-info"></div>
+    <div id="range"></div>
+    <div id="hitmsg"></div>
+    <div id="debug"></div>
+    <canvas id="minimap"></canvas>
+    <div id="prompt"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" /><circle id="prompt-ring" cx="18" cy="18" r="15" /></svg><span></span></div>
+  </div>
+  <div id="hurt"></div>
+  <div id="end"><div class="panel"><h2>MISSION COMPLETE</h2><div id="rating"></div><table id="end-stats"></table><button id="again">Play again</button></div></div>
+  <div id="death"><h2>KILLED IN ACTION</h2><p>Click to restart the mission</p></div>
+  <canvas id="mapview"></canvas>
+  <div id="letterbox"><div></div><div><span>CLICK TO SKIP</span></div></div>
+
+  <div id="menu">
+    <div class="panel">
+      <h1>SNIPER SLICE</h1>
+      <p class="sub">Operation Vineyard · Tuscany, 1944</p>
+      <p class="brief">Oberst Krause runs the German post at the vineyard farm and keeps his
+        routine: the villa terrace, his field radio at the truck, the yard. Kill him, then get back
+        to the hill you started from. Wreck his radio first and no help can be called; his papers
+        are worth taking. Use the planes, the artillery and the generator to cover your shots.</p>
+      <div class="buttons"><button id="play">Click to play</button><button id="restart" class="ghost">Restart mission</button></div>
+      <div class="cols">
+        <div>
+          <h2>Settings</h2>
+          <label>Mouse sensitivity <input id="set-sens" type="range" min="0.2" max="3" step="0.05" /><output></output></label>
+          <label>Field of view <input id="set-fov" type="range" min="55" max="90" step="1" /><output></output></label>
+          <label>Volume <input id="set-vol" type="range" min="0" max="1" step="0.05" /><output></output></label>
+          <label class="check"><input id="set-invert" type="checkbox" /> Invert mouse Y</label>
+          <label>Bullet-landing marker
+            <select id="set-lung">
+              <option value="always">Whenever scoped</option>
+              <option value="breath">Holding breath</option>
+              <option value="off">Off</option>
+            </select><output></output></label>
+          <label>Graphics
+            <select id="set-quality">
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select><output></output></label>
+          <label>X-ray kill cam
+            <select id="set-killcam">
+              <option value="sometimes">Sometimes</option>
+              <option value="always">Every kill</option>
+              <option value="off">Off</option>
+            </select><output></output></label>
+        </div>
+        <div>
+          <h2>Controls</h2>
+          <dl>
+            <dt>WASD / arrows</dt><dd>Move</dd>
+            <dt>Shift</dt><dd>Sprint · hold breath while scoped</dd>
+            <dt>Space</dt><dd>Climb a wall or ledge · get on a ladder (W/S climb, Space let go)</dd>
+            <dt>C / Z</dt><dd>Crouch / prone</dd>
+            <dt>Right mouse</dt><dd>Aim / scope</dd>
+            <dt>Left mouse</dt><dd>Fire</dd>
+            <dt>Mouse wheel</dt><dd>Zoom (scope and binoculars)</dd>
+            <dt>↑ / ↓ (aiming)</dt><dd>Zero the scope (100–500 m) · also Page Up / Down</dd>
+            <dt>B (hold)</dt><dd>Binoculars: range and tag</dd>
+            <dt>R</dt><dd>Reload</dd>
+            <dt>1 / 2</dt><dd>Rifle / suppressed pistol</dd>
+            <dt>M</dt><dd>Map (click to set a waypoint)</dd>
+            <dt>E (hold)</dt><dd>Search a body for supplies</dd>
+            <dt>F</dt><dd>Drag / drop a body (hide it in tall grass)</dd>
+            <dt>E (hold, at the siren)</dt><dd>Cut the alarm wire</dd>
+            <dt>Weak spots</dt><dd>Shoot the siren horn, the generator, or a truck's engine (2 hits: it explodes). Tag them with B</dd>
+            <dt>T</dt><dd>Show last bullet's path</dd>
+            <dt>Right mouse (pistol)</dt><dd>Aim over the shoulder</dd>
+            <dt>Click / Space</dt><dd>Skip the kill cam</dd>
+            <dt>F3</dt><dd>Debug info</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
