@@ -20,3 +20,11 @@ crouching couldn't hide you behind a 1.0 m railing, which is the point of crouch
 **Pattern:** for every stance, measure the posed head/chest heights and compare them with the cover the
 level offers (railings, sandbags, walls). The eye height, the camera and the guards' sight points must all
 come from the same numbers.
+
+## A cover multiplier is not cover (2026-10-24)
+**What happened:** tall grass only multiplied the detection rate down (×0.12 crouched), so any guard with a
+line of sight still "saw" you a little. Every system that asked "does he see you?" took any non-zero rate
+as yes: alerted guards got your exact position, went into combat and shot you while you were concealed.
+**Pattern:** separate "noticing something" from "has spotted you". Decide what hiding guarantees (here:
+invisible beyond a short range, unspottable unless a clear look or point blank) and make every consumer
+(AI targeting, firing, last-seen position, alarm) use the spotted flag, not the raw rate.

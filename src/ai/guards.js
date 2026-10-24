@@ -86,7 +86,7 @@ export class GuardAI {
     const p = this.player;
     for (const s of this.guards()) {
       const a = s.aware, b = s.brain;
-      if (a.seeing > 0 && a.state === 'alerted') { b.lastSeenT = this.time; b.lastSeen = p.pos.clone(); }
+      if (a.spotted && a.state === 'alerted') { b.lastSeenT = this.time; b.lastSeen = p.pos.clone(); }
       const mode = this.decide(s);
       if (mode !== b.mode) this.enter(s, mode);
       this.run(s, dt);
@@ -217,7 +217,7 @@ export class GuardAI {
       else return;
     }
     this.stop(s);
-    const target = (a.seeing > 0 ? p.pos : b.lastSeen ?? p.pos);
+    const target = (a.spotted ? p.pos : b.lastSeen ?? p.pos);
     const aimPoint = target.clone(); aimPoint.y += a.headOnly ? p.eye + 0.05 : Math.max(0.3, p.eye * 0.75);
     s.targetYaw = Math.atan2(aimPoint.x - s.root.position.x, aimPoint.z - s.root.position.z);
     b.fireT -= dt;
@@ -226,7 +226,7 @@ export class GuardAI {
     const raised = b.fireT < 1.0;
     s.aimDir = raised ? aimPoint.clone().sub(s.headPosition(this.v).setY(s.headPosition(this.v).y - 0.2)).normalize() : null;
     if (b.fireT <= 0) {
-      if (a.seeing > 0 && !p.dead) { this.fire(s, aimPoint); b.fireT = 2.1 + Math.random() * 1.2; }
+      if (a.spotted && !p.dead) { this.fire(s, aimPoint); b.fireT = 2.1 + Math.random() * 1.2; } // only at what he can actually see
       else b.fireT = 0.6;
     }
   }
@@ -302,7 +302,7 @@ export class GuardAI {
     }
     if (al.runner && !al.runner.alive) { al.runner = null; al.activateT = 0; }
     if (al.on) {
-      const seen = this.guards().some(s => s.aware.seeing > 0 && s.aware.state === 'alerted');
+      const seen = this.guards().some(s => s.aware.spotted && s.aware.state === 'alerted');
       al.quietT = seen ? 0 : al.quietT + dt;
       if (al.quietT > ALARM_QUIET || !al.working) this.stopAlarm();
       if (!this.reinforced && !this.radioDown && (al.reinforceT -= dt) <= 0) this.sendTruck(); // the radio calls them

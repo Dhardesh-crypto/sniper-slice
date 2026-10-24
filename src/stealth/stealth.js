@@ -15,6 +15,14 @@ const MASKED_SHOT = 0.12;        // a fully masked shot carries 12% as far
 const CALM_DOWN = 14;            // seconds without news before a suspicious guard relaxes
 const ALERT_HOLD = 45;           // seconds an alerted guard stays alerted (Phase 5: searching)
 const SHOUT = 40;                // an alerted guard alerts others this close
+// Concealed in tall grass (crouched or prone), a guard can't make you out beyond this
+// (metres; half as far again while you move). Inside it, you're merely hard to see.
+const CONCEAL_SIGHT = { crouch: 7, prone: 4 };
+// Concealed, a guard has really spotted you (knows where you are, can shoot) only with a
+// clear enough look: detection this fast, or you right under his nose. Fainter glimpses only
+// make him wary. In the open any clear line of sight counts, as before.
+const SPOT_RATE = 0.3;
+const POINT_BLANK = 2.5;
 
 export class Stealth {
   constructor({ world, player, arsenal, masking, audio, hud }) {
@@ -115,6 +123,7 @@ export class Stealth {
     const vis = this.playerVisibility();
     const chest = this.v.b.copy(p.pos); chest.y += Math.max(0.25, p.eye * 0.75);
     const head = p.pos.clone(); head.y += p.eye + 0.08;
+    this.concealed = this.inGrass && p.stance !== 'stand' && !p.sprinting;
 
     // New deaths: the body thuds down (nearby guards hear it); one that falls in tall grass is hidden.
     for (const b of this.world.soldiers) {
@@ -139,20 +148,25 @@ export class Stealth {
         a.headOnly = !c && a.seeing > 0;
       }
       seenRate = a.seeing ?? 0;
+      a.spotted = seenRate > 0 && (!this.concealed || seenRate >= SPOT_RATE || d < POINT_BLANK);
       // Footsteps within earshot add suspicion and point the guard at you.
       if (this.noiseRadius > 0 && d < this.noiseRadius) {
         a.meter += (1 - d / this.noiseRadius) * 0.9 * dt;
         a.stimulus = p.pos.clone();
         a.lastNews = this.time;
       }
-      if (seenRate > 0) {
+      if (a.spotted) {
         a.meter += seenRate * dt;
         a.stimulus = p.pos.clone();
         a.lastNews = this.time;
+      } else if (seenRate > 0 && a.state === 'calm') {
+        // Something odd over there: he grows wary and looks roughly that way, no more.
+        a.meter = Math.min(SUSPICIOUS + 0.05, a.meter + seenRate * dt);
+        if (!a.stimulus || a.stimulus.distanceTo(p.pos) > 8) a.stimulus = p.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 8, 0, (Math.random() - 0.5) * 8));
       } else if (a.state === 'calm') {
         a.meter = Math.max(0, a.meter - 0.12 * dt);
       }
-      if (a.meter >= 1 && a.state !== 'alerted') this.raise(s, 'alerted', p.pos.clone(), seenRate > 0 ? 'seen' : 'heard');
+      if (a.meter >= 1 && a.state !== 'alerted') this.raise(s, 'alerted', p.pos.clone(), a.spotted ? 'seen' : 'heard');
       else if (a.meter >= SUSPICIOUS && a.state === 'calm') this.raise(s, 'suspicious', a.stimulus, seenRate > 0 ? 'glimpse' : 'heard');
       a.meter = Math.min(1, a.meter);
       // Calming down.
@@ -169,6 +183,7 @@ export class Stealth {
   // Detection rate (meter per second) of `s` seeing a target at `chest`, or 0.
   canSee(s, chest, vis, d) {
     const a = s.aware;
+    if (this.concealed && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
     const range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1);
     if (d > range * Math.sqrt(vis) + 3) return 0;
