@@ -301,7 +301,7 @@ function step(realDt, draw = true) {
   avatar.update(dt, {
     pos: new THREE.Vector3().lerpVectors(player.prevPos, player.pos, alpha),
     lookYaw: player.yaw, lookPitch: player.pitch, moveYaw: player.moveYaw,
-    stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead,
+    stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
     visible: fpBlend < 0.5 && rig.armLen > 0.9, // hide the body when a wall pushes the camera into it

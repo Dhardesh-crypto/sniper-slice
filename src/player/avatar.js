@@ -36,6 +36,52 @@ export class Avatar {
     this.s = { prone: 0, crouch: 0, aim: 0, ready: 0, pitch: 0 };
     this.state = '';
     this.char.play('idleLegs', { fade: 0 });
+    this.buildConcealLook();
+  }
+
+  // Concealed in tall grass: the body turns translucent with a white outline. The outline is
+  // a slightly inflated copy of the skinned body drawn back faces only (so just its rim shows);
+  // a depth-only copy drawn first keeps the far side of the body from showing through.
+  buildConcealLook() {
+    this.conceal = 0;
+    this.outlineMats = [];
+    this.fadeMats = [];
+    this.concealParts = [];
+    const skins = [];
+    this.char.model.traverse(o => { if (o.isSkinnedMesh) skins.push(o); });
+    for (const m of skins) {
+      m.material = m.material.clone();
+      this.fadeMats.push(m.material);
+      const depth = m.clone();
+      depth.material = new THREE.MeshBasicMaterial({ colorWrite: false });
+      depth.renderOrder = 999; // after the rest of the opaque scene, so what is behind the body still gets drawn
+      const outline = m.clone();
+      outline.material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, fog: false });
+      outline.material.onBeforeCompile = (sh) => {
+        sh.uniforms.uWidth = { value: 0.02 }; // metres: the skinned geometry is in metres (the skeleton undoes the node's 0.01)
+        sh.vertexShader = sh.vertexShader
+          .replace('void main() {', 'uniform float uWidth;\nvoid main() {')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normal * uWidth;');
+      };
+      this.outlineMats.push(outline.material);
+      for (const c of [depth, outline]) { c.castShadow = c.receiveShadow = false; c.visible = false; c.userData.noAO = true; c.userData.concealCopy = true; m.parent.add(c); }
+      this.concealParts.push(depth, outline);
+    }
+    this.char.rifle.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });
+  }
+
+  updateConcealLook(dt, concealed) {
+    this.conceal = damp(this.conceal, concealed ? 1 : 0, 6, dt);
+    const k = this.conceal, on = k > 0.01;
+    for (const m of this.fadeMats) {
+      m.transparent = on;
+      m.opacity = 1 - 0.55 * k;
+      m.depthWrite = !on || m.isMeshBasicMaterial; // the depth copy has already written the body's depth
+    }
+    for (const m of this.outlineMats) m.opacity = 0.85 * k;
+    for (const p of this.concealParts) p.visible = on;
+    // Kept out of the AO pass while see-through, or it would darken the ground behind.
+    this.char.model.traverse(o => { if (o.isSkinnedMesh && !o.userData.concealCopy) o.userData.noAO = on; });
   }
 
   muzzle(weapon, out = new THREE.Vector3()) {
@@ -47,6 +93,7 @@ export class Avatar {
   // st: { pos, lookYaw, lookPitch, moveYaw, stance, speed, sprinting, weapon, aiming, ready, boltT, reloading, visible }
   update(dt, st) {
     const s = this.s, c = this.char;
+    this.updateConcealLook(dt, st.concealed && !st.dead);
     this.root.visible = st.visible;
     this.root.position.copy(st.pos);
     if (st.dead) {
