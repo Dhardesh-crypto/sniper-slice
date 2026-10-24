@@ -130,3 +130,12 @@ body.started #restart { display: inline-block; }
 #end-stats { border-collapse: collapse; font-size: 13px; margin-bottom: 22px; }
 #end-stats td { padding: 5px 18px 5px 0; vertical-align: top; white-space: pre-line; }
 #end-stats td:first-child { color: var(--dim); }
+
+#conceal { display: flex; align-items: center; gap: 6px; height: 18px; margin-bottom: 4px; font-size: 11px; letter-spacing: 0.2em; opacity: 0; transition: opacity 0.25s, color 0.25s; }
+#conceal svg { width: 18px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.2; }
+#conceal.on { opacity: 1; color: #9fe0a8; }
+#conceal.partial { opacity: 0.8; color: var(--dim); }
+#hidden-edge { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(40, 70, 30, 0.38) 100%); }
+#hidden-edge.on { opacity: 1; }
+body.killcam #hidden-edge, body.mapopen #hidden-edge { opacity: 0; }

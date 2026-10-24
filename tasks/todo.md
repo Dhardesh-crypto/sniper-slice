@@ -236,3 +236,7 @@ crouched one, and only the head while peeking to aim.
 - Space fires while aiming (it still climbs when you're not aiming); = / − zoom in and out, V switches 4× / 8× (scope and binoculars).
 - Menu setting "Aim (right mouse)": Hold (default) or Click to toggle.
 - Verified by script: Space without aiming doesn't fire, while aiming it does; zoom keys on scope and binoculars; toggle aim on, fire with Space, off; Space still climbs the compound wall.
+
+### Extra: concealment indicator (done, 2026-10-24)
+- Crouched or prone in tall grass (on the ground, not sprinting): "CONCEALED" with a grass icon above the stance, in green, and a faint green edge to the view (not in the scope, map or kill cam). Standing in tall grass: a dim "IN TALL GRASS · CROUCH TO HIDE".
+- Verified by script in a grass patch by the start hill: standing → hint, crouch and prone → concealed with the edge, outside the grass → nothing.

@@ -261,6 +261,14 @@ export class Hud {
     el.windText.textContent = `${world.windSpeed.toFixed(1)} m/s`;
 
     el.stance.textContent = player.stance.toUpperCase();
+    // Concealment in tall grass: an icon over the stance and a faint green edge to the view.
+    const cc = el.conceal ?? (el.conceal = document.getElementById('conceal'));
+    const edge = el.hiddenEdge ?? (el.hiddenEdge = document.getElementById('hidden-edge'));
+    const concealed = !!stealth?.concealed && !player.dead, partial = !!stealth?.inGrass && !concealed && !player.dead;
+    cc.className = concealed ? 'on' : partial ? 'partial' : '';
+    const text = concealed ? 'CONCEALED' : partial ? 'IN TALL GRASS · CROUCH TO HIDE' : '';
+    if (cc.lastChild.textContent !== text && text) cc.lastChild.textContent = text;
+    edge.classList.toggle('on', concealed && mode === 'none');
     // Health and the red edge when hit.
     const hb = el.health ?? (el.health = document.getElementById('health'));
     hb.firstElementChild.style.width = `${player.health.toFixed(1)}%`;

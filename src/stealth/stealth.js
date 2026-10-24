@@ -40,7 +40,9 @@ export class Stealth {
   playerVisibility() {
     const p = this.player;
     let v = STANCE_VIS[p.stance];
-    if (inTallGrass(this.world.grassPatches, p.pos.x, p.pos.z)) v *= GRASS_VIS[p.stance];
+    // Ground-level grass only: not when you're up on a wall, tower or truck.
+    this.inGrass = p.grounded && !p.climb && p.pos.y - this.world.groundAt(p.pos.x, p.pos.z) < 0.3 && inTallGrass(this.world.grassPatches, p.pos.x, p.pos.z);
+    if (this.inGrass) v *= GRASS_VIS[p.stance];
     if (p.sprinting) v *= 1.8;
     else if (p.moving) v *= 1 + p.speed / 5;
     return v;
@@ -205,6 +207,10 @@ export class Stealth {
   state() {
     let worst = 'calm';
     for (const s of this.guards()) if (s.aware.state === 'alerted') worst = 'alerted'; else if (s.aware.state === 'suspicious' && worst === 'calm') worst = 'suspicious';
-    return { alarm: this.alarm, mask: this.mask, noise: this.noiseRadius, lastShot: this.lastShot, time: this.time, worst, upcoming: this.masking.upcoming() };
+    // Concealed: crouched or prone in tall grass (standing, the grass hides you only a little).
+    const p = this.player;
+    const concealed = this.inGrass && p.stance !== 'stand' && !p.sprinting;
+    return { inGrass: !!this.inGrass, concealed,
+      alarm: this.alarm, mask: this.mask, noise: this.noiseRadius, lastShot: this.lastShot, time: this.time, worst, upcoming: this.masking.upcoming() };
   }
 }
