@@ -96,7 +96,12 @@ export class Arsenal {
       }
     }
 
-    this.aiming = inp.down('Mouse2') && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb;
+    // Aim: hold right mouse, or (setting) click once to raise and again to lower: easier on a trackpad.
+    if (this.settings.aimMode === 'toggle') {
+      if (inp.wasPressed('Mouse2')) this.aimLatched = !this.aimLatched;
+      if (this.player.sprinting || this.player.climb || this.player.carrying || this.pendingSwitch) this.aimLatched = false;
+    } else this.aimLatched = inp.down('Mouse2');
+    this.aiming = this.aimLatched && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb;
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
@@ -114,13 +119,18 @@ export class Arsenal {
       if ((this.aiming && inp.wasPressed('ArrowUp')) || inp.wasPressed('PageUp')) w.zeroIndex = Math.min(def.zeros.length - 1, w.zeroIndex + 1);
       if ((this.aiming && inp.wasPressed('ArrowDown')) || inp.wasPressed('PageDown')) w.zeroIndex = Math.max(0, w.zeroIndex - 1);
     }
-    // Mouse wheel zooms the scope or the binoculars, whichever you're looking through.
+    // Zoom the scope or the binoculars, whichever you're looking through: mouse wheel,
+    // = / − (in / out), or V to switch between the two magnifications.
     const wheel = inp.takeWheel();
-    const step = wheel < 0 ? 1 : -1;
-    if (wheel && this.aiming && def.zoomFovs.length > 1) {
-      this.zoomIndex = THREE.MathUtils.clamp(this.zoomIndex + step, 0, def.zoomFovs.length - 1);
-    } else if (wheel && this.binoculars) {
-      this.binocZoomIndex = THREE.MathUtils.clamp(this.binocZoomIndex + step, 0, BINOCULARS.zoomFovs.length - 1);
+    let step = wheel ? (wheel < 0 ? 1 : -1) : 0;
+    if (inp.wasPressed('Equal') || inp.wasPressed('NumpadAdd')) step = 1;
+    if (inp.wasPressed('Minus') || inp.wasPressed('NumpadSubtract')) step = -1;
+    const cycle = inp.wasPressed('KeyV');
+    const zoom = (i, n) => (cycle ? (i + 1) % n : THREE.MathUtils.clamp(i + step, 0, n - 1));
+    if ((step || cycle) && this.aiming && def.zoomFovs.length > 1) {
+      this.zoomIndex = zoom(this.zoomIndex, def.zoomFovs.length);
+    } else if ((step || cycle) && this.binoculars) {
+      this.binocZoomIndex = zoom(this.binocZoomIndex, BINOCULARS.zoomFovs.length);
     }
 
     this.tickBreath(dt);
@@ -132,7 +142,9 @@ export class Arsenal {
       this.boltT += dt / (def.cycleTime - 0.2);
       if (this.boltT >= 1) this.boltT = -1;
     }
-    if (inp.wasPressed('Mouse0') && !this.binoculars && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && this.cooldown <= 0) {
+    // Fire: left mouse, or Space while aiming (Space climbs when you're not aiming).
+    const trigger = inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
+    if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && this.cooldown <= 0) {
       if (w.mag > 0) this.fire();
       else { this.audio.dryFire(); this.cooldown = 0.3; }
     }

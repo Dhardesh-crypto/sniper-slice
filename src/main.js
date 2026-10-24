@@ -156,6 +156,7 @@ bind('set-invert', 'invertY');
 bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
+bind('set-aim', 'aimMode', () => '');
 
 document.getElementById('play').addEventListener('click', () => {
   audio.start();

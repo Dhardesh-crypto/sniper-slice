@@ -90,7 +90,7 @@ export class Player {
 
     if (this.climb) this.tickClimb(dt, fwd);
     else {
-      if (inp.wasPressed('Space') && !this.carrying) this.tryClimb();
+      if (inp.wasPressed('Space') && !this.carrying && !aiming) this.tryClimb(); // while aiming, Space fires
       if (!this.climb) this.tickWalk(dt, fwd, strafe, aiming);
     }
     const st = STANCES[this.stance];

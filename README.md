@@ -35,10 +35,10 @@ npm run dev    # then open the URL Vite prints
 | WASD / arrows | Move |
 | Shift | Sprint · hold breath while scoped |
 | C / Z | Crouch / prone |
-| Space | Climb a wall or ladder |
-| Right mouse | Aim / scope |
+| Space | Fire while aiming · climb a wall or ladder otherwise |
+| Right mouse | Aim / scope (hold, or click to toggle: a menu setting for trackpads) |
 | Left mouse | Fire |
-| Mouse wheel | Zoom |
+| Mouse wheel · = / − · V | Zoom the scope or binoculars (V switches 4× / 8×) |
 | ↑ / ↓ while aiming, Page Up / Down | Zero the scope |
 | B (hold) | Binoculars: range and tag |
 | R | Reload |

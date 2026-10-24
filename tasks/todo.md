@@ -231,3 +231,8 @@ crouched one, and only the head while peeking to aim.
 ### Extra: objectives on the map (done, 2026-10-24)
 - Full map (M): target (a dashed search circle until tagged, then a diamond on him), radio, papers (on his body once he's dead), extraction (with its 10 m circle), tagged weak spots; labels stack with leader lines so the compound doesn't turn into a pile of text. Legend extended and wraps on narrow windows.
 - Minimap: the same markers; objectives beyond its edge are pinned to the rim in their colour (as the waypoint already was).
+
+### Extra: trackpad-friendly controls (done, 2026-10-24)
+- Space fires while aiming (it still climbs when you're not aiming); = / − zoom in and out, V switches 4× / 8× (scope and binoculars).
+- Menu setting "Aim (right mouse)": Hold (default) or Click to toggle.
+- Verified by script: Space without aiming doesn't fire, while aiming it does; zoom keys on scope and binoculars; toggle aim on, fire with Space, off; Space still climbs the compound wall.
