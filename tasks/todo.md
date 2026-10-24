@@ -227,3 +227,7 @@ crouched one, and only the head while peeking to aim.
 - The shot that blows up an engine gets its own kill cam: the bullet ride, then a slow-motion pull-back from the fireball.
 - Binoculars tag weak spots too: orange warning triangle with name and hits left, on screen and on the compass.
 - Verified by script: siren shot from 60 m; generator shot from 8 m and repaired by the yard guard; radio truck: smoke, then explosion with the kill cam, a guard beside it killed, radio objective done; reinforcement truck: stalled on the road by one shot (troops out on foot), destroyed by the second; tagging the generator and a truck.
+
+### Extra: objectives on the map (done, 2026-10-24)
+- Full map (M): target (a dashed search circle until tagged, then a diamond on him), radio, papers (on his body once he's dead), extraction (with its 10 m circle), tagged weak spots; labels stack with leader lines so the compound doesn't turn into a pile of text. Legend extended and wraps on narrow windows.
+- Minimap: the same markers; objectives beyond its edge are pinned to the rim in their colour (as the waypoint already was).

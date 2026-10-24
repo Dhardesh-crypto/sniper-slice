@@ -144,6 +144,7 @@ export class Mission {
         : { pos: new THREE.Vector3(COMPOUND.x + 8, this.world.groundAt(COMPOUND.x, COMPOUND.z), COMPOUND.z - 4), kind: 'target', label: 'TARGET AREA', height: 9 });
     }
     if (!this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
+    if (!this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
     if (!this.obj('extract').hidden) out.push({ pos: this.extraction, kind: 'extract', label: 'EXTRACTION', height: 3 });
     return out;
   }

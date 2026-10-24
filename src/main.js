@@ -71,6 +71,8 @@ const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, f
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
+mapView.mission = mission;
+mapView.hotspots = hotspots;
 arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot(); };
 stealth.onRaise = (why) => mission.onRaise(why);
 const endScreen = document.getElementById('end');

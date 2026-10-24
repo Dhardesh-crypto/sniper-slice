@@ -8,6 +8,8 @@ const PX = 800;                      // map image size in pixels (1 m per pixel)
 const GRID = 100;                    // grid squares, metres
 const COLS = 'ABCDEFGH';
 
+const OBJ_COLORS = { target: '#ffcf6a', radio: '#8fd0ff', papers: '#d9b3ff', extract: '#8fe08a', weakspot: '#ff9a3c', waypoint: '#ffe28a' };
+
 export class MapView {
   constructor(world) {
     this.world = world;
@@ -115,6 +117,7 @@ export class MapView {
   // ---- markers shared by both views (ctx already transformed to map pixels) ----
   drawMarkers(g, st, scale) {
     const s = Math.min(devicePixelRatio, 2) * 1.25 / scale; // constant on-screen size, any zoom or DPI
+    this.drawObjectives(g, st, s);
     // Bodies: hollow when searched, filled when there may be supplies.
     for (const so of this.world.soldiers) {
       if (so.alive || so.range) continue;
@@ -154,6 +157,74 @@ export class MapView {
     g.restore();
   }
 
+  // Mission objectives (target, radio, papers, extraction) and tagged weak spots. Labels
+  // only on the full map (it doesn't rotate), stacked so close ones don't overlap.
+  drawObjectives(g, st, s) {
+    const mPerPx = (2 * MAP_HALF) / PX;
+    const labels = [];
+    const diamond = (x, y, r, color) => {
+      g.fillStyle = color; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.5 * s;
+      g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); g.fill(); g.stroke();
+    };
+    for (const m of this.mission?.markers() ?? []) {
+      const [x, y] = this.toMap(m.pos.x, m.pos.z);
+      const color = OBJ_COLORS[m.kind];
+      if (m.label === 'TARGET AREA') {
+        // Not tagged yet: a circle where to look, not a point where he is.
+        const r = Math.max(28 / mPerPx, 9 * s);
+        g.strokeStyle = color; g.lineWidth = 2 * s;
+        g.setLineDash([4 * s, 3 * s]);
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+        g.setLineDash([]);
+        labels.push({ x, y: y - r, text: m.label, color });
+        continue;
+      }
+      if (m.kind === 'extract') { g.strokeStyle = color; g.lineWidth = 2 * s; g.beginPath(); g.arc(x, y, Math.max(10 / mPerPx, 9 * s), 0, Math.PI * 2); g.stroke(); }
+      diamond(x, y, 6 * s, color);
+      labels.push({ x, y: y - 7 * s, text: m.label, color });
+    }
+    for (const h of this.hotspots?.tagged() ?? []) {
+      const c = h.center(); const [x, y] = this.toMap(c.x, c.z);
+      g.fillStyle = OBJ_COLORS.weakspot; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.5 * s;
+      g.beginPath(); g.moveTo(x, y - 6 * s); g.lineTo(x + 6 * s, y + 5 * s); g.lineTo(x - 6 * s, y + 5 * s); g.closePath(); g.fill(); g.stroke();
+      labels.push({ x, y: y - 7 * s, text: h.label(), color: OBJ_COLORS.weakspot });
+    }
+    if (!st.full) return;
+    g.font = `600 ${10 * s}px "Helvetica Neue", Arial, sans-serif`;
+    g.textAlign = 'center';
+    const placed = [], lineH = 13 * s;
+    for (const l of labels.sort((a, b) => b.y - a.y)) {
+      const w = g.measureText(l.text).width + 6 * s;
+      let ly = l.y - 3 * s;
+      const hits = () => placed.some(p => Math.abs(p.x - l.x) < (p.w + w) / 2 && Math.abs(p.y - ly) < lineH);
+      while (hits()) ly -= lineH;
+      placed.push({ x: l.x, y: ly, w });
+      if (l.y - ly > 4 * s) { // pushed up: a thin leader back to its marker
+        g.strokeStyle = l.color; g.lineWidth = 1 * s; g.globalAlpha = 0.7;
+        g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(l.x, ly + 2 * s); g.stroke();
+        g.globalAlpha = 1;
+      }
+      g.lineWidth = 3 * s; g.strokeStyle = 'rgba(0,0,0,0.8)';
+      g.strokeText(l.text, l.x, ly);
+      g.fillStyle = l.color;
+      g.fillText(l.text, l.x, ly);
+    }
+  }
+
+  // Objectives beyond the minimap's edge: pinned to the rim in their direction.
+  rimPins(g, st, R, metres, dpr) {
+    const pins = (this.mission?.markers() ?? []).map(m => ({ pos: m.pos, color: OBJ_COLORS[m.kind] }));
+    if (this.waypoint) pins.push({ pos: this.waypoint, color: OBJ_COLORS.waypoint });
+    for (const pin of pins) {
+      const dx = pin.pos.x - st.player.pos.x, dz = pin.pos.z - st.player.pos.z;
+      if (Math.hypot(dx, dz) <= metres) continue;
+      const a = Math.atan2(dz, dx) + st.player.yaw;
+      const x = R + Math.cos(a) * (R - 9 * dpr), y = R + Math.sin(a) * (R - 9 * dpr), r = 4.5 * dpr;
+      g.fillStyle = pin.color; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1 * dpr;
+      g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); g.fill(); g.stroke();
+    }
+  }
+
   // ---- full-screen map ----
   layoutFull() {
     const dpr = Math.min(devicePixelRatio, 2);
@@ -173,7 +244,7 @@ export class MapView {
     g.translate(L.x0, L.y0);
     g.scale(L.scale, L.scale);
     g.drawImage(this.base, 0, 0);
-    this.drawMarkers(g, st, L.scale);
+    this.drawMarkers(g, { ...st, full: true }, L.scale);
     g.restore();
     g.strokeStyle = 'rgba(240,235,220,0.5)';
     g.lineWidth = L.dpr;
@@ -191,15 +262,17 @@ export class MapView {
     g.textAlign = 'right';
     g.fillText('Click: set waypoint · Right-click: clear · M: close', L.x0 + L.size, L.y0 - 14 * d);
     g.textAlign = 'left';
-    const legend = [['#ffffff', 'You'], ['#ff4a3d', 'Tagged enemy'], ['#e8d07a', 'Body to search'], ['#ffe28a', 'Waypoint'], ['rgba(190,200,110,0.8)', 'Tall grass (cover)']];
-    let lx = L.x0;
-    const ly = L.y0 + L.size + 22 * d;
+    const legend = [['#ffffff', 'You'], [OBJ_COLORS.target, 'Target'], [OBJ_COLORS.radio, 'Radio'], [OBJ_COLORS.papers, 'Papers'], [OBJ_COLORS.extract, 'Extraction'],
+      [OBJ_COLORS.weakspot, 'Weak spot'], ['#ff4a3d', 'Tagged enemy'], ['#e8d07a', 'Body to search'], ['#ffe28a', 'Waypoint'], ['rgba(190,200,110,0.8)', 'Tall grass']];
+    let lx = L.x0, ly = L.y0 + L.size + 22 * d;
     for (const [color, label] of legend) {
+      const w = g.measureText(label).width + 16 * d;
+      if (lx + w > L.x0 + L.size) { lx = L.x0; ly += 18 * d; } // wrap on narrow windows
       g.fillStyle = color;
       g.fillRect(lx, ly - 9 * d, 10 * d, 10 * d);
       g.fillStyle = 'rgba(242,237,225,0.8)';
       g.fillText(label, lx + 16 * d, ly);
-      lx += g.measureText(label).width + 44 * d;
+      lx += w + 22 * d;
     }
     // North arrow
     g.textAlign = 'center';
@@ -254,16 +327,8 @@ export class MapView {
         if (age < 2.5) ring(shot.radius, `rgba(255,80,60,${0.9 * (1 - age / 2.5)})`, 2.5);
       }
     }
-    // Waypoint off the edge: pin it to the rim.
-    if (this.waypoint) {
-      const dx = this.waypoint.x - st.player.pos.x, dz = this.waypoint.z - st.player.pos.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > metres) {
-        const a = Math.atan2(dz, dx) + st.player.yaw;
-        g.fillStyle = '#ffe28a';
-        g.beginPath(); g.arc(R + Math.cos(a) * (R - 9 * dpr), R + Math.sin(a) * (R - 9 * dpr), 4 * dpr, 0, Math.PI * 2); g.fill();
-      }
-    }
+    // Objectives and the waypoint off the edge: pinned to the rim.
+    this.rimPins(g, st, R, metres, dpr);
     // Rim with compass letters
     g.strokeStyle = 'rgba(242,237,225,0.6)';
     g.lineWidth = 1.5 * dpr;
