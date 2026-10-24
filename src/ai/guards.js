@@ -78,7 +78,7 @@ export class GuardAI {
     };
   }
 
-  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && s.brain); }
+  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && s.brain && !s.takenDown); }
 
   // ---------------------------------------------------------------- per tick
   tick(dt) {

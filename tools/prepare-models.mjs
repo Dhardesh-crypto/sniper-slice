@@ -1,7 +1,7 @@
 // Prepares the Higgsfield/Meshy downloads in models-src/ for the game (public/models/):
 // characters and props get 1024 px WebP textures; anim_*.glb files keep only their
 // skeleton and animation (mesh, skin and textures removed), so each clip is a few KB.
-// Run: node tools/prepare-models.mjs
+// Run: node tools/prepare-models.mjs [file.glb …]   (no names: every file in models-src/)
 import { readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { NodeIO } from '@gltf-transform/core';
@@ -11,7 +11,8 @@ import { prune } from '@gltf-transform/functions';
 const SRC = 'models-src', OUT = 'public/models';
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 
-for (const file of readdirSync(SRC).filter(f => f.endsWith('.glb'))) {
+const only = process.argv.slice(2);
+for (const file of readdirSync(SRC).filter(f => f.endsWith('.glb') && (!only.length || only.includes(f)))) {
   const src = `${SRC}/${file}`, out = `${OUT}/${file}`;
   if (file.startsWith('anim_')) {
     const doc = await io.read(src);

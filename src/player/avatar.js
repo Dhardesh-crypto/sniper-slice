@@ -106,18 +106,21 @@ export class Avatar {
 
     // Face where you're moving; face the camera when aiming or shooting; face the rungs on a ladder.
     const climb = st.climb;
-    const facing = climb?.kind === 'ladder' ? climb.ladder.yaw
+    const facing = st.takedownYaw ?? (climb?.kind === 'ladder' ? climb.ladder.yaw
       : climb ? Math.atan2(-(climb.to.x - climb.from.x), -(climb.to.z - climb.from.z)) || this.yaw
-      : st.aiming || st.ready > 0.05 || st.speed < 0.3 ? st.lookYaw : st.moveYaw;
+      : st.aiming || st.ready > 0.05 || st.speed < 0.3 ? st.lookYaw : st.moveYaw);
     let d = facing - this.yaw;
     d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.yaw += d * (1 - Math.exp(-(st.aiming ? 18 : 9) * dt));
+    this.yaw += d * (1 - Math.exp(-(st.aiming || st.takedownYaw !== undefined ? 18 : 9) * dt));
     this.root.rotation.y = this.yaw;
 
     // Pick the base clip from stance and speed, and match its pace to the real speed.
     const moving = st.speed > 0.25;
     let clip, rate = 1;
-    if (climb) {
+    if (st.takedown && c.action('takedownAtk')) {
+      clip = 'takedownAtk';
+      rate = 1.3;
+    } else if (climb) {
       // No climbing clip yet: a slow stride on the rungs, a crouched push over a ledge.
       clip = climb.kind === 'ladder' ? 'walkLegs' : 'crouchLegs';
       rate = climb.kind === 'ladder' ? (st.climbRate ?? 0) / 1.2 : 0.8;
@@ -137,14 +140,14 @@ export class Avatar {
       clip = 'idleLegs';
     }
     if (clip !== this.state) {
-      c.play(clip, { fade: clip === 'crawl' || this.state === 'crawl' ? 0.35 : 0.22 });
+      c.play(clip, { fade: clip === 'takedownAtk' ? 0.1 : clip === 'crawl' || this.state === 'crawl' ? 0.35 : 0.22, once: clip === 'takedownAtk' });
       this.state = clip;
     }
     if (c.base) c.base.timeScale = rate;
 
     // Arms hold the rifle except while sprinting (the sprint clip carries it) or crawling.
     s.prone = damp(s.prone, st.stance === 'prone' ? 1 : 0, 6, dt);
-    const holdTarget = st.sprinting || st.stance === 'prone' || climb ? 0 : 1;
+    const holdTarget = st.sprinting || st.stance === 'prone' || climb || st.takedown ? 0 : 1;
     c.setHoldWeight(damp(c.hold?.getEffectiveWeight() ?? 1, holdTarget, 10, dt));
     c.update(dt);
     // Crouched low behind cover; aiming raises you to look over it.
@@ -157,8 +160,8 @@ export class Avatar {
     this.root.updateMatrixWorld(true);
 
     // Weapons: rifle shouldered or carried in both hands, or slung with the pistol drawn.
-    if (climb) {
-      c.slingRifle(); // both hands for climbing
+    if (climb || st.takedown) {
+      c.slingRifle(); // both hands for climbing or the knife
       this.pistol.visible = false;
     } else if (st.weapon === 'rifle') {
       const shoulder = s.ready > 0.35 && !st.reloading && !st.sprinting && st.stance !== 'prone';

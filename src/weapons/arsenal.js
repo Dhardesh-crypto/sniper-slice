@@ -101,7 +101,7 @@ export class Arsenal {
       if (inp.wasPressed('Mouse2')) this.aimLatched = !this.aimLatched;
       if (this.player.sprinting || this.player.climb || this.player.carrying || this.pendingSwitch) this.aimLatched = false;
     } else this.aimLatched = inp.down('Mouse2');
-    this.aiming = this.aimLatched && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb;
+    this.aiming = this.aimLatched && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && !this.player.locked;
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
@@ -144,7 +144,7 @@ export class Arsenal {
     }
     // Fire: left mouse, or Space while aiming (Space climbs when you're not aiming).
     const trigger = inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
-    if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && this.cooldown <= 0) {
+    if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && !this.player.locked && this.cooldown <= 0) {
       if (w.mag > 0) this.fire();
       else { this.audio.dryFire(); this.cooldown = 0.3; }
     }

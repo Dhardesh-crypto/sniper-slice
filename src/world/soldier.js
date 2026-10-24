@@ -71,12 +71,12 @@ export class Soldier {
     this.applyStance(0.25);
   }
 
-  applyHit(zone, weapon, bulletDir) {
+  applyHit(zone, weapon, bulletDir, opts = {}) {
     if (!this.alive) return { zone, killed: false, damage: 0, already: true };
     const damage = weapon.damage[zone] ?? 50;
     this.hp -= damage;
     if (this.hp <= 0) {
-      this.die(bulletDir);
+      this.die(bulletDir, opts);
       return { zone, killed: true, damage };
     }
     this.wounded = true;
@@ -99,15 +99,26 @@ export class Soldier {
     if (this.stance === 'easy') { this.stance = 'alert'; this.applyStance(0.35); }
   }
 
-  die(bulletDir) {
+  // Grabbed from behind for a knife takedown: his struggle-and-fall clip starts now; the
+  // killing blow comes a moment later (die with quiet: true keeps the clip playing).
+  grabbed() {
+    if (!this.char.action('takedownVic')) return;
+    this.char.setHoldWeight(0);
+    this.char.play('takedownVic', { fade: 0.12, once: true, timeScale: 1.8 });
+    this.char.base.time = 2.6; // skip the long standing struggle: straight to the sag and fall
+    this.grabClip = true;
+  }
+
+  die(bulletDir, { quiet = false } = {}) {
     this.alive = false;
+    this.quietDeath = quiet;
     // Shot from the front falls backward; from behind falls forward.
     const facing = new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y));
     const fromFront = bulletDir.dot(facing) < 0;
     this.char.setHoldWeight(0);
-    this.char.play(fromFront ? 'deathBack' : 'deathFwd', { fade: 0.08, once: true, timeScale: 1.15 });
+    if (!(quiet && this.grabClip)) this.char.play(fromFront ? 'deathBack' : 'deathFwd', { fade: 0.08, once: true, timeScale: 1.15 });
     this.fallFrom = this.root.position.clone();
-    this.knock = new THREE.Vector3(bulletDir.x, 0, bulletDir.z).normalize().multiplyScalar(0.35);
+    this.knock = new THREE.Vector3(bulletDir.x, 0, bulletDir.z).normalize().multiplyScalar(quiet ? 0 : 0.35);
     this.deathT = 0;
     if (this.char.rifle.visible) this.dropRifle(bulletDir);
   }
@@ -173,7 +184,8 @@ export class Soldier {
     this.crouch += ((this.alive ? this.crouchTarget : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand' });
     this.kick = Math.max(0, this.kick - dt * 4);
-    if (this.alive && this.aimDir && this.stance !== 'officer') this.char.placeRifleShouldered(this.aimDir, this.kick * 0.07);
+    if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
+    else if (this.alive && this.aimDir && this.stance !== 'officer') this.char.placeRifleShouldered(this.aimDir, this.kick * 0.07);
     else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.char.placeRifleInHands(this.gait === 'run' ? 'port' : 'low');
     else if (this.alive && this.stance === 'easy') this.char.slingRifle();
     this.root.updateMatrixWorld(true);
@@ -189,6 +201,7 @@ export class Soldier {
     this.wounded = false;
     this.searched = false;
     this.found = this.hidden = this.dragged = this.deathNoted = false;
+    this.takenDown = this.grabClip = this.quietDeath = false;
     this.stance = this.baseStance;
     this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouch = this.crouchTarget = 0;
     this.root.rotation.y = this.targetYaw = this.homeYaw;

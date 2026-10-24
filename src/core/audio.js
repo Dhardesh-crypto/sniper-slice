@@ -220,6 +220,13 @@ export class Audio {
     this.noiseBurst({ at: at + 0.4, dur: 2.5, type: 'lowpass', freq: 500, freqEnd: 120, gain: 0.3 * k, attack: 0.3 });
   }
 
+  // A knife takedown: a muffled thump and a short scuffle of cloth.
+  knife() {
+    this.thump({ freq: 90, dur: 0.18, gain: 0.45 });
+    this.noiseBurst({ dur: 0.12, type: 'lowpass', freq: 900, gain: 0.3 });
+    this.noiseBurst({ at: 0.1, dur: 0.4, type: 'bandpass', freq: 1300, q: 0.8, gain: 0.12, attack: 0.05 });
+  }
+
   // ---- combat ----
   // A guard's rifle shot heard from `distance` metres: later, duller and quieter far off.
   enemyShot(distance) {

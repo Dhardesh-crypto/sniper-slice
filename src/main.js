@@ -21,6 +21,7 @@ import { Stealth } from './stealth/stealth.js';
 import { GuardAI } from './ai/guards.js';
 import { Mission } from './mission/mission.js';
 import { Hotspots } from './world/hotspots.js';
+import { Takedown } from './player/takedown.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -71,6 +72,9 @@ const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, f
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
+const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud });
+takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
+takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;
 mapView.hotspots = hotspots;
 arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot(); };
@@ -206,6 +210,7 @@ function tick(dt) {
   player.tick(dt, { aiming: arsenal.aiming });
   arsenal.tick(dt);
   search.tick(dt);
+  takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
   stealth.tick(dt);
@@ -301,11 +306,12 @@ function step(realDt, draw = true) {
   avatar.update(dt, {
     pos: new THREE.Vector3().lerpVectors(player.prevPos, player.pos, alpha),
     lookYaw: player.yaw, lookPitch: player.pitch, moveYaw: player.moveYaw,
-    stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed,
+    stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
     visible: fpBlend < 0.5 && rig.armLen > 0.9, // hide the body when a wall pushes the camera into it
   });
+  takedown.placeKnife();
 
   // Shadows follow the look direction, reaching farther when zoomed in.
   const reach = 40 + 160 * fpBlend;
@@ -327,7 +333,8 @@ function step(realDt, draw = true) {
   post.draw();
   const st = stealth.state();
   const ss = search.state(), cs = carry.state(), co = player.climbOption(), cut = ai.sabotageOption(), rad = mission.radioOption();
-  const prompts = carry.body ? [cs] : [cut, rad, ss, cs, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const td = takedown.state();
+  const prompts = carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots });
   mapView.drawMini({ player, stealth: st });
@@ -336,7 +343,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots,
+  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).

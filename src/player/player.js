@@ -45,6 +45,7 @@ export class Player {
     this.hurtT = 99;           // seconds since the last hit
     this.hitFrom = null;       // where the last hit came from
     this.dead = false;
+    this.locked = false;       // true during a takedown
   }
 
   // A guard's bullet found you.
@@ -77,6 +78,7 @@ export class Player {
     // Wounds close slowly once you're out of the fight for a while.
     this.hurtT += dt;
     if (this.hurtT > 8 && this.health < 100 && !this.dead) this.health = Math.min(100, this.health + 5 * dt);
+    if (this.locked) return; // a takedown moves you itself
     if (this.dead) { this.prevPos.copy(this.pos); this.prevEye = this.eye; this.eye += (0.3 - this.eye) * (1 - Math.exp(-3 * dt)); return; }
     if (inp.wasPressed('KeyC') && !this.climb) this.setStance(this.stance === 'crouch' ? 'stand' : 'crouch');
     if (inp.wasPressed('KeyZ') && !this.climb && this.grounded) this.setStance(this.stance === 'prone' ? 'crouch' : 'prone');
@@ -172,7 +174,7 @@ export class Player {
   // ---- climbing ----
   // What Space would do here, for the HUD prompt (null = nothing).
   climbOption() {
-    if (this.climb || this.carrying || !this.grounded || this.stance === 'prone') return null;
+    if (this.climb || this.locked || this.carrying || !this.grounded || this.stance === 'prone') return null;
     const lad = this.nearLadder();
     if (lad) return { kind: 'ladder', ladder: lad.ladder, down: lad.down, label: lad.down ? 'SPACE · CLIMB DOWN' : 'SPACE · CLIMB LADDER' };
     const ledge = this.findLedge();

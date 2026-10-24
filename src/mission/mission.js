@@ -27,7 +27,7 @@ export class Mission {
       { id: 'papers', text: "Take the Oberst's papers", done: false, optional: true },
       { id: 'extract', text: 'Get back to the start hill', done: false, hidden: true },
     ];
-    this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, longest: 0, spotted: 0, bodiesFound: 0 };
+    this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, takedowns: 0, longest: 0, spotted: 0, bodiesFound: 0 };
     this.onComplete = null;
   }
 
@@ -125,7 +125,7 @@ export class Mission {
       rows: [
         ['Time', `${mins}:${String(secs).padStart(2, '0')}`],
         ['Objectives', this.objectives.filter(o => !o.hidden).map(o => `${o.done ? '✓' : '✗'} ${o.text}`).join('\n')],
-        ['Kills', `${s.kills} (${s.headshots} headshots)`],
+        ['Kills', `${s.kills} (${s.headshots} headshots, ${s.takedowns} takedowns)`],
         ['Longest kill', s.longest ? `${Math.round(s.longest)} m` : '–'],
         ['Accuracy', s.shots ? `${Math.round((100 * s.hits) / s.shots)} % (${s.hits}/${s.shots})` : '–'],
         ['Times spotted', String(s.spotted)],

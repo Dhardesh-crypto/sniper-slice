@@ -29,7 +29,7 @@ export class Stealth {
     for (const s of world.soldiers) this.enlist(s);
   }
 
-  guards() { return this.world.soldiers.filter(s => s.alive && !s.range); }
+  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && !s.takenDown); }
 
   // A soldier who joins during play (reinforcements) gets an awareness record.
   enlist(s) {
@@ -122,7 +122,7 @@ export class Stealth {
       b.deathNoted = true;
       const bp = b.bodyPosition(new THREE.Vector3());
       b.hidden = inTallGrass(this.world.grassPatches, bp.x, bp.z);
-      this.noise(bp, 9, 'body');
+      this.noise(bp, b.quietDeath ? 2 : 9, 'body'); // a takedown lowers him down almost silently
     }
 
     for (const s of this.guards()) {

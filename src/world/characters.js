@@ -9,6 +9,7 @@ const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
+  takedownAtk: 'anim_takedown_atk', takedownVic: 'anim_takedown_vic', // knife takedown: you, him
 };
 // Arm bones driven by the "holding a rifle" layer instead of the base clip.
 const HOLD_BONES = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
