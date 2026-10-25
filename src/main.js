@@ -452,6 +452,7 @@ function step(realDt, draw = true) {
   world.viewer = camera.position;
 
   fx.update(dt);
+  hotspots.highlight(dt, camera);
   audio.setWind(world.windSpeed);
 
   if (trajLine.visible && arsenal.lastTrajectory && arsenal.lastTrajectory !== shownTrajectory) {

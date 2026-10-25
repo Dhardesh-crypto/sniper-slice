@@ -8,7 +8,31 @@
 //                  grille, or a satchel charge, destroy it
 // An armour-piercing round counts as two hits on an ordinary engine (it blows in one shot).
 // Each can be tagged with the binoculars; tagged spots show on screen and on the compass.
+// Looking at a vehicle through the scope or the binoculars, its engine glows a faint red
+// (brighter under the crosshair), so you can see where a shot does damage.
 import * as THREE from 'three';
+
+const GLOWS = ['engine', 'tank'];   // weak spots that glow when you look at them zoomed in
+
+// A soft red glow filling the weak spot's box, fading out toward its edges (so it reads as a
+// glow on the vehicle, not a box). Drawn over everything: the engine sits under the bonnet.
+function glowMaterial(geometry) {
+  geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  return new THREE.ShaderMaterial({
+    uniforms: { opacity: { value: 0 }, center: { value: bb.getCenter(new THREE.Vector3()) }, extent: { value: bb.getSize(new THREE.Vector3()).multiplyScalar(0.5) } },
+    vertexShader: `varying vec3 vP; void main() { vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform float opacity; uniform vec3 center, extent; varying vec3 vP;
+      void main() {
+        vec3 q = abs(vP - center) / extent;                        // 0 at the middle, 1 at the faces
+        vec3 f = 1.0 - smoothstep(0.1, 1.0, q);
+        float m = max(q.x, max(q.y, q.z));                       // the face this fragment is on: fade
+        if (q.x == m) f.x = 1.0; else if (q.y == m) f.y = 1.0; else f.z = 1.0;   // only across it
+        gl_FragColor = vec4(vec3(1.0, 0.16, 0.1) * opacity * f.x * f.y * f.z, 1.0);
+      }`,
+    transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+}
 
 class Hotspot {
   constructor(opts) {
@@ -44,6 +68,7 @@ export class Hotspots {
     this.ai = null;               // set by main (alarm, repairs, the reinforcement truck)
     this.mission = null;          // set by main (radio objective, kill count)
     this.repairT = 8;
+    this.glowCheckT = 0;
 
     const siren = world.siren;
     this.add({ kind: 'siren', title: 'SIREN', meshes: siren.hornMeshes, onHit: (h) => this.breakSiren(h) });
@@ -60,7 +85,41 @@ export class Hotspots {
     const h = new Hotspot(opts);
     for (const m of h.meshes) if (!this.world.raycastTargets.includes(m)) this.world.raycastTargets.push(m);
     this.list.push(h);
+    if (GLOWS.includes(h.kind)) h.glows = h.meshes.map(m => {
+      const g = new THREE.Mesh(m.geometry, glowMaterial(m.geometry));
+      g.renderOrder = 998; g.visible = false; g.userData.noAO = true;
+      m.add(g);
+      return g;
+    });
     return h;
+  }
+
+  // The weak-spot glow on vehicles, while looking through the scope or the binoculars. It only
+  // shows when nothing but the vehicle itself is in the way (checked a few times a second).
+  highlight(dt, camera) {
+    const zoom = this.arsenal.binoculars || (this.arsenal.aiming && this.arsenal.current === 'rifle') ? this.arsenal.aimT : 0;
+    const check = (this.glowCheckT -= dt) <= 0;
+    if (check) this.glowCheckT = 0.15;
+    let under = null;
+    if (zoom > 0.5 && check) {
+      const dir = camera.getWorldDirection(new THREE.Vector3());
+      under = this.world.raycastRay(camera.position, dir, 600)?.object;
+    }
+    for (const h of this.list) {
+      if (!h.glows) continue;
+      if (check) {
+        h.glowSeen = false;
+        if (zoom > 0.5 && h.active) {
+          const c = h.center(), d = camera.position.distanceTo(c);
+          const hit = d < 600 && this.world.raycastSegment(camera.position, c);
+          h.glowSeen = d < 600 && (!hit || hit.hotspot === h || h.parts?.includes(hit.object) || hit.distance > d - 1.5);
+          h.glowAimed = h.glowSeen && under != null && (h.meshes.includes(under) || h.parts?.includes(under));
+        }
+      }
+      const target = h.glowSeen && h.active ? zoom * (h.glowAimed ? 0.32 : 0.16) : 0;
+      h.glowK = (h.glowK ?? 0) + (target - (h.glowK ?? 0)) * (1 - Math.exp(-10 * dt));
+      for (const g of h.glows) { g.material.uniforms.opacity.value = h.glowK; g.visible = h.glowK > 0.005; }
+    }
   }
 
   remove(h) {
