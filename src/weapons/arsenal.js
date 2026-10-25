@@ -227,7 +227,7 @@ export class Arsenal {
 
   beginReload() {
     this.reloadT = this.def.reloadTime;
-    this.audio.reload(this.def.reloadTime);
+    this.audio.reloadFor(this.def, this.def.reloadTime);
   }
 
   tickBreath(dt) {
@@ -297,14 +297,8 @@ export class Arsenal {
     this.readyT = 1;
     if (!this.scoped) this.fx.flash(origin, dir);
     this.player.heartRate = Math.min(180, this.player.heartRate + 3);
-    if (this.current === 'rifle') {
-      if (def.suppressor) this.audio.suppressedRifleShot(); else this.audio.rifleShot();
-      if (w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
-    } else if (def.suppressor) {
-      this.audio.pistolShot();
-    } else {
-      this.audio.pistolLoud();
-    }
+    this.audio.weaponShot(def);           // each gun its own report; suppressed if one's fitted
+    if (this.current === 'rifle' && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
     this.lastShot = { noiseRadius: def.noiseRadius, position: origin.clone(), time: this.world.time };
     this.onShot?.(origin.clone(), def);
   }

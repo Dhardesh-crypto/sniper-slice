@@ -1,6 +1,24 @@
-// All sound is synthesised with WebAudio: noise bursts, filters and envelopes.
+// Sound is synthesised with WebAudio (noise bursts, filters and envelopes), except the
+// weapons: each gun's shot (and the suppressed versions), the bolt and the reloads are
+// recorded-style samples in public/sounds (made with ElevenLabs Sound Effects). Until they
+// have loaded, or if they can't, the synthesised versions play instead.
 // Deliberately no bell-like tones: clicks, thumps and filtered noise. The one pitched sound
 // is the whistle, a lip whistle: a smooth, sustained gliding tone, nothing struck or ringing.
+
+// Which sample each weapon fires, and how loud it plays (they're levelled by ear-ish: mean
+// loudness, then rifles over pistols, suppressed well under both).
+const SHOTS = {
+  springfield: ['shot_springfield', 1.0], enfield: ['shot_enfield', 0.9], g43: ['shot_g43', 0.65],
+  m1carbine: ['shot_m1carbine', 0.75], delisle: ['shot_delisle', 0.5], welrod: ['shot_welrod', 0.22],
+  p38: ['shot_p38', 0.25], luger: ['shot_luger', 0.3],
+};
+const SUPPRESSED = { bolt: ['shot_rifle_suppressed', 0.1], semi: ['shot_semi_suppressed', 0.55], pistol: ['shot_pistol_suppressed', 0.2] };
+const RELOADS = {
+  springfield: 'reload_stripper', enfield: 'reload_stripper', g43: 'reload_g43', m1carbine: 'reload_m1carbine',
+  delisle: 'reload_delisle', welrod: 'reload_welrod', p38: 'reload_pistol', luger: 'reload_pistol',
+};
+const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt']))];
+
 export class Audio {
   constructor() {
     this.ctx = null;
@@ -32,6 +50,53 @@ export class Audio {
     this.reverbGain.gain.value = 0.35;
     this.reverb.connect(this.reverbGain).connect(this.master);
     if (!offline) this.startAmbience();
+    this.samples = {};
+    this.loadSamples();
+  }
+
+  async loadSamples() {
+    await Promise.all(SAMPLES.map(async (name) => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+        this.samples[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch { /* missing or undecodable: the synthesised sound stays */ }
+    }));
+  }
+
+  // Play a sample; false if it isn't loaded (the caller then synthesises). rate: playback
+  // speed; filter: a low-pass cutoff (distance); wet: how much goes to the valley reverb.
+  sample(name, { at = 0, gain = 1, rate = 1, filter = null, wet = 0 } = {}) {
+    const buf = this.samples?.[name];
+    if (!this.ctx || !buf) return false;
+    const ctx = this.ctx, t = ctx.currentTime + at;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate * (0.97 + Math.random() * 0.06);   // never quite the same twice
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    let node = src;
+    if (filter) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filter; node = node.connect(f); }
+    node.connect(g).connect(this.master);
+    if (wet) { const w = ctx.createGain(); w.gain.value = wet; g.connect(w).connect(this.reverb); }
+    src.start(t);
+    return true;
+  }
+
+  // Your shot with this weapon (a built weapon def: its id, and whether a suppressor is on).
+  weaponShot(def) {
+    const own = SHOTS[def.id];
+    const integral = def.id === 'welrod' || def.integralSuppressor;
+    const [name, gain] = def.suppressor && !integral ? SUPPRESSED[def.slot === 'pistol' ? 'pistol' : def.semi ? 'semi' : 'bolt'] : own ?? SHOTS.springfield;
+    if (this.sample(name, { gain, wet: def.suppressor ? 0 : 0.12 })) return;
+    if (def.slot === 'pistol') def.suppressor ? this.pistolShot() : this.pistolLoud();
+    else def.suppressor ? this.suppressedRifleShot() : this.rifleShot();
+  }
+
+  // The reload for this weapon, stretched a little to fit its reload time.
+  reloadFor(def, time) {
+    const name = RELOADS[def.id], buf = this.samples?.[name];
+    if (buf && this.sample(name, { gain: 0.7, rate: Math.min(1.15, Math.max(0.85, buf.duration / (time * 0.92))) })) return;
+    this.reload(time);
   }
 
   setVolume(v) {
@@ -111,6 +176,7 @@ export class Audio {
   }
 
   bolt() {
+    if (this.sample('bolt', { at: 0.25, gain: 0.6 })) return;
     this.click(0.25, 1800, 0.3);
     this.click(0.42, 1200, 0.25);
     this.click(0.75, 2000, 0.3);
@@ -292,6 +358,7 @@ export class Audio {
   // A guard's rifle shot heard from `distance` metres: later, duller and quieter far off.
   enemyShot(distance) {
     const at = Math.min(distance / 343, 1.2), k = Math.max(0.12, 1 - distance / 400);
+    if (this.sample('shot_springfield', { at, gain: 0.85 * k, filter: 900 + 9000 * k * k, wet: 0.25 })) return;   // guards carry Springfields
     this.noiseBurst({ at, dur: 0.3, type: 'lowpass', freq: 600 + 3600 * k, freqEnd: 400, gain: 0.7 * k, wet: 1 });
     this.thump({ at, freq: 50, dur: 0.35, gain: 0.6 * k });
     this.noiseBurst({ at: at + 0.3, dur: 1.2, type: 'lowpass', freq: 600, freqEnd: 200, gain: 0.12 * k, attack: 0.15 });
