@@ -425,29 +425,52 @@ export class Arsenal {
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const hit = this.world.raycastRay(eye, dir, 1200);
     if (hit) this.rangeReadout = hit.distance;
-    // Tag the soldier nearest the crosshair within a small cone, if he's in plain sight.
-    let s = null, best = 0.012;
-    const to = new THREE.Vector3(), chest = new THREE.Vector3();
-    for (const c of this.world.soldiers) {
-      if (!c.alive || c.tagged) continue;
-      chest.set(0, 1.4, 0).applyMatrix4(c.body.matrixWorld);
-      to.subVectors(chest, eye);
+    // Tag whatever is under the crosshair, or that the crosshair is over, as long as any part of
+    // it is in sight: a soldier whose head alone shows over a wall, the corner of a crate, a
+    // truck behind a hedge. Each target is checked at several points (every hit zone of a
+    // soldier; the middle and corners of an object and its vehicle).
+    const tol = THREE.MathUtils.degToRad(BINOCULARS.zoomFovs[this.binocZoomIndex]) * 0.06;
+    const owner = (o) => o?.userData.soldier ?? o?.userData.hotspot ?? this.hotspots?.list.find(h => h.parts?.includes(o));
+    const under = owner(hit?.object);
+    let s = under && !under.tagged && (under.alive ?? under.active) ? under : null;
+    let best = Infinity;
+    const to = new THREE.Vector3(), q = new THREE.Vector3();
+    const angleTo = (point) => to.subVectors(point, eye).angleTo(dir);
+    const inSight = (target, point) => {
+      to.subVectors(point, eye);
       const dist = to.length();
-      const ang = to.angleTo(dir);
-      if (ang > best || dist > 900) continue;
-      const los = this.world.raycastSegment(eye, chest.clone().addScaledVector(to, 0.3 / dist));
-      if (los?.soldier === c) { s = c; best = ang; }
-    }
-    // Weak spots (siren, generator, engines) can be tagged the same way.
-    for (const h of this.hotspots?.list ?? []) {
-      if (h.tagged || !h.active) continue;
-      h.center(chest);
-      to.subVectors(chest, eye);
-      const dist = to.length();
-      const ang = to.angleTo(dir);
-      if (ang > Math.max(best, 0.02) || dist > 900) continue;
-      const los = this.world.raycastSegment(eye, chest.clone().addScaledVector(to, 0.3 / dist));
-      if (los?.hotspot === h || (los && los.point.distanceTo(chest) < 1.2)) { s = h; best = ang; }
+      if (dist > 900) return false;
+      // In sight: the line reaches the point, or stops on the target itself (some vehicle
+      // bodies aren't solid to bullets, so a clear line to a point inside one counts too).
+      const los = this.world.raycastSegment(eye, q.copy(point).addScaledVector(to, 0.15 / dist));
+      return !los || owner(los.object) === target || los.distance > dist - 0.1;
+    };
+    // over: how far the crosshair is outside the target (≤ 0: on it); points: where to look for it.
+    const consider = (target, over, points) => {
+      if (over > tol || over >= best) return;
+      if (points.some(pt => inSight(target, pt))) { s = target; best = over; }
+    };
+    if (!s) {
+      const sphere = new THREE.Sphere(), box = new THREE.Box3();
+      for (const c of this.world.soldiers) {
+        if (!c.alive || c.tagged) continue;
+        let over = Infinity;
+        const points = c.hitMeshes.map(m => {
+          if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+          sphere.copy(m.geometry.boundingSphere).applyMatrix4(m.matrixWorld);
+          over = Math.min(over, angleTo(sphere.center) - Math.atan2(sphere.radius, sphere.center.distanceTo(eye)));
+          return sphere.center.clone();
+        });
+        consider(c, over, points);
+      }
+      for (const h of this.hotspots?.list ?? []) {
+        if (h.tagged || !h.active) continue;
+        box.makeEmpty();
+        for (const m of [...h.meshes, ...(h.parts ?? [])]) box.union(new THREE.Box3().setFromObject(m));
+        box.getBoundingSphere(sphere);
+        const over = angleTo(sphere.center) - Math.atan2(sphere.radius * 0.8, sphere.center.distanceTo(eye));
+        if (over <= tol && over < best) consider(h, over, sightPoints(h));
+      }
     }
     if (s) {
       if (this.tagCandidate !== s) { this.tagCandidate = s; this.tagT = 0; }
@@ -566,4 +589,19 @@ export class Arsenal {
       range: this.rangeReadout, tagProgress: this.tagCandidate ? Math.min(1, this.tagT / 0.35) : 0,
     };
   }
+}
+
+// Points to look for a weak spot at: the middle and the corners (pulled in a little) of its own
+// meshes and, for an engine, of the vehicle around it.
+function sightPoints(h) {
+  const out = [];
+  for (const m of [...h.meshes, ...(h.parts ?? [])]) {
+    const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3());
+    out.push(c);
+    for (let i = 0; i < 8; i++) {
+      const corner = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+      out.push(corner.lerp(c, 0.25));
+    }
+  }
+  return out;
 }
