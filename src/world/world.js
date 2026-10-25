@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
-import { buildTrees, buildGrass, buildNearGrass, windUniforms } from './vegetation.js';
+import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
 
 import { buildHorizon } from './horizon.js';
 
@@ -21,9 +21,17 @@ export class World {
     this.setupSkyAndLight(renderer);
     this.terrain = buildTerrain();
     scene.add(this.terrain);
-    buildHorizon(scene);
-    const { trees, trunks } = buildTrees(scene);
+    if (!activeMap().fog?.density) buildHorizon(scene);      // (in thick mist the far hills don't show)
+    const { trees, trunks, chunks } = buildTrees(scene);
     this.trees = trees;
+    this.treeChunks = chunks;
+    // The trees by 8 m cell, so collisions and the canopy check only look at the ones nearby.
+    this.treeGrid = new Map();
+    for (const t of trees) {
+      const k = `${Math.floor(t.x / 8)},${Math.floor(t.z / 8)}`;
+      if (!this.treeGrid.has(k)) this.treeGrid.set(k, []);
+      this.treeGrid.get(k).push(t);
+    }
     const grass = buildGrass(scene);
     this.grassPatches = grass.patches;
     this.tuftCount = grass.tuftCount;
@@ -104,7 +112,8 @@ export class World {
     scene.environmentIntensity = 0.22;
     pmrem.dispose();
 
-    scene.fog = new THREE.Fog(0xb9c6cc, 320, 1600);
+    const fog = activeMap().fog;          // a misty map brings the fog in close
+    scene.fog = fog?.density ? new THREE.FogExp2(fog.color, fog.density) : new THREE.Fog(fog?.color ?? 0xb9c6cc, fog?.near ?? 320, fog?.far ?? 1600);
     scene.add(new THREE.HemisphereLight(0xc9dbea, 0x6a5232, 0.5));
 
     const sun = new THREE.DirectionalLight(0xffe0b0, 2.7);
@@ -212,7 +221,7 @@ export class World {
       pos.x = cx + (dx / d) * radius;
       pos.z = cz + (dz / d) * radius;
     }
-    for (const t of this.trees) {
+    for (const t of this.treesNear(pos.x, pos.z)) {
       const dx = pos.x - t.x, dz = pos.z - t.z;
       const r = radius + t.r;
       const d2 = dx * dx + dz * dz;
@@ -224,6 +233,25 @@ export class World {
     }
     pos.x = THREE.MathUtils.clamp(pos.x, -PLAY_HALF, PLAY_HALF);
     pos.z = THREE.MathUtils.clamp(pos.z, -PLAY_HALF, PLAY_HALF);
+  }
+
+  // Each frame: on a map that says how far you can see (mist), skip the trees beyond it.
+  cullTrees(viewer) {
+    const far = activeMap().forest?.viewDistance;
+    if (far) cullTreeChunks(this.treeChunks, viewer, far);
+  }
+
+  // Trees within about 8 m of (x, z).
+  *treesNear(x, z) {
+    const cx = Math.floor(x / 8), cz = Math.floor(z / 8);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) yield* this.treeGrid.get(`${cx + i},${cz + j}`) ?? [];
+  }
+
+  // How many trees stand within 7 m: under a thick canopy you are harder to make out.
+  canopyAt(x, z) {
+    let n = 0;
+    for (const t of this.treesNear(x, z)) if ((t.x - x) ** 2 + (t.z - z) ** 2 < 49) n++;
+    return n;
   }
 
   groundAt(x, z) {

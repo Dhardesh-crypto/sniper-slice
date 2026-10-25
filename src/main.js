@@ -65,6 +65,7 @@ const MISSION_MODULES = {
   vineyard: () => import('./missions/vineyard.js'),
   town: () => import('./missions/town.js'),
   harbour: () => import('./missions/harbour.js'),
+  forest: () => import('./missions/forest.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
@@ -520,6 +521,7 @@ function step(realDt, draw = true) {
   world.focusShadows(lookAhead);
   world.nearGrass.update(player.pos.x, player.pos.z);
   world.viewer = camera.position;
+  world.cullTrees(camera.position);
 
   fx.update(dt);
   hotspots.highlight(dt, camera);

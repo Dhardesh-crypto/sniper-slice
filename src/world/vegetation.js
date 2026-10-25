@@ -9,6 +9,8 @@ import { textures } from './textures.js';
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
 const keepClear = (x, z, margin = 0) => mapKeepClear(x, z, margin);
+// A map can thin the grass (a forest floor is mostly needles): 0…1, read when the grass is built.
+let grassDensity = null;
 
 // A smooth, lumpy blob of leaves: a subdivided sphere pushed in and out by noise,
 // shaded darker underneath and lighter on top (vertex colours).
@@ -120,7 +122,35 @@ function makeTreeTypes() {
       if (r > 1e-4) p.setXYZ(i, v.x * k * bulge, v.y, v.z * k * bulge);
     }
   }
+  // A mountain fir: tiers of drooping cones up a tall bare trunk.
+  // (Its lowest branches stay above a third-person camera.)
+  const firTiers = [[2.5, 3.0, 6.0], [2.25, 2.8, 7.7], [1.9, 2.6, 9.3], [1.55, 2.5, 10.9], [1.15, 2.3, 12.4], [0.75, 2.3, 13.9], [0.4, 1.8, 15.3]].map(([r, h, y], i) => {
+    const g = mergeVertices(new THREE.ConeGeometry(r, h, 11, 3, true).deleteAttribute('normal').deleteAttribute('uv'));
+    const p = g.attributes.position, v = new THREE.Vector3();
+    for (let k = 0; k < p.count; k++) {
+      v.fromBufferAttribute(p, k);
+      const rr = Math.hypot(v.x, v.z), n = 1 + (valueNoise(v.y * 1.7 + i * 3, Math.atan2(v.z, v.x) * 2.3) - 0.5) * 0.4;
+      if (rr > 1e-4) p.setXYZ(k, v.x * n, v.y - rr * 0.18, v.z * n);      // the branch tips droop
+    }
+    return [g, 0, y, 0];
+  });
   return [
+    { // silver fir (the mountain forests; only on maps that ask for it)
+      name: 'fir', count: 0,
+      trunk: new THREE.CylinderGeometry(0.14, 0.34, 16, 8).translate(0, 8, 0), trunkR: 0.34,
+      crown: canopy(firTiers, 0x2f4a2b, 0x7a9763, { cards: 220, cardSize: 2.1, seed: 4 }),
+      coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.75, 1.3],
+    },
+    { // beech: a tall grey trunk and a broad crown
+      name: 'beech', count: 0,
+      trunk: new THREE.CylinderGeometry(0.2, 0.32, 8, 9).translate(0, 4, 0), trunkR: 0.32,
+      crown: canopy([
+        [blob(2.6, 1.2, 0.9, 1.2, 8, 0.25), 0, 9.0, 0],
+        [blob(1.8, 1.1, 0.9, 1.1, 9), 1.6, 8.0, 0.9],
+        [blob(1.8, 1.1, 0.9, 1.1, 10), -1.5, 8.2, -1.1],
+      ], 0x34512a, 0x84a55c, { cards: 200, cardSize: 1.8, seed: 5 }),
+      coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.85, 1.25],
+    },
     { // Italian cypress
       name: 'cypress', count: 380,
       trunk: new THREE.CylinderGeometry(0.16, 0.22, 2, 10).translate(0, 1, 0), trunkR: 0.25,
@@ -151,49 +181,86 @@ function makeTreeTypes() {
   ];
 }
 
+const CHUNK = 125;
+
 export function buildTrees(scene) {
   const rng = makeRng(1944);
   const trees = [];      // {x, z, r} for player collision
   const trunks = [];     // instanced meshes for bullet raycasts
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  // A map can ask for its own forest: { counts: { fir: 3000, ... }, density(x, z, name): 0…1, spacing }.
+  const forest = activeMap().forest;
+  const chunks = new Map();
+  const spacing = forest?.spacing ?? 3, cell = (x, z) => `${Math.floor(x / spacing)},${Math.floor(z / spacing)}`;
+  const taken = new Map();          // grid of placed trees, for the spacing check
+  const near = (x, z) => {
+    const cx = Math.floor(x / spacing), cz = Math.floor(z / spacing);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const t = taken.get(`${cx + i},${cz + j}`);
+      if (t && Math.abs(t.x - x) < spacing && Math.abs(t.z - z) < spacing) return true;
+    }
+    return false;
+  };
   for (const type of makeTreeTypes()) {
-    const trunk = new THREE.InstancedMesh(type.trunk, type.trunkMat, type.count);
-    const core = new THREE.InstancedMesh(type.crown.core, type.coreMat, type.count);
-    const leaves = new THREE.InstancedMesh(type.crown.leaves, type.leafMat, type.count);
-    let n = 0, tries = 0;
-    while (n < type.count && tries++ < type.count * 60) {
+    if (forest) type.count = forest.counts[type.name] ?? 0;
+    if (!type.count) continue;
+    const placed = [];
+    let tries = 0;
+    while (placed.length < type.count && tries++ < type.count * 60) {
       const x = (rng() * 2 - 1) * (MAP_HALF - 10), z = (rng() * 2 - 1) * (MAP_HALF - 10);
       // Groves: density follows noise; olives cluster, cypresses line up along the road.
       const grove = fbm(x * 0.012 + type.name.length * 5, z * 0.012, 3);
-      if (type.name === 'cypress') {
+      if (forest) { if (rng() > forest.density(x, z, type.name)) continue; }
+      else if (type.name === 'cypress') {
         const nearRoad = x < COMPOUND.x - 30 && Math.abs(Math.abs(z - roadCenterZ(x)) - 7) < 1.5;
         if (!(nearRoad && rng() < 0.5) && grove < 0.62) continue;
       } else if (grove < (type.name === 'olive' ? 0.58 : 0.64)) continue;
       if (keepClear(x, z, 4)) continue;
       if (Math.hypot(x - START_HILL.x, z - START_HILL.z) < 14) continue;
-      if (trees.some(t => Math.abs(t.x - x) < 3 && Math.abs(t.z - z) < 3)) continue;
+      if (near(x, z)) continue;
       const y = heightAt(x, z);
       const sc = type.scale[0] + rng() * (type.scale[1] - type.scale[0]);
       q.setFromAxisAngle(up, rng() * Math.PI * 2);
-      m.compose(p.set(x, y - 0.1, z), q, s.set(sc, sc, sc));
-      trunk.setMatrixAt(n, m);
-      core.setMatrixAt(n, m);
-      leaves.setMatrixAt(n, m);
+      placed.push({ x, z, m: m.compose(p.set(x, y - 0.1, z), q, s.set(sc, sc, sc)).clone() });
       trees.push({ x, z, r: type.trunkR * sc });
-      n++;
+      taken.set(cell(x, z), trees.at(-1));
     }
-    trunk.count = core.count = leaves.count = n;
-    for (const im of [trunk, core, leaves]) {
-      im.castShadow = true;
-      im.receiveShadow = true;
-      im.computeBoundingSphere();
-      scene.add(im);
+    // One set of instanced meshes per map chunk, so the ones out of view (or lost in the mist)
+    // aren't drawn, and a ray only tests the trees in the chunks it passes.
+    const byChunk = new Map();
+    for (const t of placed) {
+      const k = `${Math.floor(t.x / CHUNK)},${Math.floor(t.z / CHUNK)}`;
+      if (!byChunk.has(k)) byChunk.set(k, []);
+      byChunk.get(k).push(t);
     }
-    trunks.push(trunk);
+    for (const [k, list] of byChunk) {
+      const meshes = [type.trunk, type.crown.core, type.crown.leaves].map((geo, i) => {
+        const im = new THREE.InstancedMesh(geo, [type.trunkMat, type.coreMat, type.leafMat][i], list.length);
+        list.forEach((t, j) => im.setMatrixAt(j, t.m));
+        im.castShadow = im.receiveShadow = true;
+        im.computeBoundingSphere();
+        scene.add(im);
+        return im;
+      });
+      trunks.push(meshes[0]);
+      const [cx, cz] = k.split(',').map(Number);
+      if (!chunks.has(k)) chunks.set(k, { x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK, meshes: [] });
+      chunks.get(k).meshes.push(...meshes);
+    }
   }
-  return { trees, trunks };
+  return { trees, trunks, chunks: [...chunks.values()] };
 }
+
+// Hide the tree chunks beyond `far` metres of the viewer (a misty map can't see them anyway).
+export function cullTreeChunks(chunks, viewer, far) {
+  const r = far + CHUNK * 0.71;
+  for (const c of chunks) {
+    const v = (c.x - viewer.x) ** 2 + (c.z - viewer.z) ** 2 < r * r;
+    for (const m of c.meshes) m.visible = v;
+  }
+}
+
 
 function tuftGeometry(rng, blades, height) {
   const positions = [], colors = [];
@@ -238,6 +305,7 @@ function grassMaterial() {
 
 // Grass is chunked on a grid so each chunk can be frustum-culled on its own.
 export function buildGrass(scene) {
+  grassDensity = activeMap().grassDensity ?? null;
   const rng = makeRng(77);
   const shortGeo = tuftGeometry(rng, 9, 0.5);
   const tallGeo = tuftGeometry(rng, 12, 0.55);
@@ -254,6 +322,7 @@ export function buildGrass(scene) {
     if (keepClear(x, z)) continue;
     if (normalAt(x, z, nrm).y < 0.85) continue;
     if (fbm(x * 0.02, z * 0.02, 2) < 0.38) continue;
+    if (grassDensity && rng() > grassDensity(x, z)) continue;
     const sc = 0.6 + rng() * 0.7;
     m.compose(p.set(x, heightAt(x, z) - 0.05, z), q.identity(), s.set(sc, sc, sc));
     cellOf(x, z).short.push(m.clone());
@@ -270,8 +339,8 @@ export function buildGrass(scene) {
     if (normalAt(x, z, nrm).y < 0.88) continue;
     patches.push({ x, z, r: 6 + rngP() * 9 });
   }
-  // Guarantee cover on the way to the compound, near the start hill.
-  patches.push({ x: -150, z: 95, r: 12 }, { x: -95, z: 40, r: 10 }, { x: -40, z: 30, r: 9 });
+  // Guarantee cover on the way in (the vineyard's: on the way to the compound from the start hill).
+  patches.push(...(activeMap().coverPatches ?? [{ x: -150, z: 95, r: 12 }, { x: -95, z: 40, r: 10 }, { x: -40, z: 30, r: 9 }]));
   for (const pt of patches) {
     const n = Math.floor(pt.r * pt.r * 3.2);
     for (let i = 0; i < n; i++) {
@@ -321,6 +390,7 @@ export function buildNearGrass(scene, patches) {
       if (keepClear(x, z) || !inPlayArea(x, z)) d = 0;
       if (normalAt(x, z, nrm).y < 0.82) d = 0;
       if (inTallGrass(patches, x, z)) d *= 0.3; // the tall-grass patches already cover it
+      if (grassDensity) d *= grassDensity(x, z);
       mask[k * 4] = d * 255;
       mask[k * 4 + 3] = 255;
     }

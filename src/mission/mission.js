@@ -79,7 +79,8 @@ export class Mission {
     if (this.done) return;
     this.time += dt;
     const off = this.obj('officer');
-    if (off && this.officer && !this.officer.alive && !off.done) this.complete('officer', this.def.killText ?? 'TARGET ELIMINATED · GET TO THE START HILL');
+    const killedNow = off && this.officer && !this.officer.alive && !off.done;
+    if (killedNow) this.complete('officer', this.def.killText ?? 'TARGET ELIMINATED · GET TO THE START HILL');
     if (this.search.papers > 0) this.complete('papers', this.def.papersText ?? "OBERST'S PAPERS TAKEN");
     if (this.radio) this.tickRadio(dt);
     this.def.tick?.(this, dt);
@@ -87,7 +88,7 @@ export class Mission {
     const ex = this.obj('extract');
     if (ex.hidden && this.objectives.every(o => o === ex || o.optional || o.done)) {
       ex.hidden = false;
-      if (!off || off.optional) this.hud.message(this.def.extractText ?? 'ALL DONE · GET TO THE PICK-UP', '');
+      if (!killedNow || off.optional) this.hud.message(this.def.extractText ?? 'ALL DONE · GET TO THE PICK-UP', '');   // (a kill message already says so)
     }
     if (!ex.hidden) {
       // Green smoke marks the pick-up.

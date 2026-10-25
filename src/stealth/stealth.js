@@ -4,6 +4,7 @@
 // bodies left in the open. Phase 5 turns these states into investigating and combat.
 import * as THREE from 'three';
 import { inTallGrass } from '../world/vegetation.js';
+import { activeMap } from '../world/terrain.js';
 
 const STEP_NOISE = { stand: 8, crouch: 3.5, prone: 1.2 };      // metres, walking
 const SPRINT_NOISE = 20;
@@ -54,6 +55,8 @@ export class Stealth {
     // Ground-level grass only: not when you're up on a wall, tower or truck.
     this.inGrass = p.grounded && !p.climb && p.pos.y - this.world.groundAt(p.pos.x, p.pos.z) < 0.3 && inTallGrass(this.world.grassPatches, p.pos.x, p.pos.z);
     if (this.inGrass) v *= GRASS_VIS[p.stance];
+    // In a forest's shade (maps that have one): each tree close by hides you a little more.
+    if (activeMap().canopyShade && p.pos.y - this.world.groundAt(p.pos.x, p.pos.z) < 1) v *= 1 - 0.1 * Math.min(4, this.world.canopyAt(p.pos.x, p.pos.z));
     if (p.sprinting) v *= 1.8;
     else if (p.moving) v *= 1 + p.speed / 5;
     return v;
