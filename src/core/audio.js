@@ -30,10 +30,14 @@ export const SOUND_CHECK = [
   ['Reload: De Lisle', 'reload_delisle', 0.7], ['Reload: pistol', 'reload_pistol', 0.7], ['Reload: Welrod', 'reload_welrod', 0.7],
   ['Trench Gun', ...SHOTS.trenchgun], ['Shotgun pump', 'pump', 0.6], ['MG42', ...SHOTS.mg42], ['Panzerschreck', ...SHOTS.panzerschreck], ['Panzerfaust', ...SHOTS.panzerfaust],
   ['PIAT', ...SHOTS.piat], ['Explosion: grenade', 'explosion_grenade', 0.9], ['Explosion: vehicle', 'explosion_large', 1.0],
-  ['Explosion: far off', 'explosion_far', 0.9], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
+  ['Explosion: far off', 'explosion_far', 0.9], ['Guard: body found', 'vo_body_1', 0.7], ['Guard: spotted you', 'vo_spotted_1', 0.7],
+  ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
 const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump'];
+// Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
+const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
+EXTRA.push(...Object.values(SHOUTS).flat());
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
 
 export class Audio {
@@ -114,6 +118,18 @@ export class Audio {
     if (this.sample(name, { gain, wet: def.suppressor ? 0 : 0.12 })) return;
     if (def.slot === 'pistol') def.suppressor ? this.pistolShot() : this.pistolLoud();
     else def.suppressor ? this.suppressedRifleShot() : this.rifleShot();
+  }
+
+  // A guard calls out (`kind`: body, spotted, suspicious) from `distance` m: louder and clearer
+  // close by, gone beyond ~70 m, and never two at once (the rest just join in silently).
+  shout(kind, distance) {
+    const now = this.ctx?.currentTime ?? 0;
+    if (now < (this.shoutUntil ?? 0) || distance > 70) return;
+    const list = SHOUTS[kind], name = list[Math.floor(Math.random() * list.length)];
+    const k = Math.max(0, 1 - distance / 70);
+    if (this.sample(name, { at: distance / 343, gain: (kind === 'suspicious' ? 0.45 : 0.7) * k ** 0.8, filter: 2500 + 15000 * k, wet: 0.25 })) {
+      this.shoutUntil = now + (this.samples[name]?.duration ?? 1.5);
+    }
   }
 
   // Racking the shotgun's pump after a shot.
@@ -453,10 +469,6 @@ export class Audio {
   }
 
   // A guard noticing something: a short muttered "huh" stand-in (filtered noise, no tone).
-  alertCue(level) {
-    this.noiseBurst({ dur: level > 1 ? 0.35 : 0.2, type: 'bandpass', freq: level > 1 ? 900 : 650, q: 2, gain: level > 1 ? 0.35 : 0.2 });
-  }
-
   // ---- kill cam ----
   killcamWhoosh(dur) {
     // The bullet's slowed-down rush: a rising, filtered roar.

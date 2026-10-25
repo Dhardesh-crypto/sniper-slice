@@ -104,7 +104,8 @@ export class Stealth {
     a.meter = Math.max(a.meter, state === 'alerted' ? 1 : SUSPICIOUS);
     a.why = why;
     this.onRaise?.(why, state);
-    this.audio.alertCue(state === 'alerted' ? 2 : 1);
+    // The guard who noticed calls out (the ones a shout reaches just join in).
+    if (why !== 'shout') this.audio.shout(why === 'body' ? 'body' : why === 'seen' ? 'spotted' : 'suspicious', s.root.position.distanceTo(this.player.pos));
     s.react(a.state, a.stimulus);
     if (state === 'alerted' && why !== 'shout') { // a shout reaches neighbours but isn't passed on (the siren comes in Phase 5)
       if (why === 'seen') this.hud.message('SPOTTED', 'wound');

@@ -1,6 +1,6 @@
 # Sound credits
 
-Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for this game.
+Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for this game; the guards' voices (`vo_*.mp3`) with ElevenLabs Multilingual v2 text-to-speech (German).
 
 From Pixabay (Pixabay Content License: free to use in a game, no attribution required; not to be
 redistributed as standalone sound files):

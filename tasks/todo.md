@@ -369,6 +369,7 @@ Built in steps, one commit per step, each playable when it lands.
 Decisions (2026-10-25): missions unlock in order (the test armoury opens all); safes open with a found
 combination or by slow, noisy cracking; new maps about 1 km across.
 - Bodies on raised floors (tower platforms, upper storeys, roofs) are only noticed by guards at about the same height or above (more than 1.2 m above the eye and steeper than 1 in 12 is hidden). A silent kill on a tower no longer alerts the yard. Verified: both tower guards killed, nobody alerted in 20 s each.
+- Guards call out in German instead of a noise burst (which stacked into a bang when a shout alerted several at once): "Alarm! Hier liegt einer!" for a body, "Da ist er!" when you're spotted, "Was war das?" for anything else; three voices each (ElevenLabs Multilingual v2 on fal.ai), from the guard's position (fainter, duller and later with distance, silent past 70 m), one at a time; the guards a shout reaches join in silently. Verified: a body found with 7 guards reacting played one line.
 
 ### 9A. Engine (everything after builds on it)
 - [ ] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and
