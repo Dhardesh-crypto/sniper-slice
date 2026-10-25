@@ -605,21 +605,36 @@ export class Arsenal {
     const show = this.scoped && this.camera && (mode === 'always' || (mode === 'breath' && this.holding));
     if (!show) { this.prediction = null; return; }
     if ((this.predictFrame++ & 1) && this.prediction) return;
-    const w = this.weapon, def = this.shotDef(), q = this.camera.quaternion;
+    const w = this.weapon, def = this.shotDef(), q = this.camera.quaternion, eye = this.camera.position;
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
     const a = w.zeroAngles[w.zeroIndex];
     const vel = fwd.multiplyScalar(Math.cos(a)).addScaledVector(up, Math.sin(a)).multiplyScalar(def.muzzleVelocity);
-    const pos = this.camera.position.clone().addScaledVector(up, -SIGHT_HEIGHT);
-    const prev = new THREE.Vector3();
-    const h = 1 / 120;
-    for (let t = 0; t < 2; t += h) {
+    const pos = eye.clone().addScaledVector(up, -SIGHT_HEIGHT);
+    const path = [pos.clone()], prev = new THREE.Vector3();
+    // The bullet's own step (a coarser one drifts a few cm by 300 m: enough to clear a parapet
+    // the real round clips), tested for hits every 12 steps (1/30 s, where the curve strays
+    // about a millimetre from a straight line) to keep it cheap.
+    const h = FIXED_STEP / BULLET_SUBSTEPS;
+    let impact = null;
+    for (let t = 0; t < 3.5 && !impact; t += 12 * h) {   // 3.5 s: the De Lisle's slow round past 500 m
       prev.copy(pos);
-      integrate(pos, vel, def.drag, this.ballisticWind, h);
+      for (let i = 0; i < 12; i++) integrate(pos, vel, def.drag, this.ballisticWind, h);
       const hit = this.world.raycastSegment(prev, pos);
-      if (hit) { this.prediction = hit.point.clone(); return; }
+      if (hit) impact = hit.point.clone();
+      path.push(hit ? impact : pos.clone());
     }
-    this.prediction = null;
+    // A slow round falls steeply: a shot that clears a head lands well behind it, at a point that
+    // can look as if it sits right on the head. So when something nearer shows under the marker,
+    // put the marker where the bullet passes at that distance instead: on the head means it hits.
+    let shown = impact;
+    for (let i = 0; i < 3 && shown; i++) {
+      const range = eye.distanceTo(shown);
+      const seen = this.world.raycastSegment(eye, shown);
+      if (!seen || seen.distance > range - 0.5) break;
+      shown = crossingAt(path, eye, seen.distance);
+    }
+    this.prediction = shown;
   }
 
   hudState() {
@@ -650,4 +665,13 @@ function sightPoints(h) {
     }
   }
   return out;
+}
+
+// Where a flight path (a list of points) is `dist` from the eye, interpolated; null if it never gets there.
+function crossingAt(path, eye, dist) {
+  for (let i = 1; i < path.length; i++) {
+    const d0 = eye.distanceTo(path[i - 1]), d1 = eye.distanceTo(path[i]);
+    if (d0 < dist && d1 >= dist) return path[i - 1].clone().lerp(path[i], (dist - d0) / (d1 - d0));
+  }
+  return null;
 }

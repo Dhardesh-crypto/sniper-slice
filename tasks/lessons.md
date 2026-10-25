@@ -62,3 +62,11 @@ Tripo models come out at 10–38k triangles each, and every one is drawn three t
 occlusion, shadows). Simplify them on import (gltf-transform weld + simplify --ratio 0.25 --error 0.005,
 which keeps their look) and measure the frame (GPU-timed post.draw at a real screen size, compared with the
 previous commit) after any graphics pass, before calling it done.
+
+## A marker for a slow round must be honest about depth (2026-10-25)
+The scope's impact marker showed where the shot lands, projected on screen. With the De Lisle (260 m/s)
+the round falls steeply at 300 m, so a shot clearing a head by 0.25–1.5 m lands metres behind it at a spot
+that looks as if it sits on the head: about half the "marker on the head" aims missed. The marker now
+moves to where the bullet passes at the distance of whatever shows under it, and it flies the bullet's own
+step (a 1/120 s step drifted a few cm by 300 m, enough to clip a parapet the real round cleared). Test a
+marker against the real shot from many aims (marker on target ⇒ hit), not one lucky aim on a range.

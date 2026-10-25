@@ -506,3 +506,14 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 - [x] Every texture uploaded and every shader compiled while the mission loads, so nothing stalls the first
       time it comes into view.
 - [x] All eight missions load with no errors.
+
+## De Lisle misses at 300 m with the marker on the head (2026-10-25)
+- [x] Cause: the marker showed the impact point; a slow round that clears a head lands well behind it at a
+      point that looks as if it sits on the head (from four hill spots at 300 m, 12–22 of 27–41 head aims
+      missed). Also the marker flew a coarser step than the bullet (a few cm apart at 300 m).
+- [x] Fix (`updatePrediction`): the bullet's own step; when something nearer shows under the impact point,
+      the marker moves to where the bullet passes at that distance; flight limit 2 s → 3.5 s (the De Lisle
+      past 370 m). Also about 4× cheaper (2.7 ms instead of 9.9 per update).
+- [x] Verified (frozen world, Oberst at the villa, four hill spots at 300 m, 369 aims each): marker on the
+      head ⇒ head hit in every case with the De Lisle; Springfield likewise, except shots on the neck line
+      that hit the torso (still a kill).
