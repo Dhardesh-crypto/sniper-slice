@@ -545,6 +545,31 @@ export class Arsenal {
     this.viewKick *= Math.exp(-9 * dt);
 
     this.updatePrediction();
+    this.updatePistolAim();
+  }
+
+  // With the pistol out, where the shot would really go (from the muzzle, with drop): the dot
+  // turns red when that lands on a guard where it kills (the head, or anywhere he can't take).
+  updatePistolAim() {
+    if (this.current !== 'pistol' || this.binoculars || !this.camera || this.busy) { this.lethal = false; return; }
+    if ((this.pistolFrame = (this.pistolFrame ?? 0) + 1) % 3 && this.lethal !== undefined) return;
+    const def = this.shotDef(), cam = this.camera, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const origin = this.avatar.muzzle(this.current);
+    const ahead = Math.max(0, origin.clone().sub(cam.position).dot(fwd));
+    const from = cam.position.clone().addScaledVector(fwd, ahead);
+    const aim = this.world.raycastRay(from, fwd, 300);
+    this.lethal = false;
+    if (!aim?.soldier?.alive) return;            // nothing to shoot at under the crosshair
+    const pos = origin.clone(), vel = aim.point.clone().sub(origin).normalize().multiplyScalar(def.muzzleVelocity);
+    const prev = new THREE.Vector3(), h = 1 / 120;
+    for (let t = 0; t < 1.2; t += h) {
+      prev.copy(pos);
+      integrate(pos, vel, def.drag, this.ballisticWind, h);
+      const hit = this.world.raycastSegment(prev, pos);
+      if (!hit) continue;
+      this.lethal = !!hit.soldier?.alive && (def.damage[hit.zone] ?? 0) >= hit.soldier.hp;
+      return;
+    }
   }
 
   // The "empty lung" marker: where the shot would land right now, wind and drop included.
@@ -581,6 +606,7 @@ export class Arsenal {
       aim: this.aim, binoc: this.binocT ?? 0, scoped: this.scoped, breath: this.breath,
       holding: this.holding, exhausted: this.exhaustedT > 0, reloading: this.reloadT > 0, ready: this.readyT,
       range: this.rangeReadout, tagProgress: this.tagCandidate ? Math.min(1, this.tagT / 0.35) : 0,
+      lethal: !!this.lethal,
     };
   }
 }

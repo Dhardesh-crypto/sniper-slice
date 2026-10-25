@@ -246,6 +246,7 @@ export class Hud {
     this.overlay.style.transform = mode === 'scope' && kick > 0.01 ? `translate(0px, ${(kick * 40).toFixed(1)}px) scale(${1 + kick * 0.04})` : '';
 
     el.crosshair.style.opacity = mode === 'none' && !player.sprinting ? 0.85 : 0;
+    el.crosshair.classList.toggle('lethal', mode === 'none' && a.weapon === 'pistol' && a.lethal);   // a killing shot
     el.scopeInfo.style.opacity = mode === 'none' ? 0 : 1;
     if (mode === 'scope') el.scopeInfo.textContent = `${a.zoomName}   ZERO ${a.zero} m`;
     else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS`;
