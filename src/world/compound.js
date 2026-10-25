@@ -6,87 +6,8 @@ import { Soldier } from './soldier.js';
 import { textures, worldUVs } from './textures.js';
 import { vehicleModel } from './vehicle-models.js';
 
-const T = textures();
-// `tile` = metres per texture repeat (see worldUVs).
-const textured = (tex, opts, tile) => Object.assign(new THREE.MeshStandardMaterial({ ...tex, ...opts }), { userData: { tile } });
-const M = {
-  stone: textured(T.stone, { roughness: 0.95 }, 2.5),
-  plaster: textured(T.plaster, { roughness: 0.92 }, 3.5),
-  plaster2: textured(T.plaster2, { roughness: 0.92 }, 3.5),
-  roof: textured(T.roof, { roughness: 0.8 }, 2.2),
-  wood: textured(T.wood, { roughness: 0.85 }, 1.6),
-  darkWood: textured(T.darkWood, { roughness: 0.85 }, 1.6),
-  window: new THREE.MeshStandardMaterial({ color: 0x1d2226, roughness: 0.15, metalness: 0.4 }),
-  shutter: textured(T.wood, { color: 0x6f9a6a, roughness: 0.8 }, 1.2),
-  metal: new THREE.MeshStandardMaterial({ color: 0x4b5045, roughness: 0.55, metalness: 0.5 }),
-  truck: new THREE.MeshStandardMaterial({ color: 0x55593f, roughness: 0.7, metalness: 0.2 }),
-  canvas: new THREE.MeshStandardMaterial({ color: 0x6c6b4f, roughness: 1 }),
-  sandbag: new THREE.MeshStandardMaterial({ color: 0x9c8c66, roughness: 1 }),
-  crate: textured(T.wood, { color: 0xc9a46c, roughness: 0.9 }, 1.0),
-  vine: new THREE.MeshStandardMaterial({ color: 0x4f6b2c, roughness: 0.95 }),
-  earth: textured(T.ground, { color: 0x8a7552, roughness: 1 }, 2),
-};
-
-class Builder {
-  constructor(scene) {
-    this.scene = scene;
-    this.solids = [];
-    this.boxes = [];
-    this.group = new THREE.Group();
-    scene.add(this.group);
-  }
-  // Axis-aligned box at world position (x, z), bottom at y.
-  box(w, h, d, mat, x, y, z, { solid = true, rotY = 0 } = {}) {
-    const geo = new THREE.BoxGeometry(w, h, d);
-    if (mat.map) worldUVs(geo, mat.userData.tile);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, y + h / 2, z);
-    mesh.rotation.y = rotY;
-    mesh.castShadow = mesh.receiveShadow = true;
-    this.group.add(mesh);
-    if (solid) this.addSolid(mesh);
-    return mesh;
-  }
-  addSolid(mesh) {
-    mesh.updateMatrixWorld(true);
-    this.solids.push(mesh);
-    this.boxes.push(new THREE.Box3().setFromObject(mesh));
-  }
-  // Gable roof as a triangular prism, ridge along x.
-  gable(w, rise, d, mat, x, y, z, rotY = 0) {
-    const shape = new THREE.Shape();
-    shape.moveTo(-d / 2 - 0.4, 0);
-    shape.lineTo(d / 2 + 0.4, 0);
-    shape.lineTo(0, rise);
-    shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: w + 0.8, bevelEnabled: false });
-    geo.translate(0, 0, -(w + 0.8) / 2);
-    geo.rotateY(Math.PI / 2);
-    geo.computeVertexNormals();
-    if (mat.map) worldUVs(geo, mat.userData.tile);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, y, z);
-    mesh.rotation.y = rotY;
-    mesh.castShadow = mesh.receiveShadow = true;
-    this.group.add(mesh);
-    this.addSolid(mesh);
-    return mesh;
-  }
-  // Windows with shutters on the long faces of a building (decoration only).
-  windows(cx, cz, w, d, y0, floors) {
-    for (let f = 0; f < floors; f++) {
-      const y = y0 + 1.2 + f * 3;
-      for (let i = -1; i <= 1; i++) {
-        for (const side of [-1, 1]) {
-          const x = cx + i * (w / 3.5), z = cz + side * (d / 2 + 0.03);
-          this.box(1.0, 1.4, 0.06, M.window, x, y, z, { solid: false });
-          this.box(0.45, 1.5, 0.08, M.shutter, x - 0.75, y - 0.05, z, { solid: false });
-          this.box(0.45, 1.5, 0.08, M.shutter, x + 0.75, y - 0.05, z, { solid: false });
-        }
-      }
-    }
-  }
-}
+import { M, Builder } from './kit.js';
+import { building, furniture } from './buildings.js';
 
 // A watchtower. Its way up is a ladder on one face (`ladder`: +1 or -1, the side it hangs
 // on along z) or a straight stair flight running west from the platform (`stairs`).
@@ -188,14 +109,49 @@ export function buildCompound(scene) {
   b.box(T, WH, D / 2 - 1.2, M.stone, cx + W / 2, y, cz + D / 4 + 0.6);
   for (const s of [-1, 1]) b.box(0.9, 3.2, 0.9, M.stone, cx - W / 2, y, cz + s * 4.2); // gate posts
 
-  // Villa (target lives here): two floors, terrace on the south side.
-  b.box(18, 6.4, 11, M.plaster, cx + 8, y, cz - 8);
-  b.gable(18, 2.6, 11, M.roof, cx + 8, y + 6.4, cz - 8);
-  b.windows(cx + 8, cz - 8, 18, 11, y, 2);
-  b.box(18, 0.5, 6, M.stone, cx + 8, y, cz - 0.5);                      // terrace floor
+  // Villa (the Oberst lives here): two floors you can walk through, terrace on the south side.
+  // Ground floor: dining room (west), hall with the stairs, radio room (east). Upstairs: the
+  // Oberst's office with his safe (west) and his bedroom (east). Local x −9…9, z −5.5…5.5.
+  const vx = cx + 8, vz = cz - 8;
+  const villa = building(b, {
+    x: vx, z: vz, y, w: 18, d: 11, floors: 2, h: 3.2, mat: M.plaster, roof: 'gable',
+    openings: [
+      { side: 's', at: 0, w: 1.4, h: 2.3, door: true },
+      { side: 'n', at: -5, w: 1.1, door: true },
+      ...[-6, 6].map(at => ({ side: 's', at, w: 1.1, window: true })),
+      ...[2, 6].map(at => ({ side: 'n', at, w: 1.1, window: true })),
+      { side: 'e', at: 0, w: 1.1, window: true }, { side: 'w', at: 0, w: 1.1, window: true },
+      ...[-6, 0, 6].map(at => ({ side: 's', at, w: 1.1, window: true, floor: 1 })),
+      ...[-6, 6].map(at => ({ side: 'n', at, w: 1.1, window: true, floor: 1 })),
+      { side: 'e', at: 0, w: 1.1, window: true, floor: 1 }, { side: 'w', at: 0, w: 1.1, window: true, floor: 1 },
+    ],
+    stairs: { at: [2.6, 1.0], dir: 'n', w: 1.0 },
+    walls: [
+      { axis: 'z', at: -3, from: -5.4, to: 5.4, openings: [{ at: 1.5, w: 1.0, door: true }] },
+      { axis: 'z', at: 3.5, from: -5.4, to: 5.4, openings: [{ at: 1.5, w: 1.0, door: true }] },
+      { axis: 'z', at: -3, from: -5.4, to: 5.4, floor: 1, openings: [{ at: 2.5, w: 1.0, door: true }] },
+      { axis: 'z', at: 3.5, from: -5.4, to: 5.4, floor: 1, openings: [{ at: 2.5, w: 1.0, door: true }] },
+    ],
+  });
+  const up = y + 3.2;
+  furniture.table(b, vx - 6, y, vz - 1, 2.4, 1.0);                     // dining room
+  furniture.cabinet(b, vx - 8.4, y, vz + 3.5, 0.45, 1.2);
+  furniture.table(b, vx + 6.3, y, vz - 3.5, 1.8, 0.9);                 // radio room
+  furniture.crates(b, vx + 7.5, y, vz + 2.5, 3);
+  furniture.desk(b, vx - 6, up, vz + 0.5);                             // the Oberst's office
+  furniture.shelf(b, vx - 6, up, vz + 5.0);
+  furniture.bed(b, vx + 6.5, up, vz - 3.6);                            // his bedroom
+  furniture.cabinet(b, vx + 8.4, up, vz + 2.5, 0.45, 1.0, 1.4);
+  villa.safe = { at: new THREE.Vector3(vx - 7.6, up, vz - 4.7), yaw: 0 };
+  villa.docs = {
+    desk: new THREE.Vector3(vx - 6.2, up + 0.79, vz + 0.4),
+    bedside: new THREE.Vector3(vx + 8.4, up + 1.42, vz + 2.6),
+    dining: new THREE.Vector3(vx - 6.3, y + 0.79, vz - 1.1),
+    radio: new THREE.Vector3(vx + 6.0, y + 0.79, vz - 3.4),
+  };
+  b.box(18, 0.5, 5, M.stone, cx + 8, y, cz);                           // terrace floor (from the villa wall out)
   for (const s of [-1, 1]) b.box(7.4, 1.0, 0.3, M.stone, cx + 8 + s * 5.3, y + 0.5, cz + 2.4); // terrace balustrade, open in the middle
   b.box(3.2, 0.25, 0.4, M.stone, cx + 8, y, cz + 2.75);                // steps up to the terrace
-  b.box(2.2, 2.6, 0.08, M.darkWood, cx + 8, y + 0.5, cz - 2.48, { solid: false }); // door
 
   // Barn
   b.box(14, 5.2, 9, M.plaster2, cx - 15, y, cz - 13);
@@ -305,7 +261,7 @@ export function buildCompound(scene) {
   add(16, -3, Math.PI, { name: 'Lieutenant', look: 'officerLieutenant' });
   add(0, -21, Math.PI / 2, { name: 'Sentry', stance: 'alert', look: 'guardCamo' });
 
-  return { solids: b.solids, boxes: b.boxes, soldiers, generator: generator.position.clone(), generatorMesh: generator, towerTops, ladders, siren, radio, tank, staffCar };
+  return { solids: b.solids, boxes: b.boxes, soldiers, generator: generator.position.clone(), generatorMesh: generator, towerTops, ladders, siren, radio, tank, staffCar, villa, doors: villa.doors };
 }
 
 function distanceSign(text) {

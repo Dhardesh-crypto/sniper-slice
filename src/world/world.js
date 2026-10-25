@@ -42,6 +42,9 @@ export class World {
     this.generatorMesh = compound.generatorMesh;
     this.tankSpot = compound.tank;
     this.staffCar = compound.staffCar;
+    this.villa = compound.villa;
+    this.doors = compound.doors ?? [];
+    this.doorBoxes = new Set(this.doors.map(d => d.box));     // the guards' paths go through doors
     // Where a guard kneels to restart it: in front of the shed's open side.
     this.generatorStand = new THREE.Vector3(this.generatorPos.x, heightAt(this.generatorPos.x, this.generatorPos.z), this.generatorPos.z - 1.4);
     this.hotspots = [];      // weak spots you can shoot (see src/world/hotspots.js)

@@ -50,6 +50,7 @@ export class NavGrid {
     this.blocked = new Uint8Array(this.n * this.n);
     // A box blocks if it stands between ankle and head height off the ground under it.
     for (const b of world.boxes) {
+      if (world.doorBoxes?.has(b)) continue;      // doors: guards open them as they pass
       const ground = world.groundAt((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2);
       if (b.max.y < ground + 0.55 || b.min.y > ground + 1.8) continue;
       const i0 = this.ix(b.min.x - CLEARANCE), i1 = this.ix(b.max.x + CLEARANCE);
@@ -64,6 +65,16 @@ export class NavGrid {
     for (const t of world.trees) {
       const i = this.ix(t.x), j = this.iz(t.z);
       if (this.inside(i, j)) this.blocked[j * this.n + i] = 1;
+    }
+    // Doorways: the clearance closes a 1 m opening on a 1 m grid, so keep a lane of cells open
+    // straight through each door (and a cell either side of the wall).
+    for (const b of world.doorBoxes ?? []) {
+      const mx = (b.min.x + b.max.x) / 2, mz = (b.min.z + b.max.z) / 2, alongX = b.max.x - b.min.x > b.max.z - b.min.z;
+      for (let k = -1; k <= 1; k++) {
+        const x = alongX ? mx : mx + k * CELL, z = alongX ? mz + k * CELL : mz;
+        const i = this.ix(x), j = this.iz(z);
+        if (this.inside(i, j)) this.blocked[j * this.n + i] = 0;
+      }
     }
     this.g = new Float32Array(this.n * this.n);
     this.from = new Int32Array(this.n * this.n);

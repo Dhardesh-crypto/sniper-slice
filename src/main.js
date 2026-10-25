@@ -30,6 +30,9 @@ import { Profile } from './core/profile.js';
 import { Pickups } from './world/pickups.js';
 import { BeltGrenades } from './world/belt-grenades.js';
 import { Rockets } from './weapons/rockets.js';
+import { Interactions } from './world/interact.js';
+import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missions/campaign.js';
+import { placeVineyardIntel } from './missions/vineyard.js';
 import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
 
@@ -118,6 +121,14 @@ const beltGrenades = new BeltGrenades({ world, hotspots, explosions });
 explosions.chainers.push(beltGrenades);
 search.beltGrenades = beltGrenades;
 mapView.pickups = pickups;
+// Doors, documents and safes; the mission places its own.
+const missionId = currentMissionId();
+const interactions = new Interactions({ scene, world, player, input, hud, audio, stealth, profile, missionId });
+interactions.addDoors(world.doors);
+mission.interactions = interactions;
+placeVineyardIntel(interactions, world, { pickups, items, arsenal, mission });
+interactions.onSafe = () => mission.complete('safe', "THE OBERST'S ORDERS TAKEN");
+search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
 const benchEl = document.getElementById('bench');
 let benchOpen = false;
@@ -141,17 +152,34 @@ const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadou
   : started
   ? { editable: false, note: 'The mission is under way: find a workbench to change your weapons and parts.' }
   : { editable: true, note: 'Your weapons and the parts you have found so far. Changes are kept for your next mission.' });
+// The campaign (Mission tab): the eight missions in order; finishing one unlocks the next.
+function renderCampaign() {
+  const el = document.getElementById('campaign');
+  el.innerHTML = CAMPAIGN.map((m, i) => {
+    const done = profile.completed(m.id), open = profile.unlocked(CAMPAIGN, m.id), current = m.id === missionId;
+    const status = current ? 'playing' : !m.ready ? 'in preparation' : !open ? 'locked' : done ? 'done ✓' : 'ready';
+    const intel = profile.intel(m.id).length;
+    return `<button class="camp${current ? ' current' : ''}${m.ready && open && !current ? ' playable' : ''}${!open || !m.ready ? ' locked' : ''}" data-mission="${m.id}" ${m.ready && open && !current ? '' : 'disabled'}>
+      <span class="n">${i + 1}</span><span><b>${m.name}</b><small>${m.place}${intel ? ` · ${intel} document${intel === 1 ? '' : 's'} found` : ''}</small></span><span class="st">${status}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.camp.playable').forEach(b => b.addEventListener('click', () => {
+    const m = missionById(b.dataset.mission);
+    if (confirm(`Start ${m.name}?\n\n${m.brief}`)) chooseMission(m.id);
+  }));
+}
+renderCampaign();
+
 // Settings → Testing: the test armoury, and a sound check for every weapon sample.
 const testAll = document.getElementById('set-testall');
 testAll.checked = profile.testAll;
-testAll.addEventListener('input', () => { profile.setTestAll(testAll.checked); fillHeavyForTest(); applyLoadout(profile.loadout); renderMenuLoadout(); });
+testAll.addEventListener('input', () => { profile.setTestAll(testAll.checked); fillHeavyForTest(); applyLoadout(profile.loadout); renderMenuLoadout(); renderCampaign(); });
 document.getElementById('sound-check').append(...SOUND_CHECK.map(([label, name, gain]) => {
   const b = document.createElement('button');
   b.textContent = label;
   b.addEventListener('click', async () => { b.classList.add('playing'); await audio.check(name, gain); setTimeout(() => b.classList.remove('playing'), 600); });
   return b;
 }));
-const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, applyLoadout });
+const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, interactions, missionId, applyLoadout });
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);
 mission.complete = (id, message) => {
@@ -168,6 +196,7 @@ arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot
 stealth.onRaise = (why) => mission.onRaise(why);
 const endScreen = document.getElementById('end');
 mission.onComplete = (sum) => {
+  profile.completeMission(missionId);     // the next mission unlocks
   document.getElementById('rating').textContent = `RATING · ${sum.rating}`;
   document.getElementById('end-stats').innerHTML = sum.rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   endScreen.classList.add('on');
@@ -347,6 +376,7 @@ function tick(dt) {
   arsenal.tick(dt);
   search.tick(dt);
   pickups.tick(dt);
+  interactions.tick(dt);
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
@@ -497,8 +527,8 @@ function step(realDt, draw = true) {
   const td = takedown.state();
   const its = items.state();
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
-  const pk = pickups.state();
-  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, pk, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const pk = pickups.state(), ia = interactions.state();
+  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, pk, ia, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
@@ -513,7 +543,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets,
+  beltGrenades, assets, rockets, interactions,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

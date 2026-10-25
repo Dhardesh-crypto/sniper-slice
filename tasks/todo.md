@@ -366,22 +366,25 @@ Upgrades change four things you can feel: **reach** (bullet speed, so less drop 
 The game becomes a campaign of eight missions, each its own map in a different environment.
 Built in steps, one commit per step, each playable when it lands.
 
+Decisions (2026-10-25): missions unlock in order (the test armoury opens all); safes open with a found
+combination or by slow, noisy cracking; new maps about 1 km across.
+
 ### 9A. Engine (everything after builds on it)
 - [ ] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and
       time of day, buildings, guards and routes, vehicles, pickups, objectives, spawn and extraction.
       `terrain.js`, `compound.js`, `guards.js`, `pickups.js` and `mission.js` stop assuming the vineyard.
-- [ ] Mission select in the menu (Mission tab): the eight missions with a briefing each, progress kept in
+- [x] Mission select in the menu (Mission tab; `src/missions/campaign.js`; only built missions are playable): the eight missions with a briefing each, progress kept in
       the profile; loading a mission rebuilds the world from its module.
-- [ ] A building kit for walk-in buildings: rooms, doorways, doors you open with E, stairs between
+- [x] A building kit for walk-in buildings (`src/world/buildings.js`, `kit.js`): rooms, doorways, doors you open with E, stairs between
       floors, windows to shoot through, roofs; guards path through doors and patrol inside (ground floor
       first, upper floors by stairs).
-- [ ] Safes: hold E to crack (slow, noisy), or open at once with the combination found on the officer
+- [x] Safes (`src/world/interact.js`): hold E to crack (slow, noisy), or open at once with the combination found on the officer
       or in a document. Contents: documents, intel, rare parts, ammo.
-- [ ] Documents and intel: readable letters, orders and maps (some reveal a safe combination, a guard
+- [x] Documents and intel: readable letters, orders and maps (some reveal a safe combination, a guard
       route or an optional target); a per-mission collection kept in the profile.
 - [ ] Objective engine: kill a target, destroy a thing, retrieve an item (from a safe or a body),
       sabotage, reach a place, plus the extraction; optional objectives.
-- [ ] The vineyard moved onto the framework as mission 1, with the villa walk-in and a safe.
+- [x] The vineyard's villa walk-in (two floors, stairs, six doors, four documents, the Oberst's office safe with his orders; the Oberst walks into the hall on his rounds). Verified: front door, stairs up and down, the bedside note gives the combination, the safe opens in 1.4 s and completes the optional objective, the Oberst opens the door and spends ~18 s inside, saves keep doors/documents/safe.
 
 ### 9B. The missions (one step each)
 1. [ ] **Operation Vineyard** (Tuscan countryside): the existing mission, villa now walk-in.
@@ -396,7 +399,7 @@ Built in steps, one commit per step, each playable when it lands.
        camp; demolish the bridge before the column crosses.
 7. [ ] **Airfield**: runway, hangars, control tower, fuel bowsers, parked planes and a radar;
        destroy the planes, steal the flight plans.
-8. [ ] **Eighth mission** (to choose): e.g. a coastal radar station on the cliffs.
+8. [ ] **Coastal radar** (sea cliffs): a radar station and gun battery, bunkers and trenches, a lighthouse, steep climbs.
 - New models where needed (Higgsfield): locomotive and wagons, boats and a ship, cranes, planes,
   furniture and safes; recorded sounds where needed.
 

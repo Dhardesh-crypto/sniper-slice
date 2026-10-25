@@ -26,7 +26,8 @@ const CUT_TIME = 1.6;           // seconds holding E to cut the wire
 // Patrol routes, metres from the compound centre (walked in a loop at a stroll), with an
 // optional pause in seconds at a point. The Oberst's is his daily routine.
 const ROUTES = {
-  'Officer': [[10, 0.5, 25], [8, 4], [-3.5, 9.8, 16], [6, 12], [20, 9, 10], [10, 4], [10, 0.5]],
+  // (in through the front door to the hall and back out, then the yard)
+  'Officer': [[10, 0.5, 25], [8, -1.2], [8, -6.5, 18], [8, -1.2], [8, 4], [-3.5, 9.8, 16], [6, 12], [20, 9, 10], [10, 4], [10, 0.5]],
   'Yard guard': [[20, 6], [20, 18], [2, 20], [-12, 6], [2, 0], [20, 6]],
   'Barn guard': [[-15, -6], [-26, -6], [-26, -20], [-6, -20], [-6, -6]],
   'Sergeant': [[-20, 10, 6], [-20, 20], [0, 21, 5], [0, 10], [-20, 10]],

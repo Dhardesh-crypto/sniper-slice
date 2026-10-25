@@ -50,8 +50,12 @@ export class Saves {
 
   // Loading = reload with a note, then apply() once the world is built.
   load(slot) {
-    if (!this.read(slot)) return false;
-    try { sessionStorage.setItem(PENDING, slot); } catch { return false; }
+    const data = this.read(slot);
+    if (!data) return false;
+    try {
+      sessionStorage.setItem(PENDING, slot);
+      sessionStorage.setItem('sniper-slice.mission', data.mission ?? 'vineyard');   // the page rebuilds that mission's map
+    } catch { return false; }
     location.reload();
     return true;
   }
@@ -118,6 +122,8 @@ export class Saves {
       seen: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.seen) : [],
       destroyed: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.destroyed) : [],
       beltGrenades: this.g.beltGrenades?.state() ?? [],
+      interactions: this.g.interactions?.snapshot() ?? null,
+      mission: this.g.missionId ?? 'vineyard',
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
   }
@@ -216,6 +222,7 @@ export class Saves {
     if (d.arsenal.heavy && d.loadout?.heavy) arsenal.weapons.heavy.mag = d.arsenal.heavy.mag;
     (d.seen ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) b.seen = true; });
     this.g.beltGrenades?.restore(d.beltGrenades);
+    this.g.interactions?.restore(d.interactions);
     (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) { b.destroyed = b.opened = true; b.mesh.visible = false; b.mesh.traverse(o => { delete o.userData.trap; }); } });
     (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (o && b && !b.opened) { b.opened = true; b.mesh.userData.lid.rotation.x = -1.2; b.mesh.userData.lid.position.z -= 0.1; } });
   }

@@ -72,7 +72,7 @@ export class Search {
     const got = [];
     got.push(...takeSupplies({ arsenal: this.arsenal, items: this.items }, loot));
     if (!got.length && (loot.rifle || loot.pistol)) got.push('ammo full');
-    if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); }
+    if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); this.onPapers?.(); }
     if (s.officer) { const part = this.pickups?.givePart(); if (part) got.push(`part: ${part.name}`); }  // the Oberst carries a weapon part
     if (s.officer && this.pickups?.profile.addWeapon('luger')) got.push('weapon: Luger P08 · fit it at a workbench');  // and his Luger
     this.audio.pickup();

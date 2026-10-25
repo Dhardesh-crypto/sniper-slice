@@ -228,3 +228,24 @@ button:disabled.lo-chip, button:disabled.lo-weapon { cursor: default; opacity: 0
 #bench.on { display: grid; }
 #bench .panel { max-width: 900px; overflow-y: auto; }
 #bench-close { font: inherit; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: #111; background: var(--ink); border: 0; padding: 11px 22px; cursor: pointer; margin-top: 14px; }
+
+/* Campaign list (Mission tab) */
+#campaign { display: grid; gap: 5px; margin-bottom: 16px; }
+.camp { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid rgba(242,237,225,0.14); background: rgba(255,255,255,0.03); font: inherit; color: var(--ink); text-align: left; }
+.camp.current { border-color: #ffcf6a; background: rgba(255,207,106,0.12); }
+.camp b { display: block; font-size: 13px; }
+.camp small { color: var(--dim); font-size: 11px; }
+.camp .n { color: var(--dim); font-size: 12px; text-align: center; }
+.camp .st { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.camp.playable { cursor: pointer; }
+.camp.playable:hover { border-color: rgba(255,207,106,0.6); }
+.camp.locked { opacity: 0.5; }
+
+/* A document you're reading */
+#doc-reader { position: fixed; inset: 0; display: none; place-items: center; z-index: 40; background: rgba(0,0,0,0.35); }
+#doc-reader.on { display: grid; }
+.doc-paper { width: min(520px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; padding: 28px 32px; background: #ece4cc; color: #2b2620;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5); font-family: "Courier New", ui-monospace, monospace; transform: rotate(-0.6deg); }
+.doc-paper h2 { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 14px; color: #5a1f16; }
+.doc-body { white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
+.doc-meta { margin: 18px 0 0; font-size: 11px; color: #7a6e58; font-family: inherit; }

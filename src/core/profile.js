@@ -67,5 +67,18 @@ export class Profile {
     this.save();
   }
 
+  // The campaign: missions finished (each unlocks the next) and documents found in each.
+  completed(id) { return !!this.data.done?.[id]; }
+  completeMission(id) { (this.data.done ??= {})[id] = true; this.save(); }
+  unlocked(campaign, id) {
+    const i = campaign.findIndex(m => m.id === id);
+    return this.testAll || i === 0 || this.completed(campaign[i - 1]?.id);
+  }
+  addIntel(missionId, docId) {
+    const list = (this.data.intel ??= {})[missionId] ??= [];
+    if (!list.includes(docId)) { list.push(docId); this.save(); }
+  }
+  intel(missionId) { return this.data.intel?.[missionId] ?? []; }
+
   get loadout() { return this.data.loadout; }
 }
