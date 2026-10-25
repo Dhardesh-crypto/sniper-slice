@@ -117,7 +117,7 @@ export class Saves {
       masking: { time: masking.time, nextPlane: masking.planeT >= 0 ? masking.time + 20 : masking.nextPlane, nextBarrage: masking.nextBarrage, generatorOn: masking.generatorOn },
       tank: tank ? { alive: tank.alive, turretYaw: tank.turretYaw } : null,
       fires: explosions.fires.map(f => ({ at: v3(f.at), t: f.t })),
-      mission: { time: mission.time, stats: { ...mission.stats }, objectives: mission.objectives.map(o => ({ id: o.id, done: o.done, hidden: !!o.hidden })) },
+      mission: { time: mission.time, stats: { ...mission.stats }, objectives: mission.objectives.map(o => ({ id: o.id, done: o.done, hidden: !!o.hidden })), state: mission.def.save?.(mission) ?? null },
       papers: search.papers,
       loadout: this.g.arsenal.loadout ?? null,
       opened: this.g.pickups ? this.g.pickups.boxes.map(b => b.opened) : [],
@@ -140,6 +140,7 @@ export class Saves {
       mission.time = d.mission.time;
       Object.assign(mission.stats, d.mission.stats);
       for (const o of d.mission.objectives ?? []) { const m = mission.obj(o.id); if (m) { m.done = o.done; m.hidden = o.hidden; } }
+      if (d.mission.state) mission.def.load?.(mission, d.mission.state);     // the mission module's own (a train's progress)
     }
     search.papers = d.papers ?? 0;
 

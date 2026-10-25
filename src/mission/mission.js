@@ -125,6 +125,13 @@ export class Mission {
     }
   }
 
+  // Something you can't undo went wrong (the train got away): the mission is lost.
+  fail(why) {
+    if (this.done) return;
+    this.done = true;
+    this.onFail?.(why);
+  }
+
   finish() {
     this.done = true;
     this.onComplete?.(this.summary());

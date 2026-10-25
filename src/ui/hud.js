@@ -89,7 +89,7 @@ export class Hud {
     const el = this.el.mask ?? (this.el.mask = document.getElementById('mask'));
     const names = { generator: 'GENERATOR', plane: 'AIRCRAFT', artillery: 'ARTILLERY' };
     if (st.mask.amount > 0.5) {
-      el.textContent = `SOUND MASKED · ${names[st.mask.source]}`;
+      el.textContent = `SOUND MASKED · ${names[st.mask.source] ?? String(st.mask.source).toUpperCase()}`;
       el.className = 'on';
     } else if (st.upcoming && st.upcoming.in < 6 && st.upcoming.in > 0) {
       el.textContent = st.upcoming.kind === 'plane' ? 'AIRCRAFT APPROACHING' : 'ARTILLERY INCOMING';

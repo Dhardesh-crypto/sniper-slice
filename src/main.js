@@ -66,6 +66,7 @@ const MISSION_MODULES = {
   town: () => import('./missions/town.js'),
   harbour: () => import('./missions/harbour.js'),
   forest: () => import('./missions/forest.js'),
+  railway: () => import('./missions/railway.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
@@ -216,6 +217,13 @@ mission.onComplete = (sum) => {
   menu.classList.add('hidden');
   audio.setSiren(0);
   audio.setTruck(0);
+  document.exitPointerLock?.();
+};
+mission.onFail = (why) => {
+  deathScreen.querySelector('h2').textContent = why;
+  deathScreen.classList.add('on');
+  menu.classList.add('hidden');
+  audio.setSiren(0);
   document.exitPointerLock?.();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());

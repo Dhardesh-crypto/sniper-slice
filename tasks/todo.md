@@ -414,8 +414,16 @@ combination or by slow, noisy cracking; new maps about 1 km across.
    drawn (21 → under 3 ms a frame); standing among trees makes you harder to see on a forest map.
    Verified by script: patrol routes, satchel on the drums, the three stands, Vogel, extraction, the stand ladder,
    save/load; vineyard, town and harbour still load and play.
-5. [ ] **Railway station**: station building, yard with sidings, a water tower, an armoured train
-       arriving on a schedule; destroy the rail gun.
+5. [x] **Railway junction** (Operation Iron Road): the main line through a station (platform, 2-floor building with
+   the stationmaster's safe), a signal box (ladder, lever upstairs), a water tower with a lookout, a yard of sidings
+   with goods wagons, an engine shed, coal stage and goods shed, the town's edge, a branch line. The gun train keeps
+   time: due at 5:00, stops at the water tower for 2:30, then leaves west (the mission fails if the gun gets away).
+   The signal lever holds it (at the home signal if pulled early, else at the platform); a wrecked boiler stops it;
+   the gun is armoured (satchel, AP, rockets) and the ammunition wagon in front of it sets it off. A moving train
+   masks shots. Engine: hold-E levers, mission failure screen, map sound sources, module save/load hooks.
+   Verified by script: on-time arrival and stop, departure and failure, lever before arrival (held at the signal
+   past its departure), ammunition-wagon chain, satchel on the breech from the platform, boiler wreck while moving,
+   save/load with the train moving, masking; the other four missions still load and patrol.
 6. [ ] **Bridge**: a river gorge, a stone road bridge with checkpoints at both ends, an engineers'
        camp; demolish the bridge before the column crosses.
 7. [ ] **Airfield**: runway, hangars, control tower, fuel bowsers, parked planes and a radar;

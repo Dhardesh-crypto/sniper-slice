@@ -469,6 +469,26 @@ export class Audio {
   }
 
   // A guard noticing something: a short muttered "huh" stand-in (filtered noise, no tone).
+  // ---- a steam train ----
+  // One chuff of the exhaust: a soft low burst, quieter and duller with distance.
+  trainChuff(distance, gain = 1) {
+    const k = Math.max(0, 1 - distance / 700) ** 2 * gain;
+    if (k < 0.01) return;
+    this.noiseBurst({ dur: 0.22, type: 'bandpass', freq: 380 - Math.min(250, distance * 0.4), q: 0.9, gain: 0.5 * k, attack: 0.01, wet: 0.15 });
+    this.thump({ freq: 48, dur: 0.18, gain: 0.25 * k });
+  }
+  // The steam whistle: two breathy notes together (noise through narrow filters, no ringing tone).
+  steamWhistle(distance, dur = 1.8) {
+    const k = Math.max(0, 1 - distance / 1400) ** 1.5;
+    if (k < 0.01) return;
+    for (const freq of [560, 700]) this.noiseBurst({ dur, type: 'bandpass', freq, q: 22, gain: 1.6 * k, attack: 0.12, wet: 0.35 });
+  }
+  // Steam let off while it stands: a hiss.
+  steamHiss(distance) {
+    const k = Math.max(0, 1 - distance / 300) ** 2;
+    if (k > 0.01) this.noiseBurst({ dur: 1.4, type: 'highpass', freq: 2500, q: 0.5, gain: 0.25 * k, attack: 0.2 });
+  }
+
   // ---- kill cam ----
   killcamWhoosh(dur) {
     // The bullet's slowed-down rush: a rising, filtered roar.

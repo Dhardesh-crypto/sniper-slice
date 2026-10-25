@@ -103,6 +103,10 @@ export class Masking {
       const k = THREE.MathUtils.clamp(1.4 - d / PLANE.maskRange, 0, 1);
       if (k > best) { best = k; source = 'plane'; }
     }
+    for (const src of this.world.soundSources ?? []) {      // the map's own (a passing train)
+      const k = src.at(pos);
+      if (k > best) { best = k; source = src.name; }
+    }
     const sinceBoom = this.time - this.lastBoom;
     if (sinceBoom < ARTY.window) {
       const k = 1 - Math.max(0, sinceBoom - 0.6) / (ARTY.window - 0.6);

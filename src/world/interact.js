@@ -1,6 +1,7 @@
 // Things you use with E inside buildings:
 //   doors      press E to open or shut; guards open them as they walk through
 //   documents  press E to pick up and read (letters, orders, maps); kept in your intel
+//   levers     hold E to pull (a signal lever): { at, label, time, onUse }; once only
 //   safes      hold E: with the combination (found in a document or on a body) it opens in a
 //              moment; without it you crack it by ear, slowly, and the dial clicks carry
 // The mission module places them; this keeps the prompt, the progress and the reading view.
@@ -16,6 +17,7 @@ export class Interactions {
     this.doors = [];
     this.documents = [];
     this.safes = [];
+    this.levers = [];
     this.known = new Set();       // combinations you've read: safe ids
     this.found = new Set();       // documents read this mission
     this.target = null;
@@ -53,6 +55,9 @@ export class Interactions {
     this.safes.push({ ...safe, model: g, front, open: false });
   }
 
+  // A lever (or any one-off thing you hold E to work): { at, label, busy, time = 1.5, onUse(lever) }.
+  addLever(lever) { this.levers.push({ time: 1.5, ...lever, used: false }); }
+
   // A document found on a body or in a safe: read it now.
   give(doc) { this.read(doc); }
 
@@ -65,6 +70,7 @@ export class Interactions {
     };
     for (const d of this.documents) if (!d.taken) consider('doc', d, d.at);
     for (const s of this.safes) if (!s.open) consider('safe', s, s.front);
+    for (const l of this.levers) if (!l.used) consider('lever', l, l.at);
     for (const d of this.doors) consider('door', d, d.centre, 1.3);
     return best;
   }
@@ -86,6 +92,12 @@ export class Interactions {
     if (!t) return;
     if (t.kind === 'door' && this.input.wasPressed('KeyE')) { t.item.toggle(this.world); this.audio.click(0, 600, 0.25); return; }
     if (t.kind === 'doc' && this.input.wasPressed('KeyE')) { this.take(t.item); return; }
+    if (t.kind === 'lever') {
+      if (!this.input.down('KeyE') || p.moving) { this.progress = 0; return; }
+      this.progress += dt / t.item.time;
+      if (this.progress >= 1) { t.item.used = true; this.progress = 0; this.audio.thump?.({ freq: 90, dur: 0.25, gain: 0.5 }); t.item.onUse?.(t.item); }
+      return;
+    }
     if (t.kind === 'safe') {
       if (!this.input.down('KeyE') || p.moving) { this.progress = 0; return; }
       const known = this.known.has(t.item.id);
@@ -144,19 +156,21 @@ export class Interactions {
     if (!t || this.reading) return null;
     if (t.kind === 'door') return { label: t.item.open ? 'E · CLOSE THE DOOR' : 'E · OPEN THE DOOR', progress: 0 };
     if (t.kind === 'doc') return { label: `E · READ: ${t.item.title.toUpperCase()}`, progress: 0 };
+    if (t.kind === 'lever') return { label: this.progress > 0 ? t.item.busy : `HOLD E · ${t.item.label}`, progress: this.progress };
     const known = this.known.has(t.item.id);
     return { label: this.progress > 0 ? (known ? 'DIALLING THE COMBINATION…' : 'CRACKING THE SAFE BY EAR… (NOISY)') : known ? `HOLD E · OPEN THE SAFE (${t.item.combination})` : 'HOLD E · CRACK THE SAFE (SLOW, NOISY: OR FIND THE COMBINATION)', progress: this.progress };
   }
 
   // Saves.
   snapshot() {
-    return { doors: this.doors.map(d => d.open), docs: this.documents.map(d => d.taken), safes: this.safes.map(s => s.open), known: [...this.known], found: [...this.found] };
+    return { doors: this.doors.map(d => d.open), docs: this.documents.map(d => d.taken), safes: this.safes.map(s => s.open), levers: this.levers.map(l => l.used), known: [...this.known], found: [...this.found] };
   }
   restore(d) {
     if (!d) return;
     d.doors?.forEach((o, i) => { if (o && this.doors[i]) { this.doors[i].setOpen(this.world, true); this.doors[i].swing = this.doors[i].target; this.doors[i].pivot.rotation.y = this.doors[i].swing; } });
     d.docs?.forEach((t, i) => { const doc = this.documents[i]; if (t && doc && !doc.taken) { doc.taken = true; doc.mesh.removeFromParent(); } });
     d.safes?.forEach((o, i) => { const s = this.safes[i]; if (o && s && !s.open) { s.open = true; s.model.userData.door.rotation.y = -1.9; } });
+    d.levers?.forEach((u, i) => { if (u && this.levers[i]) this.levers[i].used = true; });     // (the module restores what it did)
     for (const k of d.known ?? []) this.known.add(k);
     for (const f of d.found ?? []) this.found.add(f);
   }
