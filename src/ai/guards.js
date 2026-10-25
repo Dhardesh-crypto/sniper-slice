@@ -87,7 +87,9 @@ export class GuardAI {
       if (a.spotted && a.state === 'alerted') { b.lastSeenT = this.time; b.lastSeen = p.pos.clone(); }
       const mode = this.decide(s);
       if (mode !== b.mode) this.enter(s, mode);
+      s.nextActivity = null;           // run() says if he's looking around or at work this tick
       this.run(s, dt);
+      s.setActivity(s.nextActivity);
     }
     this.tickAlarm(dt);
     this.tickTruck(dt);
@@ -189,7 +191,7 @@ export class GuardAI {
         if (this.goTo(s, task.at, WALK, dt)) {
           this.stop(s);
           s.targetYaw = 0; // face the generator (+z)
-          s.crouchTarget = 0.7;
+          if (s.char.action('kneelWork')) s.nextActivity = 'kneelWork'; else s.crouchTarget = 0.7;
           if ((task.t -= dt) <= 0) { b.task = null; s.crouchTarget = 0; task.done(); }
         }
         break;
@@ -496,6 +498,7 @@ export class GuardAI {
   lookAround(s, dt) {
     const b = s.brain;
     this.stop(s);
+    s.nextActivity = 'lookAround';
     b.lookT += dt;
     if (Math.floor(b.lookT / 1.6) !== Math.floor((b.lookT - dt) / 1.6)) s.targetYaw = s.root.rotation.y + (Math.random() - 0.5) * 2.4;
     if (b.lookT > LOOK_AROUND) { b.lookT = 0; return true; }

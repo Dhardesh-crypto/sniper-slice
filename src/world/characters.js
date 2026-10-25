@@ -11,6 +11,10 @@ const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
   takedownAtk: 'anim_takedown_atk', takedownVic: 'anim_takedown_vic', // knife takedown: you, him
+  ladderClimb: 'anim_ladder_climb', climbWall: 'anim_climb_wall',          // climbing
+  throw: 'anim_throw', throwCrouch: 'anim_throw_crouch', place: 'anim_place', // grenades, bottles; charges at your feet
+  search: 'anim_search', kneelWork: 'anim_kneel_work',                     // searching a body; bandaging, repairs
+  hitReact: 'anim_hit_react', lookAround: 'anim_look_around',              // a guard hit; a guard searching
 };
 // Arm bones driven by the "holding a rifle" layer instead of the base clip.
 const HOLD_BONES = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
@@ -65,15 +69,29 @@ function removeYaw(track) {
   }
 }
 
+// Take the travel out of a clip (the game moves the body itself): the hips' net drift over the
+// clip, along these axes, is removed, keeping the sway within it. The clips are in centimetres.
+function inPlace(clip, axes) {
+  const t = clip?.tracks.find(tr => tr.name === 'Hips.position');
+  if (!t) return;
+  const v = t.values, n = v.length / 3, T = t.times[t.times.length - 1] || 1;
+  for (const a of axes) {
+    const i = 'xyz'.indexOf(a), drift = v[(n - 1) * 3 + i] - v[i];
+    for (let k = 0; k < n; k++) v[k * 3 + i] -= drift * t.times[k] / T;
+  }
+}
+
 function buildDerivedClips() {
   const c = assets.clips;
+  for (const k of ['throw', 'throwCrouch', 'place', 'search', 'kneelWork', 'hitReact', 'lookAround']) inPlace(c[k], 'xz');
+  for (const k of ['ladderClimb', 'climbWall']) inPlace(c[k], 'xyz');
   if (c.idle) {
     c.idle = c.idle.clone();
     const SQUARE = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck'];
     for (const t of c.idle.tracks) if (t.name.endsWith('.quaternion') && SQUARE.includes(boneOf(t))) removeYaw(t);
   }
   // Lower-body versions of the stand/walk/crouch clips (the arms come from the hold layer).
-  for (const k of ['idle', 'walk', 'crouch']) {
+  for (const k of ['idle', 'walk', 'crouch', 'lookAround']) {
     if (c[k]) c[k + 'Legs'] = new THREE.AnimationClip(k + 'Legs', c[k].duration, c[k].tracks.filter(t => !HOLD_BONES.includes(boneOf(t))));
   }
   // A frozen arm pose from the rifle sprint: both hands on the rifle.
@@ -338,15 +356,25 @@ export class Character {
 
   // Rifle slung on the right shoulder, muzzle up, scope facing out: guards at ease,
   // or the player with the pistol drawn.
+  // Slung across the back: the muzzle up past the right shoulder, the butt at the left hip,
+  // the scope facing out. The torso's own frame is taken from the bones (hips to neck, shoulder
+  // to shoulder), so it stays on the back when he bends, crouches, kneels or climbs.
   slingRifle() {
-    const sh = this.bones.RightArm;
-    if (!sh) return;
-    const { a } = this._v;
-    sh.getWorldPosition(a);
-    this.root.worldToLocal(a);
-    a.add(this.modelDir(-0.12, -0.5, 0.02).multiplyScalar(Math.hypot(-0.12, -0.5, 0.02))); // outside the shoulder, hanging down
-    this.rifle.position.copy(a);
-    this.aimRifle(this.modelDir(-0.06, 1, -0.05), this.modelDir(-1, 0, 0));
+    const b = this.bones;
+    if (!b.Hips || !b.neck || !b.LeftArm || !b.RightArm || !b.Spine02) return;
+    const S = this._sling ??= { hips: new THREE.Vector3(), neck: new THREE.Vector3(), l: new THREE.Vector3(), r: new THREE.Vector3(), chest: new THREE.Vector3(),
+      up: new THREE.Vector3(), right: new THREE.Vector3(), back: new THREE.Vector3(), dir: new THREE.Vector3(), inv: new THREE.Quaternion() };
+    b.Hips.getWorldPosition(S.hips); b.neck.getWorldPosition(S.neck);
+    b.LeftArm.getWorldPosition(S.l); b.RightArm.getWorldPosition(S.r); b.Spine02.getWorldPosition(S.chest);
+    S.up.subVectors(S.neck, S.hips).normalize();
+    S.right.subVectors(S.r, S.l).normalize();
+    S.back.crossVectors(S.right, S.up).normalize();
+    // The grip a little left of the spine and low on the back; the rifle lies close against it.
+    S.chest.addScaledVector(S.back, 0.15).addScaledVector(S.right, -0.04).addScaledVector(S.up, -0.12);
+    S.dir.copy(S.up).addScaledVector(S.right, 0.55).normalize();
+    this.root.getWorldQuaternion(S.inv).invert();
+    this.rifle.position.copy(this.root.worldToLocal(S.chest));
+    this.aimRifle(S.dir.applyQuaternion(S.inv), S.back.applyQuaternion(S.inv));
   }
 
   muzzleWorld(out = new THREE.Vector3()) {

@@ -19,6 +19,8 @@ export class Soldier {
     this.tagged = false;
     this.searched = false;
     this.staggerT = 0;
+    this.reactT = 0;             // reeling from a hit (the hit-reaction clip)
+    this.activity = null;
 
     // Officers: the same model in a lighter, better-pressed tunic.
     this.char = new Character('guard', { tint: officer ? 0xd9d2bd : null });
@@ -68,12 +70,17 @@ export class Soldier {
   // Apply a bullet hit. Returns { zone, killed, damage } for the HUD and the kill cam.
   // Alert guards idle on the legs with the arms on the rifle; at ease and officers
   // play the whole relaxed idle (officers carry no rifle).
+  // Standing still with something to do (`activity`): looking around (alert: the legs and body
+  // turn, the arms stay on the rifle) or kneeling at work (the rifle on his back).
   applyStance(fade = 0) {
+    if (this.reactT > 0) return;          // let the hit reaction finish
     const alert = this.stance === 'alert';
     const c = this.char;
     let clip = alert ? 'idleLegs' : 'idle', hold = alert ? 1 : 0, rate = 1;
     if (this.gait === 'run') { clip = 'sprint'; hold = 0; rate = Math.max(0.6, this.speed / 4.6); }
     else if (this.gait === 'walk') { clip = alert || !c.action('walk') ? 'walkLegs' : 'walk'; rate = Math.max(0.5, this.speed / 1.35); }
+    else if (this.activity === 'kneelWork' && c.action('kneelWork')) { clip = 'kneelWork'; hold = 0; }
+    else if (this.activity === 'lookAround' && c.action('lookAround')) { clip = alert ? 'lookAroundLegs' : 'lookAround'; }
     c.play(clip, { fade, timeScale: rate });
     c.setHoldWeight(hold);
     c.rifle.visible = this.stance !== 'officer';
@@ -99,8 +106,20 @@ export class Soldier {
       return { zone, killed: true, damage };
     }
     this.wounded = true;
-    this.staggerT = 0.45;
+    if (this.char.action('hitReact')) {
+      // He reels from the hit, then carries on.
+      this.reactT = 0.9;
+      this.char.setHoldWeight(0);
+      this.char.play('hitReact', { fade: 0.06, once: true, timeScale: 2 });
+    } else this.staggerT = 0.45;
     return { zone, killed: false, damage };
+  }
+
+  // What he's doing while standing (set by the guard AI each tick): 'lookAround', 'kneelWork' or null.
+  setActivity(name) {
+    if (name === this.activity) return;
+    this.activity = name;
+    if (this.alive && this.gait === 'stand') this.applyStance(0.35);
   }
 
   // Awareness changed (from the stealth system): face the news, rifle up when wary.
@@ -195,6 +214,7 @@ export class Soldier {
       const t = this.deathT;
       this.root.position.copy(this.fallFrom).addScaledVector(this.knock, 1 - (1 - t) * (1 - t));
     }
+    if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.staggerT > 0) {
       this.staggerT = Math.max(0, this.staggerT - dt);
       const k = Math.sin((0.45 - this.staggerT) / 0.45 * Math.PI);
@@ -205,6 +225,7 @@ export class Soldier {
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand' });
     this.kick = Math.max(0, this.kick - dt * 4);
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
+    else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
     else if (this.alive && this.aimDir && this.stance !== 'officer') this.char.placeRifleShouldered(this.aimDir, this.kick * 0.07);
     else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.char.placeRifleInHands(this.gait === 'run' ? 'port' : 'low');
     else if (this.alive && this.stance === 'easy') this.char.slingRifle();

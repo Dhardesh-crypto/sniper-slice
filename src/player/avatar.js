@@ -47,6 +47,19 @@ export function pistolModel() {
   return g;
 }
 
+// Full-body actions: clip, speed, where in the clip to start (a fraction), and for one-shots
+// how long they last. Aiming a throw holds the wind-up (speed 0); letting go plays the throw on
+// from there.
+const ACTIONS = {
+  aim: { clip: 'throw', rate: 0, from: 0.4 },
+  aimCrouch: { clip: 'throwCrouch', rate: 0, from: 0.42 },
+  throw: { clip: 'throw', rate: 1.8, from: 0.4, dur: 0.9, once: true },
+  throwCrouch: { clip: 'throwCrouch', rate: 2.2, from: 0.42, dur: 1.0, once: true },
+  place: { clip: 'place', rate: 4.5, from: 0, dur: 1.8, once: true },
+  heal: { clip: 'kneelWork', rate: 1.3, from: 0 },
+  search: { clip: 'search', rate: 3, from: 0, once: true },
+};
+
 export class Avatar {
   constructor(scene) {
     this.char = new Character('player', { faceMinusZ: true });
@@ -132,6 +145,9 @@ export class Avatar {
     return this.char.muzzleWorld(out);
   }
 
+  // A one-off action (from the item kit): 'throw' (or 'throwCrouch') or 'place'.
+  perform(kind) { this.oneShot = { kind, t: 0, dur: ACTIONS[kind].dur }; }
+
   // st: { pos, lookYaw, lookPitch, moveYaw, stance, speed, sprinting, weapon, aiming, ready, boltT, reloading, visible }
   update(dt, st) {
     const s = this.s, c = this.char;
@@ -158,14 +174,22 @@ export class Avatar {
 
     // Pick the base clip from stance and speed, and match its pace to the real speed.
     const moving = st.speed > 0.25;
-    let clip, rate = 1;
+    if (this.oneShot && (this.oneShot.t += dt) > this.oneShot.dur) this.oneShot = null;
+    const act = st.stance === 'prone' ? null : this.oneShot ? ACTIONS[this.oneShot.kind]
+      : st.throwAim ? ACTIONS[st.stance === 'crouch' ? 'aimCrouch' : 'aim']
+      : st.healing && !moving ? ACTIONS.heal : st.searching ? ACTIONS.search : null;   // (healing on the move: just walk)
+    let clip, rate = 1, from = null;
     if (st.takedown && c.action('takedownAtk')) {
       clip = 'takedownAtk';
       rate = 1.3;
     } else if (climb) {
-      // No climbing clip yet: a slow stride on the rungs, a crouched push over a ledge.
-      clip = climb.kind === 'ladder' ? 'walkLegs' : 'crouchLegs';
-      rate = climb.kind === 'ladder' ? (st.climbRate ?? 0) / 1.2 : 0.8;
+      // Hand over hand up the rungs (paced to the climb, reversed going down); hauling up a ledge.
+      const ladder = climb.kind === 'ladder';
+      clip = ladder ? (c.action('ladderClimb') ? 'ladderClimb' : 'walkLegs') : (c.action('climbWall') ? 'climbWall' : 'crouchLegs');
+      rate = ladder ? THREE.MathUtils.clamp((st.climbRate ?? 0) / 0.28, -3, 3) : 1.6;
+    } else if (act && c.action(act.clip)) {
+      // Throwing (wound up while you aim, then the throw), placing a charge, bandaging, searching.
+      clip = act.clip; rate = act.rate; from = act.from;
     } else if (st.stance === 'prone') {
       clip = 'crawl';
       rate = moving ? -st.speed / CLIP_SPEED.crawl : 0; // the crawl clip goes backward: play it reversed
@@ -182,19 +206,21 @@ export class Avatar {
       clip = 'idleLegs';
     }
     if (clip !== this.state) {
-      c.play(clip, { fade: clip === 'takedownAtk' ? 0.1 : clip === 'crawl' || this.state === 'crawl' ? 0.35 : 0.22, once: clip === 'takedownAtk' });
+      c.play(clip, { fade: clip === 'takedownAtk' ? 0.1 : clip === 'crawl' || this.state === 'crawl' ? 0.35 : 0.22, once: clip === 'takedownAtk' || !!act?.once });
+      if (from !== null && c.base) c.base.time = from * c.base.getClip().duration;
       this.state = clip;
     }
     if (c.base) c.base.timeScale = rate;
+    const busy = !!(climb || st.takedown || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
 
     // Arms hold the rifle except while sprinting (the sprint clip carries it) or crawling.
     s.prone = damp(s.prone, st.stance === 'prone' ? 1 : 0, 6, dt);
-    const holdTarget = st.sprinting || st.stance === 'prone' || climb || st.takedown ? 0 : 1;
+    const holdTarget = st.sprinting || st.stance === 'prone' || busy ? 0 : 1;
     c.setHoldWeight(damp(c.hold?.getEffectiveWeight() ?? 1, holdTarget, 10, dt));
     c.update(dt);
     // Crouched low behind cover; aiming raises you to look over it.
     const peek = st.aiming || st.ready > 0.35;
-    s.crouch = damp(s.crouch, st.stance === 'crouch' && !climb ? (peek ? 0.4 : 1) : 0, 8, dt);
+    s.crouch = damp(s.crouch, st.stance === 'crouch' && !busy ? (peek ? 0.4 : 1) : 0, 8, dt);   // (the action clips crouch by themselves)
     c.lowerBody(s.crouch, { plant: !moving });
 
     // Weapon up: after a shot or while aiming, the rifle comes to the shoulder.
@@ -202,8 +228,8 @@ export class Avatar {
     this.root.updateMatrixWorld(true);
 
     // Weapons: rifle shouldered or carried in both hands, or slung with the pistol drawn.
-    if (climb || st.takedown) {
-      c.slingRifle(); // both hands for climbing or the knife
+    if (busy) {
+      c.slingRifle(); // both hands for climbing, the knife, throwing, placing, bandaging, searching
       this.pistol.visible = false;
     } else if (st.weapon === 'rifle') {
       const shoulder = s.ready > 0.35 && !st.reloading && !st.sprinting && st.stance !== 'prone';

@@ -207,6 +207,7 @@ export class Items {
   throw(id) {
     this.aimingThrow = false;
     this.count[id]--;
+    this.onAction?.('throw');
     const { pos, vel } = this.throwStart();
     const mesh = model(id);
     mesh.position.copy(pos);
@@ -277,6 +278,7 @@ export class Items {
       at.y = this.world.floorAt(at.x, at.z, p.pos.y + 0.3) + (id === 'mine' ? -0.02 : 0);
     }
     this.count[id]--;
+    this.onAction?.('place');
     this.spawnTrap(id, at, p.yaw, parent);
     this.audio.rustle();
     this.hud.message({ mine: 'MINE PLACED · IT ARMS IN A MOMENT', tnt: 'TNT PLACED · PRESS K TO DETONATE', satchel: parent ? 'SATCHEL ON THE VEHICLE · 10 SECONDS · K TO BLOW IT NOW' : 'SATCHEL PLACED · 10 SECONDS · K TO BLOW IT NOW' }[id], '');

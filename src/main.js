@@ -89,6 +89,7 @@ tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
 const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
 explosions.chainers.push(items);
+items.onAction = (kind) => avatar.perform(kind === 'throw' && player.stance === 'crouch' ? 'throwCrouch' : kind);
 arsenal.items = items;
 search.items = items;
 arsenal.onAmmo = (name) => hud.message(`LOADING ${name.toUpperCase()} ROUNDS`);
@@ -456,6 +457,7 @@ function step(realDt, draw = true) {
     stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
+    throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0,
     visible: fpBlend < 0.5 && rig.armLen > 0.9, // hide the body when a wall pushes the camera into it
   });
   takedown.placeKnife();
