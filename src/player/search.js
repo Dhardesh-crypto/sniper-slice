@@ -4,10 +4,10 @@ import * as THREE from 'three';
 
 const REACH = 1.9;          // metres from the body (horizontal)
 const SEARCH_TIME = 1.1;    // seconds of holding E
-import { takeSupplies } from './supplies.js';
+import { takeSupplies, MAX_KIT } from './supplies.js';
 
 // What a body carries: a soldier's own kit. Rifle rounds, sometimes pistol or special rounds,
-// now and then a grenade, a bandage or a medkit. The Oberst: pistol rounds, a medkit, his
+// a bandage or a medkit now and then, and the grenade on his belt if he has one. The Oberst: pistol rounds, a medkit, his
 // papers and a weapon part. (Bottles, mines, TNT and satchels are only in the supply caches
 // around the map: see world/pickups.js.)
 function rollLoot(soldier, rng = Math.random) {
@@ -16,7 +16,7 @@ function rollLoot(soldier, rng = Math.random) {
   return {
     rifle: n(3, 7), pistol: rng() < 0.35 ? n(2, 5) : 0, papers: 0,
     special: { subsonic: rng() < 0.25 ? n(2, 4) : 0, ap: rng() < 0.15 ? n(1, 2) : 0 },
-    kit: { grenade: rng() < 0.35 ? 1 : 0, bandage: rng() < 0.35 ? 1 : 0, medkit: rng() < 0.08 ? 1 : 0 },
+    kit: { grenade: 0, bandage: rng() < 0.35 ? 1 : 0, medkit: rng() < 0.08 ? 1 : 0 },
   };
 }
 
@@ -67,6 +67,8 @@ export class Search {
     const s = this.target;
     s.searched = true;
     const loot = rollLoot(s);
+    // The grenade on his belt, if you have room for it (otherwise it stays on him).
+    if ((this.items?.count.grenade ?? 0) < MAX_KIT.grenade && this.beltGrenades?.take(s)) loot.kit.grenade = 1;
     const got = [];
     got.push(...takeSupplies({ arsenal: this.arsenal, items: this.items }, loot));
     if (!got.length && (loot.rifle || loot.pistol)) got.push('ammo full');

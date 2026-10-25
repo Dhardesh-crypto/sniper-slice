@@ -28,6 +28,7 @@ import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
 import { Profile } from './core/profile.js';
 import { Pickups } from './world/pickups.js';
+import { BeltGrenades } from './world/belt-grenades.js';
 import { LoadoutUI } from './ui/loadout.js';
 
 const FIXED_DT = 1 / 60;
@@ -102,6 +103,9 @@ search.pickups = pickups;
 pickups.arsenal = arsenal; pickups.items = items; pickups.explosions = explosions;
 explosions.chainers.push(pickups);
 pickups.registerCrates(hotspots);
+const beltGrenades = new BeltGrenades({ world, hotspots, explosions });
+explosions.chainers.push(beltGrenades);
+search.beltGrenades = beltGrenades;
 mapView.pickups = pickups;
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
 const benchEl = document.getElementById('bench');
@@ -124,7 +128,7 @@ addEventListener('keydown', (e) => { if (e.code === 'Escape' && benchOpen) close
 const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadout-menu'), started
   ? { editable: false, note: 'The mission is under way: find a workbench to change your weapons and parts.' }
   : { editable: true, note: 'Your weapons and the parts you have found so far. Changes are kept for your next mission.' });
-const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, applyLoadout });
+const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, applyLoadout });
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);
 mission.complete = (id, message) => {
@@ -485,6 +489,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
+  beltGrenades,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
