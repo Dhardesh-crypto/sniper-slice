@@ -6,7 +6,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
-  enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle' };
+  enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
+  // More Germans: a soldier in a camouflage smock, a sergeant, the colonel (the Oberst), a lieutenant.
+  guardCamo: 'guard_camo', guardSergeant: 'guard_sergeant', officerColonel: 'officer_colonel', officerLieutenant: 'officer_lieutenant' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
@@ -188,7 +190,7 @@ export class Character {
   // kind: 'player' | 'guard'. faceMinusZ: the game's player convention (yaw 0 faces -z).
   constructor(kind, { faceMinusZ = false, tint = null } = {}) {
     this.root = new THREE.Group();
-    this.model = SkeletonUtils.clone(assets.models[kind].scene);
+    this.model = SkeletonUtils.clone((assets.models[kind] ?? assets.models.guard).scene);   // (a missing look falls back to the plain guard)
     this.model.updateMatrixWorld(true);
     if (faceMinusZ) this.model.rotation.y = Math.PI;
     this.root.add(this.model);

@@ -8,7 +8,9 @@ import { Character, buildHitZones } from './characters.js';
 
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
-  constructor({ position, yaw = 0, officer = false, name = 'Guard', stance = 'easy' }) {
+  // look: which character model ('guard', 'guardCamo', 'guardSergeant', 'officerLieutenant';
+  // the Oberst is 'officerColonel').
+  constructor({ position, yaw = 0, officer = false, name = 'Guard', stance = 'easy', look = null }) {
     this.name = name;
     this.officer = officer;
     this.stance = officer ? 'officer' : stance;
@@ -22,8 +24,7 @@ export class Soldier {
     this.reactT = 0;             // reeling from a hit (the hit-reaction clip)
     this.activity = null;
 
-    // Officers: the same model in a lighter, better-pressed tunic.
-    this.char = new Character('guard', { tint: officer ? 0xd9d2bd : null });
+    this.char = new Character(look ?? (officer ? 'officerColonel' : 'guard'));
     this.root = this.char.root;
     // `body` is the soldier's own frame (origin at the feet, facing +z), kept for
     // code that reads positions relative to the body (tagging, the head marker).

@@ -295,10 +295,15 @@ export function buildCompound(scene) {
   add(-W / 2 - 1.5, 6.2, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(-W / 2 - 1.5, -6.2, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(towerTops[0].x - cx, towerTops[0].z - cz, -Math.PI * 0.75, { y: towerTops[0].y, name: 'Tower guard', stance: 'alert' });
-  add(towerTops[1].x - cx, towerTops[1].z - cz, Math.PI * 0.25, { y: towerTops[1].y, name: 'Tower guard', stance: 'alert' });
+  add(towerTops[1].x - cx, towerTops[1].z - cz, Math.PI * 0.25, { y: towerTops[1].y, name: 'Tower guard', stance: 'alert', look: 'guardCamo' });
   add(20, 6, 0.4, { name: 'Yard guard' });
   add(10, 0.5, Math.PI * 0.1, { officer: true, name: 'Officer', y: y + 0.5 });
-  add(-15, -6, 2.6, { name: 'Barn guard' });
+  add(-15, -6, 2.6, { name: 'Barn guard', look: 'guardCamo' });
+  // More of them: a sergeant walking the north-west yard, a lieutenant keeping near the Oberst,
+  // and a sentry in a camouflage smock along the south side.
+  add(-20, 10, 0, { name: 'Sergeant', stance: 'alert', look: 'guardSergeant' });
+  add(16, -3, Math.PI, { name: 'Lieutenant', look: 'officerLieutenant' });
+  add(0, -21, Math.PI / 2, { name: 'Sentry', stance: 'alert', look: 'guardCamo' });
 
   return { solids: b.solids, boxes: b.boxes, soldiers, generator: generator.position.clone(), generatorMesh: generator, towerTops, ladders, siren, radio, tank, staffCar };
 }
