@@ -447,7 +447,7 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 
 ## Graphics pass: modelled key elements (2026-10-25)
 - [x] 23 props from Higgsfield (gpt_image_2_5 reference picture → Tripo H3.1 image-to-3D, detailed for the big
-      ones), textures shrunk to 512–1024 px JPEG by `tools/shrink-glb.py` (≈26 MB → 25 MB total, 0.4–1.9 MB each).
+      ones), textures shrunk to 512–1024 px JPEG by `tools/shrink-glb.py` (about 25 MB for all 23, 0.4–1.9 MB each, down from about 9 MB each).
 - [x] `src/world/props.js`: per-mission loading (`props` in each mission module; safe, siren and crates always),
       `propModel()` lays a prop along x and fits it into the space its collision blocks already take,
       `clipAbove()` cuts a prop off at a height, `dressSite()` dresses the shared siren and generator.
