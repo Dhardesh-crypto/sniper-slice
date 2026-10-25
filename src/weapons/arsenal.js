@@ -323,6 +323,7 @@ export class Arsenal {
     this.player.heartRate = Math.min(180, this.player.heartRate + 3);
     this.audio.weaponShot(def);           // each gun its own report; suppressed if one's fitted
     if (this.current === 'rifle' && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
+    if (def.pellets && w.mag > 0) this.audio.pump();                                                      // and the shotgun's pump
     this.lastShot = { noiseRadius: def.noiseRadius, position: origin.clone(), time: this.world.time };
     this.onShot?.(origin.clone(), def);
   }

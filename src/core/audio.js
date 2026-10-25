@@ -11,7 +11,7 @@ const SHOTS = {
   springfield: ['shot_springfield', 1.0], enfield: ['shot_enfield', 0.9], g43: ['shot_g43', 0.65],
   m1carbine: ['shot_m1carbine', 0.75], delisle: ['shot_delisle', 0.5], welrod: ['shot_welrod', 0.22],
   p38: ['shot_p38', 0.25], luger: ['shot_luger', 0.3],
-  trenchgun: ['shot_trenchgun', 0.7], mg42: ['shot_mg42', 0.5], panzerschreck: ['shot_panzerschreck', 0.8],
+  trenchgun: ['shot_trenchgun', 0.85], mg42: ['shot_mg42', 0.5], panzerschreck: ['shot_panzerschreck', 0.8],
   panzerfaust: ['shot_panzerfaust', 0.6], piat: ['shot_piat', 0.75],
 };
 const SUPPRESSED = { bolt: ['shot_rifle_suppressed', 0.1], semi: ['shot_semi_suppressed', 0.55], pistol: ['shot_pistol_suppressed', 0.2] };
@@ -28,12 +28,12 @@ export const SOUND_CHECK = [
   ['Welrod', ...SHOTS.welrod], ['Pistol + suppressor', ...SUPPRESSED.pistol], ['Bolt', 'bolt', 0.6],
   ['Reload: stripper clip', 'reload_stripper', 0.7], ['Reload: G43', 'reload_g43', 0.7], ['Reload: M1 Carbine', 'reload_m1carbine', 0.7],
   ['Reload: De Lisle', 'reload_delisle', 0.7], ['Reload: pistol', 'reload_pistol', 0.7], ['Reload: Welrod', 'reload_welrod', 0.7],
-  ['Trench Gun', ...SHOTS.trenchgun], ['MG42', ...SHOTS.mg42], ['Panzerschreck', ...SHOTS.panzerschreck], ['Panzerfaust', ...SHOTS.panzerfaust],
+  ['Trench Gun', ...SHOTS.trenchgun], ['Shotgun pump', 'pump', 0.6], ['MG42', ...SHOTS.mg42], ['Panzerschreck', ...SHOTS.panzerschreck], ['Panzerfaust', ...SHOTS.panzerfaust],
   ['PIAT', ...SHOTS.piat], ['Explosion: grenade', 'explosion_grenade', 0.9], ['Explosion: vehicle', 'explosion_large', 1.0],
   ['Explosion: far off', 'explosion_far', 0.9], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail'];
+const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump'];
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
 
 export class Audio {
@@ -115,6 +115,9 @@ export class Audio {
     if (def.slot === 'pistol') def.suppressor ? this.pistolShot() : this.pistolLoud();
     else def.suppressor ? this.suppressedRifleShot() : this.rifleShot();
   }
+
+  // Racking the shotgun's pump after a shot.
+  pump() { this.sample('pump', { at: 0.3, gain: 0.6 }); }
 
   // The echo rolling away after a machine-gun burst.
   burstTail() { this.sample('mg42_tail', { gain: 0.8, wet: 0.2 }); }
