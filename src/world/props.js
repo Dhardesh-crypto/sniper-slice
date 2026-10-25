@@ -36,6 +36,12 @@ export const PROPS = {
   mgNest: { file: 'prop_mg_nest', turn: 0 },
   crates: { file: 'prop_crates', turn: 0 },
   watchtower: { file: 'prop_watchtower', turn: 0 },
+  stoneBridge: { file: 'prop_stone_bridge', turn: 1 },
+  tiger: { file: 'prop_tiger', turn: 2 },              // gun was toward +x
+  halftrack: { file: 'prop_halftrack', turn: 3 },         // nose was toward +z
+  tent: { file: 'prop_tent', turn: 0 },
+  pontoons: { file: 'prop_pontoons', turn: 0 },
+  sentryBox: { file: 'prop_sentry_box', turn: 0 },
 };
 
 export async function loadProps(keys, onProgress = () => {}) {
@@ -131,4 +137,34 @@ export function clipAbove(model, y) {
     m.material = m.material.clone();
     m.material.side = THREE.DoubleSide;           // (the cut shows the inside of the walls)
   }
+}
+
+// Split a placed prop into pieces that can move apart (a bridge's spans and piers): each
+// triangle goes to the piece `classify(centroid)` names (null: dropped). Returns { name: mesh },
+// each mesh in world coordinates with its own material, not yet added anywhere.
+export function splitProp(model, classify) {
+  model.updateMatrixWorld(true);
+  const lists = new Map(), out = {};
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (const m of model.userData.meshes) {
+    const g = m.geometry.clone().applyMatrix4(m.matrixWorld), pos = g.attributes.position;
+    const idx = g.index ? g.index.array : Array.from({ length: pos.count }, (_, i) => i);
+    for (let t = 0; t < idx.length; t += 3) {
+      a.fromBufferAttribute(pos, idx[t]); b.fromBufferAttribute(pos, idx[t + 1]); c.fromBufferAttribute(pos, idx[t + 2]);
+      const key = classify(a.add(b).add(c).divideScalar(3));
+      if (key == null) continue;
+      if (!lists.has(key)) lists.set(key, { g, mat: m.material, idx: [] });
+      lists.get(key).idx.push(idx[t], idx[t + 1], idx[t + 2]);
+    }
+  }
+  for (const [key, { g, mat, idx }] of lists) {
+    const piece = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(g.attributes)) piece.setAttribute(name, attr);
+    piece.setIndex(idx);
+    piece.computeBoundingSphere();
+    const mesh = new THREE.Mesh(piece, mat.clone());
+    mesh.castShadow = mesh.receiveShadow = true;
+    out[key] = mesh;
+  }
+  return out;
 }

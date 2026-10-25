@@ -458,4 +458,9 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       an MG nest at the gate. Everywhere: the safe (shut and open), the siren, crate stacks.
 - [x] Gameplay unchanged: every model stands over the old blocks (collision, shots, weak spots, ladders); weak
       spots blacken their model when wrecked.
-- [ ] The bridge mission (built in parallel) has no models yet: the stone bridge and the column could get them.
+- [x] Bridge: one modelled three-arch stone bridge, split by `splitProp()` into the pieces that fall (the three
+      spans in their groups, each pier's shaft on its crumbling block, the abutments fixed); the column led by a
+      modelled Tiger with a halftrack in it (with the Panzer IV and trucks); the camp's tents and pontoon stacks,
+      striped sentry boxes at the checkpoints, the MG nest, the east watchtower's legs, the generator.
+      Verified: the bridge, the column, the camp; both piers blown with the Tiger on the deck (it and a truck fall,
+      the rest stop); save/load after the collapse.

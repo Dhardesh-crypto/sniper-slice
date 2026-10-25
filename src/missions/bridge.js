@@ -14,6 +14,7 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { panzerModel } from '../world/tank.js';
+import { hasProp, propModel, clipAbove, splitProp } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
 
 const DECK = 40.4, BW = 3.5;                    // the deck's top and half-width
@@ -149,8 +150,9 @@ function site(scene, world) {
     // (b.box keeps each block's Box3 last in b.boxes: find them by their mesh when it falls)
     return { ...sp, group: g, mesh: m, colliders: parts };
   });
-  for (const s of [-1, 1]) b.box(6, DECK - 30, 2 * BW, stone, s * 37, 30, 0);         // the abutments
-  for (const s of [-1, 1]) for (const z of [-BW + 0.2, BW - 0.2]) b.box(4, 1.0, 0.4, stone, s * 38, DECK, z);
+  const modelled = hasProp('stoneBridge');
+  for (const s of [-1, 1]) b.box(6, DECK - 30, 2 * BW, modelled ? hidden : stone, s * 37, 30, 0);         // the abutments
+  for (const s of [-1, 1]) for (const z of [-BW + 0.2, BW - 0.2]) b.box(4, 1.0, 0.4, modelled ? hidden : stone, s * 38, DECK, z);
   // The piers: stone, wider than the deck (cutwaters), up to the deck. A ladder on each one's
   // south face from the bank to the top. Only a charge at the foot brings one down.
   const piers = [-1, 1].map(s => {
@@ -159,8 +161,35 @@ function site(scene, world) {
     ladders.push(ladder(b, { x: x + s * 1.2, z: 4.5 + 0.35, y: 8, top: DECK, face: 's' }));     // (on the bank side, not over the water)
     hotspotDefs.push({ kind: 'pier', title: s < 0 ? 'WEST PIER' : 'EAST PIER', explosive: true, armored: true, heavyOnly: true, hitsToExplode: 1,
       meshes: [mesh], parts: [mesh], blast: { radius: 9, hurt: 16, size: 2.4, burn: false, heavy: true, label: `${s < 0 ? 'WEST' : 'EAST'} PIER DESTROYED` } });
-    return { x, mesh, box: pierBox };
+    return { x, mesh, box: pierBox, def: hotspotDefs.at(-1) };
   });
+  // The modelled bridge: one stone three-arch bridge, cut into its pieces so they can fall as the
+  // blocks above do: each side span (with its share of the parapets) hangs in its span's group,
+  // each pier's shaft rides on its pier block (which crumbles), the abutments stay. The blocks
+  // stay for walking, bullets and the charges, undrawn.
+  if (modelled) {
+    const whole = propModel('stoneBridge', { x: 80, y: DECK + 1.0 - 4, z: 9 }, { stretch: true });
+    whole.position.set(0, 4, 0);
+    const pieces = splitProp(whole, (c) => {
+      if (Math.abs(c.x) > 35) return 'abutments';
+      for (const p of piers) if (Math.abs(c.x - p.x) < 3.2 && c.y < DECK - 9) return p.x < 0 ? 'pierW' : 'pierE';
+      return c.x < -11 ? 'span0' : c.x > 11 ? 'span2' : 'span1';
+    });
+    for (const sp of spans) {
+      sp.mesh.material = hidden;
+      for (const o of sp.group.children) if (o !== sp.mesh) o.material = hidden;   // (its parapets: the model has them)
+    }
+    spans.forEach((sp, i) => { const m = pieces[`span${i}`]; if (m) { m.position.sub(sp.pivot); sp.group.add(m); } });
+    piers.forEach((p) => {
+      const m = pieces[p.x < 0 ? 'pierW' : 'pierE'];
+      if (!m) return;
+      p.mesh.material = hidden;
+      m.position.copy(p.mesh.position).negate();                       // (baked in world space; the block is its parent)
+      p.mesh.add(m);
+      p.def.parts.push(m);
+    });
+    if (pieces.abutments) b.group.add(pieces.abutments);
+  }
 
   // ---- the checkpoints at both ends: sandbags, a barrier, a hut ----
   for (const s of [-1, 1]) {
@@ -168,17 +197,28 @@ function site(scene, world) {
     for (const z of [-6.5, 6.5]) b.box(1.2, 1.0, 4, M.sandbag, cx, roadH(cx), z);
     b.box(0.15, 1.1, 0.15, M.wood, cx - s * 0.6, roadH(cx), -3.8);
     b.box(0.12, 0.12, 6.5, new THREE.MeshStandardMaterial({ color: 0xc8c2b0 }), cx - s * 0.6, roadH(cx) + 1.05, -0.6, { solid: false });
-    b.box(3, 2.6, 3, M.wood, cx + s * 4, roadH(cx), -9);
-    b.gable(3, 0.9, 3, M.roof, cx + s * 4, roadH(cx) + 2.6, -9);
+    const sentry = propModel('sentryBox', { x: 1.8, y: 2.9, z: 1.8 }, { stretch: true });
+    if (sentry) { sentry.position.set(cx + s * 4, roadH(cx), -9); sentry.rotation.y = Math.PI; b.group.add(sentry); b.box(1.7, 2.6, 1.7, hidden, cx + s * 4, roadH(cx), -9); }
+    else { b.box(3, 2.6, 3, M.wood, cx + s * 4, roadH(cx), -9); b.gable(3, 0.9, 3, M.roof, cx + s * 4, roadH(cx) + 2.6, -9); }
   }
   // ---- the east side: an MG nest over the bridge, a watchtower ----
   const [nx, nz] = [60, -16], ny = heightAt(nx, nz);
-  for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 2) continue; b.box(1.6, 0.9, 0.6, M.sandbag, nx + Math.cos(ang) * 3, ny, nz + Math.sin(ang) * 3, { rotY: -ang }); }
-  b.box(0.3, 0.9, 0.3, steel, nx - 2.2, ny, nz);
-  const mg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.3, 6).rotateZ(Math.PI / 2), steel);
-  mg.position.set(nx - 2.6, ny + 1.0, nz); b.group.add(mg);
+  const nest = propModel('mgNest', { x: 7.0, y: 1.3, z: 7.0 }, { stretch: true });
+  for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 2) continue; b.box(1.6, 0.9, 0.6, nest ? hidden : M.sandbag, nx + Math.cos(ang) * 3, ny, nz + Math.sin(ang) * 3, { rotY: -ang }); }
+  if (nest) { nest.position.set(nx, ny, nz); nest.rotation.y = Math.PI / 2; b.group.add(nest); }
+  else {
+    b.box(0.3, 0.9, 0.3, steel, nx - 2.2, ny, nz);
+    const mg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.3, 6).rotateZ(Math.PI / 2), steel);
+    mg.position.set(nx - 2.6, ny + 1.0, nz); b.group.add(mg);
+  }
   const [tx, tz] = [80, 24], ty = heightAt(tx, tz), top = ty + 7;
-  for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.25, 9.2, 0.25, M.wood, tx + dx, ty, tz + dz);
+  // (The modelled tower gives the legs, cut just under the platform: see compound.js.)
+  const tower = propModel('watchtower', { x: 3.4, y: 7 / 0.6, z: 3.4 }, { stretch: true });
+  if (tower) {
+    tower.position.set(tx, ty, tz); b.group.add(tower); clipAbove(tower, top - 0.25);
+    for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.18, 2.2, 0.18, M.wood, tx + dx, top - 0.1, tz + dz, { solid: false });
+  }
+  for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.25, 9.2, 0.25, tower ? hidden : M.wood, tx + dx, ty, tz + dz);
   b.box(3, 0.15, 3, M.wood, tx, top - 0.15, tz);
   for (const [w, d, dx, dz] of [[3, 0.08, 0, -1.46], [0.08, 3, -1.46, 0], [0.08, 3, 1.46, 0]]) b.box(w, 1.0, d, M.wood, tx + dx, top, tz + dz);
   b.box(3.4, 0.12, 3.4, M.roof, tx, top + 2.1, tz, { solid: false });
@@ -204,8 +244,10 @@ function site(scene, world) {
   const canvas = new THREE.MeshStandardMaterial({ color: 0x6c6b4f, roughness: 1, side: THREE.DoubleSide });
   const tents = [[-24, 18], [-14, 22], [-4, 20], [6, 24]].map(([dx, dz]) => {
     const x = cx + dx, z = cz + dz, y = heightAt(x, z);
-    b.box(3.4, 0.9, 4.4, canvas, x, y, z);
-    b.gable(3.4, 1.4, 4.4, canvas, x, y + 0.9, z);
+    const tent = propModel('tent', { x: 3.6, y: 2.4, z: 4.6 }, { stretch: true });
+    b.box(3.4, 0.9, 4.4, tent ? hidden : canvas, x, y, z);
+    if (tent) { tent.position.set(x, y, z); tent.rotation.y = Math.PI; b.group.add(tent); }
+    else b.gable(3.4, 1.4, 4.4, canvas, x, y + 0.9, z);
     return new THREE.Vector3(x, y, z);
   });
   // The bridging truck: pontoon boats on its bed.
@@ -215,8 +257,14 @@ function site(scene, world) {
   b.box(2.3, 2.4, 3.6, hidden, px, py + 0.35, pz - 1.2); b.box(2.1, 2.0, 1.2, hidden, px, py + 0.35, pz + 1.2);
   const btEngine = b.box(1.8, 1.25, 1.2, hidden, px, py + 0.5, pz + 2.4);
   const pontoon = new THREE.MeshStandardMaterial({ color: 0x4f5442, roughness: 0.7, metalness: 0.3 });
-  for (let i = 0; i < 2; i++) b.box(2.0, 0.7, 4.2, pontoon, px, py + 1.5 + i * 0.75, pz - 1.0, { solid: false });
-  for (let i = 0; i < 3; i++) b.box(2.2, 0.8, 6, pontoon, px + 6 + i * 2.6, py, pz);   // more pontoons waiting on the ground
+  const onBed = propModel('pontoons', { x: 2.0, y: 1.4, z: 4.2 }, { stretch: true, turn: 1 });
+  if (onBed) { onBed.position.set(px, py + 1.5, pz - 1.0); b.group.add(onBed); }
+  else for (let i = 0; i < 2; i++) b.box(2.0, 0.7, 4.2, pontoon, px, py + 1.5 + i * 0.75, pz - 1.0, { solid: false });
+  for (let i = 0; i < 3; i++) {                                                   // more pontoons waiting on the ground
+    const stack = propModel('pontoons', { x: 2.2, y: 1.5, z: 6 }, { stretch: true, turn: 1 });
+    b.box(2.2, 0.8, 6, stack ? hidden : pontoon, px + 6 + i * 2.6, py, pz);
+    if (stack) { stack.position.set(px + 6 + i * 2.6, py, pz); b.group.add(stack); }
+  }
   // The camp's generator (it covers sound close by) and siren.
   const gen = b.box(1.6, 1.1, 1, M.metal, cx - 20, cy, cz - 2);
   const [sx, sz] = [cx - 8, cz - 2];
@@ -268,13 +316,23 @@ function site(scene, world) {
 
 // The column: lead Panzer, truck, Panzer, two trucks, driving west along the road. Each keeps a
 // collision block that moves with it.
+// A modelled column vehicle laid nose toward +z, like the others (the props lie front toward −x).
+function columnProp(kind) {
+  const g = new THREE.Group(), m = propModel(kind, kind === 'tiger' ? { x: 6.6, y: 3.0, z: 3.6 } : { x: 5.8, y: 2.0, z: 2.1 }, { stretch: true, own: true });
+  m.rotation.y = Math.PI / 2;
+  g.add(m);
+  g.userData.mesh = m.userData.meshes[0];
+  return g;
+}
+
 function buildColumn(scene) {
-  const kinds = ['panzer', 'truck', 'panzer', 'truck', 'truck'];
+  // A Tiger leads (a Panzer IV where its model is missing), then trucks, a Panzer IV and a halftrack.
+  const kinds = [hasProp('tiger') ? 'tiger' : 'panzer', 'truck', 'panzer', hasProp('halftrack') ? 'halftrack' : 'truck', 'truck'];
   const vehicles = kinds.map((kind, i) => {
-    const model = kind === 'panzer' ? panzerModel() : vehicleModel('truck');
+    const model = kind === 'panzer' ? panzerModel() : kind === 'truck' ? vehicleModel('truck') : columnProp(kind);
     model.visible = false;
     scene.add(model);
-    const half = kind === 'panzer' ? new THREE.Vector3(3.2, 1.4, 1.7) : new THREE.Vector3(3.1, 1.3, 1.2);
+    const half = { panzer: new THREE.Vector3(3.2, 1.4, 1.7), tiger: new THREE.Vector3(3.3, 1.5, 1.85), halftrack: new THREE.Vector3(2.9, 1.0, 1.1) }[kind] ?? new THREE.Vector3(3.1, 1.3, 1.2);
     const box = new THREE.Box3(new THREE.Vector3(1e6, -1e6, 1e6), new THREE.Vector3(1e6, -1e6, 1e6));
     return { kind, i, model, half, box, solids: [model.userData.mesh].filter(Boolean), pos: new THREE.Vector3(), fallen: false, fallT: 0 };
   });
@@ -483,4 +541,4 @@ const briefing = `
     or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
     the mission is lost.</p>`;
 
-export default { id: 'bridge', subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
+export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
