@@ -8,14 +8,13 @@
 //                  grille, or a satchel charge, destroy it
 // An armour-piercing round counts as two hits on an ordinary engine (it blows in one shot).
 // Each can be tagged with the binoculars; tagged spots show on screen and on the compass.
-// Looking at a vehicle through the scope or the binoculars, its engine glows a faint red
-// (brighter under the crosshair), so you can see where a shot does damage.
+// Looking through the scope or the binoculars, every weak spot still worth shooting glows a
+// faint red (brighter under the crosshair), so you can see where a shot does damage.
 import * as THREE from 'three';
 
-const GLOWS = ['engine', 'tank'];   // weak spots that glow when you look at them zoomed in
 
-// A soft red glow filling the weak spot's box, fading out toward its edges (so it reads as a
-// glow on the vehicle, not a box). Drawn over everything: the engine sits under the bonnet.
+// A soft red glow filling the weak spot's bounding box, fading out toward its edges (so it reads
+// as a glow, not a box). Drawn over everything: an engine sits under the bonnet.
 function glowMaterial(geometry) {
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
@@ -85,7 +84,7 @@ export class Hotspots {
     const h = new Hotspot(opts);
     for (const m of h.meshes) if (!this.world.raycastTargets.includes(m)) this.world.raycastTargets.push(m);
     this.list.push(h);
-    if (GLOWS.includes(h.kind)) h.glows = h.meshes.map(m => {
+    h.glows = h.meshes.map(m => {
       const g = new THREE.Mesh(m.geometry, glowMaterial(m.geometry));
       g.renderOrder = 998; g.visible = false; g.userData.noAO = true;
       m.add(g);
@@ -94,8 +93,8 @@ export class Hotspots {
     return h;
   }
 
-  // The weak-spot glow on vehicles, while looking through the scope or the binoculars. It only
-  // shows when nothing but the vehicle itself is in the way (checked a few times a second).
+  // The weak-spot glow, while looking through the scope or the binoculars. It only shows when
+  // nothing but the thing itself is in the way (checked a few times a second).
   highlight(dt, camera) {
     const zoom = this.arsenal.binoculars || (this.arsenal.aiming && this.arsenal.current === 'rifle') ? this.arsenal.aimT : 0;
     const check = (this.glowCheckT -= dt) <= 0;
@@ -106,7 +105,6 @@ export class Hotspots {
       under = this.world.raycastRay(camera.position, dir, 600)?.object;
     }
     for (const h of this.list) {
-      if (!h.glows) continue;
       if (check) {
         h.glowSeen = false;
         if (zoom > 0.5 && h.active) {
