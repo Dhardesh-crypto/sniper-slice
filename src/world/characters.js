@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank' };
+const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',

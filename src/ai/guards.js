@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { NavGrid } from './nav.js';
 import { Soldier } from '../world/soldier.js';
+import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND } from '../world/terrain.js';
 
 const WALK = 1.4, RUN = 3.8;
@@ -30,20 +31,17 @@ const ROUTES = {
   'Barn guard': [[-15, -6], [-26, -6], [-26, -20], [-6, -20], [-6, -6]],
 };
 
+// The reinforcement truck: the Opel Blitz model (cab toward +z), with invisible blocks fitted
+// to it for bullets (and the one over the engine is the weak spot).
 function truckModel() {
   const g = new THREE.Group();
-  const paint = new THREE.MeshStandardMaterial({ color: 0x55593f, roughness: 0.7, metalness: 0.2 });
-  const canvas = new THREE.MeshStandardMaterial({ color: 0x6c6b4f, roughness: 1 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x1d1e1b, roughness: 0.8 });
-  const box = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); };
-  box(2.2, 0.4, 6.4, paint, 0, 0.75, 0);          // chassis
-  box(2.2, 1.6, 1.9, paint, 0, 1.75, 2.1);        // cab (front is +z)
-  box(2.3, 2.1, 4.2, canvas, 0, 2.0, -1.1);       // covered cargo bed
-  box(2.0, 0.85, 1.0, paint, 0, 1.2, 3.55);       // bonnet over the engine (a weak spot)
-  for (const z of [2.2, -1.0, -2.3]) for (const x of [-1.05, 1.05]) {
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.32, 14).rotateZ(Math.PI / 2), dark);
-    w.position.set(x, 0.48, z); w.castShadow = true; g.add(w);
-  }
+  const body = vehicleModel('truck');
+  g.add(body);
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  const block = (w, h, d, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hidden); m.position.set(0, y + h / 2, z); g.add(m); return m; };
+  const proxies = [block(2.3, 2.4, 3.6, 0.35, -1.2), block(2.1, 2.0, 1.2, 0.35, 1.2)];
+  const bonnet = block(1.8, 1.25, 1.2, 0.5, 2.4);
+  g.userData = { body, bodyMesh: body.userData.mesh, proxies, bonnet };
   return g;
 }
 
@@ -340,10 +338,9 @@ export class GuardAI {
     this.scene.add(t.model);
     this.truck = t;
     // Bullets stop on it; the bonnet is a weak spot: one hit stalls it, two blow it up.
-    const meshes = t.model.children.filter(m => m.isMesh);
-    for (const m of meshes) this.world.raycastTargets.push(m);
-    const bonnet = meshes[3];
-    t.hotspot = this.hotspots?.add({ kind: 'engine', title: 'TRUCK ENGINE', explosive: true, meshes: [bonnet], parts: meshes,
+    const { proxies, bonnet, bodyMesh } = t.model.userData;
+    for (const m of proxies) this.world.raycastTargets.push(m);
+    t.hotspot = this.hotspots?.add({ kind: 'engine', title: 'TRUCK ENGINE', explosive: true, meshes: [bonnet], parts: [bodyMesh],
       onBreak: () => { t.stalled = true; this.hud.message('TRUCK STALLED · THEY GET OUT ON FOOT', ''); },
       onExplode: () => { t.stalled = true; if (!t.unloaded) { t.unloaded = true; t.lost = true; this.hotspots.mission?.blastKills(4); } this.audio.setTruck(0); } });
     if (!quiet) this.hud.message('ENEMY REINFORCEMENTS ON THE ROAD', 'wound');
@@ -353,9 +350,11 @@ export class GuardAI {
     const t = this.truck;
     if (!t) return;
     const pos = (x) => new THREE.Vector3(x, this.world.groundAt(x, roadCenterZ(x)), roadCenterZ(x));
+    let speed = 0;
     if (t.x < t.stopX && !t.stalled) {
       const slow = Math.min(1, (t.stopX - t.x) / 25 + 0.25);
-      t.x = Math.min(t.stopX, t.x + t.speed * slow * dt);
+      speed = t.speed * slow;
+      t.x = Math.min(t.stopX, t.x + speed * dt);
     } else if (!t.unloaded) {
       t.parkT += dt;
       if (t.parkT > 1.5) this.unload(t);
@@ -365,6 +364,20 @@ export class GuardAI {
     const here = pos(t.x), ahead = pos(t.x + 2);
     t.model.position.copy(here);
     t.model.lookAt(ahead); // an object's lookAt turns its +z (the cab) toward the point
+    // On the move: the body rides the road (a bounce, a little pitch and roll) and the rear
+    // wheels throw up dust. Parked or stalled, it settles.
+    t.ride = (t.ride ?? 0) + dt * speed;
+    const k = Math.min(1, speed / 6), body = t.model.userData.body;
+    body.position.y = k * (0.035 * Math.sin(t.ride * 2.1) + 0.02 * Math.sin(t.ride * 5.3));
+    body.rotation.x = k * 0.012 * Math.sin(t.ride * 1.3);
+    body.rotation.z = k * 0.015 * Math.sin(t.ride * 0.9 + 1);
+    if (speed > 2 && (t.dustT = (t.dustT ?? 0) - dt) <= 0) {
+      t.dustT = 0.12;
+      for (const side of [-1, 1]) {
+        const p = t.model.localToWorld(new THREE.Vector3(side * 1.0, 0.25, -1.9));
+        this.fx.emit(p, new THREE.Vector3(0, 0.6, 0), { color: 0xb8a882, count: 1, speed: 1.5, size: 0.9, life: 2.2, grow: 3, gravity: 0.2 });
+      }
+    }
     t.model.updateMatrixWorld(true); // bullets test against it every tick
     const d = here.distanceTo(this.player.pos);
     if ((!t.unloaded || t.parkT < 20) && !t.stalled) this.audio.setTruck(Math.max(0, 1 - d / 450));

@@ -30,8 +30,9 @@ npm run dev    # then open the URL Vite prints
   hiding spot in the grass (Higgsfield thrust and grabbed-and-fall clips).
 - **Kit:** an item wheel (hold Q) with grenades, bottles to distract, a whistle to lure, mines,
   remote TNT, satchel charges, bandages and medkits; three rifle ammo types (standard, subsonic, AP).
-- **Vehicles:** a Panzer IV (Higgsfield model) that shells you when it sees you, a staff car and trucks;
-  shoot engines, or plant a satchel.
+- **Vehicles:** Higgsfield models throughout: a Panzer IV that shells you when it sees you, Opel Blitz
+  trucks (the radio truck, and reinforcements that drive up the road), a Kübelwagen staff car and a
+  trimotor transport plane overhead; shoot engines, or plant a satchel.
 - **Saving:** three save slots and checkpoint autosaves in the pause menu, plus quick save / load (F5 / F9).
 - **Moving around:** third-person camera, crouch behind cover, climb walls and ladders, tower stairs.
 

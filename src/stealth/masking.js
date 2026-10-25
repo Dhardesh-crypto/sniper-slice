@@ -4,36 +4,11 @@
 // loudnessAt(pos) says how covered a sound made at `pos` is right now.
 import * as THREE from 'three';
 import { makeRng } from '../world/noise.js';
+import { vehicleModel } from '../world/vehicle-models.js';
 
 const GEN_RADIUS = 32;           // metres the generator drowns out
 const PLANE = { speed: 75, alt: 140, every: [80, 110], first: 35, maskRange: 520 };
 const ARTY = { every: 125, first: 70, shells: 8, spacing: [1.1, 2.4], window: 1.7 };
-
-function planeModel() {
-  const g = new THREE.Group();
-  const body = new THREE.MeshStandardMaterial({ color: 0x5f6658, roughness: 0.7, metalness: 0.2 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x2c2f2a, roughness: 0.6 });
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.45, 11, 12).rotateX(Math.PI / 2), body);
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.78, 12, 8).scale(1, 1, 1.4), dark);
-  nose.position.z = -5.6;
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(15, 0.22, 2.4), body);
-  wing.position.set(0, -0.2, -1.2);
-  const tailW = new THREE.Mesh(new THREE.BoxGeometry(5, 0.15, 1.3), body);
-  tailW.position.set(0, 0.1, 4.9);
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 1.4), body);
-  fin.position.set(0, 1.0, 4.9);
-  const prop = new THREE.Mesh(new THREE.CircleGeometry(1.5, 20), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
-  prop.position.z = -6.6;
-  for (const e of [-3.4, 3.4]) {
-    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.35, 2.4, 10).rotateX(Math.PI / 2), dark);
-    eng.position.set(e, -0.25, -2.2);
-    g.add(eng);
-  }
-  g.add(fus, nose, wing, tailW, fin, prop);
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  g.scale.setScalar(1.3);
-  return g;
-}
 
 export class Masking {
   constructor({ scene, world, audio, fx }) {
@@ -42,7 +17,7 @@ export class Masking {
     this.generator = world.generatorPos.clone();
     this.generatorOn = true;
 
-    this.plane = planeModel();
+    this.plane = vehicleModel('plane');   // a trimotor transport (Higgsfield model), nose toward +z
     this.plane.visible = false;
     scene.add(this.plane);
     this.planeT = -1;             // seconds into the current pass, -1 = none
@@ -64,7 +39,7 @@ export class Masking {
     this.planeT = 0;
     this.plane.visible = true;
     this.plane.position.copy(this.planeFrom);
-    this.plane.lookAt(this.planeFrom.clone().sub(dir)); // lookAt aims +z backward, so the nose (-z) leads
+    this.plane.lookAt(this.planeFrom.clone().add(dir)); // an object's lookAt turns its +z (the nose) toward the point
   }
 
   planePos(out = new THREE.Vector3()) {
@@ -99,7 +74,7 @@ export class Masking {
       this.planeT += dt;
       const p = this.planePos();
       this.plane.position.copy(p);
-      this.plane.children.at(-1).rotation.z += dt * 60; // propeller blur spin
+      for (const prop of this.plane.userData.props ?? []) prop.rotation.z += dt * 60; // propellers spin
       this.audio.setPlane(Math.max(0, 1 - p.distanceTo(listener) / 900));
       if (this.planeT * PLANE.speed > 2600) {
         this.planeT = -1;

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { COMPOUND, H_COMPOUND, FIRING_LINE, H_LANE, heightAt } from './terrain.js';
 import { Soldier } from './soldier.js';
 import { textures, worldUVs } from './textures.js';
+import { vehicleModel } from './vehicle-models.js';
 
 const T = textures();
 // `tile` = metres per texture repeat (see worldUVs).
@@ -208,22 +209,24 @@ export function buildCompound(scene) {
   b.box(5.4, 0.15, 4.6, M.roof, cx + 24, y + 3, cz + 10);
   const generator = b.box(1.8, 1.1, 1.0, M.metal, cx + 24, y, cz + 10.6);
 
-  // Radio truck. Its engine sits under the bonnet in front of the cab: a weak spot.
-  const truckMat = M.truck.clone(), canvasMat = M.canvas.clone(), chassisMat = M.metal.clone();
-  const truckParts = [
-    b.box(2.3, 1.9, 2.0, truckMat, cx - 6, y + 0.5, cz + 17),           // cab
-    b.box(2.4, 2.4, 4.4, canvasMat, cx - 6, y + 0.5, cz + 13.8),        // cargo box
-    b.box(2.4, 0.5, 6.6, chassisMat, cx - 6, y, cz + 15),               // chassis
-  ];
-  const bonnet = b.box(2.0, 0.85, 1.15, truckMat, cx - 6, y + 0.5, cz + 18.55);
-  b.box(1.6, 0.55, 0.05, M.metal, cx - 6, y + 0.65, cz + 19.14, { solid: false }); // radiator grille
-  truckParts.push(bonnet);
+  // Radio truck: an Opel Blitz (Higgsfield model), cab toward +z, 6 m long, centred at z +15.6.
+  // Invisible blocks fitted to it do the physical work: collision, bullets, the guards' paths;
+  // the one over the engine (under the bonnet) is the weak spot.
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  const tx = cx - 6, tz = cz + 15.6;
+  const blitz = vehicleModel('truck');
+  blitz.position.set(tx, y, tz);
+  b.group.add(blitz);
+  b.box(2.3, 2.4, 3.6, hidden, tx, y + 0.35, tz - 1.2);                // covered bed
+  b.box(2.1, 2.0, 1.2, hidden, tx, y + 0.35, tz + 1.2);                // cab
+  const bonnet = b.box(1.8, 1.25, 1.2, hidden, tx, y + 0.5, tz + 2.4); // engine
+  const truckParts = [blitz.userData.mesh];
   const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 6, 5), M.metal);
-  antenna.position.set(cx - 5.2, y + 5.9, cz + 12.4);
+  antenna.position.set(tx + 0.8, y + 5.9, tz - 2.6);
   b.group.add(antenna);
-  // The field radio sits at the back of the cargo box: wreck it from behind the truck.
-  const radioSet = b.box(0.7, 0.5, 0.35, M.metal, cx - 6, y + 0.9, cz + 11.45, { solid: false });
-  const radio = { pos: radioSet.position.clone().setY(y), standAt: new THREE.Vector3(cx - 6, y, cz + 10.6), antenna, engine: bonnet, truckParts };
+  // The field radio is strapped to the tailgate: wreck it from behind the truck.
+  const radioSet = b.box(0.7, 0.5, 0.35, M.metal, tx, y + 0.9, tz - 3.2, { solid: false });
+  const radio = { pos: radioSet.position.clone().setY(y), standAt: new THREE.Vector3(tx, y, tz - 4.0), antenna, engine: bonnet, truckParts };
 
   // Alarm siren on a pole in the yard. A guard who sees you runs here to sound it; cut the
   // wire at the junction box (hold E) and it stays silent.
@@ -248,22 +251,16 @@ export function buildCompound(scene) {
   b.addSolid(tankBox);
   tank.proxy = tankBox;
 
-  // The Oberst's staff car (a Kübelwagen) by the villa. Its engine is at the back: a weak spot.
-  const carMat = new THREE.MeshStandardMaterial({ color: 0x6b6a4a, roughness: 0.75, metalness: 0.15 });
-  const carDark = new THREE.MeshStandardMaterial({ color: 0x1d1e1b, roughness: 0.8 });
-  const kx = cx + 21.5, kz = cz - 6;                        // nose toward -z (north)
-  const car = [
-    b.box(1.6, 0.75, 3.4, carMat, kx, y + 0.35, kz),         // body tub
-    b.box(1.5, 0.12, 1.0, carMat, kx, y + 1.1, kz - 1.15, { solid: false }), // bonnet slope
-  ];
-  const carEngine = b.box(1.5, 0.55, 0.85, carMat, kx, y + 1.0, kz + 1.25); // rear engine deck
-  car.push(carEngine);
-  b.box(1.45, 0.45, 0.04, M.window, kx, y + 1.1, kz - 0.55, { solid: false }); // windscreen
-  for (const [dx, dz] of [[-0.78, -1.2], [0.78, -1.2], [-0.78, 1.15], [0.78, 1.15]]) {
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.22, 14).rotateZ(Math.PI / 2), carDark);
-    w.position.set(kx + dx, y + 0.34, kz + dz); w.castShadow = true; b.group.add(w); car.push(w);
-  }
-  const staffCar = { engine: carEngine, parts: car };
+  // The Oberst's staff car, a Kübelwagen (Higgsfield model), nose toward -z, by the villa.
+  // Its engine is at the back: an invisible block there is the weak spot.
+  const kx = cx + 21.5, kz = cz - 6;
+  const kubel = vehicleModel('car');
+  kubel.position.set(kx, y, kz);
+  kubel.rotation.y = Math.PI;
+  b.group.add(kubel);
+  b.box(1.6, 0.9, 2.6, hidden, kx, y + 0.3, kz - 0.4);                 // body
+  const carEngine = b.box(1.5, 0.75, 0.9, hidden, kx, y + 0.45, kz + 1.3); // rear engine
+  const staffCar = { engine: carEngine, parts: [kubel.userData.mesh] };
 
   // Crates and sandbag nests for cover
   for (const [dx, dz, s] of [[-24, 6, 1.1], [-23, 7.4, 0.9], [-4, -20, 1.2], [14, 18, 1], [15.2, 18.3, 0.8]]) {
