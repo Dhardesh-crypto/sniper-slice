@@ -444,3 +444,18 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 ### Check for each step
 - [ ] Load the mission from the menu, walk its map, enter its buildings, open its safe, read its
       documents, complete every objective and extract; saves load back into the right mission.
+
+## Graphics pass: modelled key elements (2026-10-25)
+- [x] 23 props from Higgsfield (gpt_image_2_5 reference picture → Tripo H3.1 image-to-3D, detailed for the big
+      ones), textures shrunk to 512–1024 px JPEG by `tools/shrink-glb.py` (≈26 MB → 25 MB total, 0.4–1.9 MB each).
+- [x] `src/world/props.js`: per-mission loading (`props` in each mission module; safe, siren and crates always),
+      `propModel()` lays a prop along x and fits it into the space its collision blocks already take,
+      `clipAbove()` cuts a prop off at a height, `dressSite()` dresses the shared siren and generator.
+- [x] Railway: locomotive and tender, flak wagon, ammunition van, railway gun, coach (the train), red and grey
+      goods wagons in the yard, the water tower. Harbour: the steamer, three portal cranes, the flak gun, the
+      E-boat, the four fuel tanks. Forest: the hunting stands (model legs and ladder, our cabin), fuel drums, log
+      piles, the saw bench. Vineyard: watchtowers (model legs, our platform), the generator. Town: the fountain,
+      an MG nest at the gate. Everywhere: the safe (shut and open), the siren, crate stacks.
+- [x] Gameplay unchanged: every model stands over the old blocks (collision, shots, weak spots, ladders); weak
+      spots blacken their model when wrecked.
+- [ ] The bridge mission (built in parallel) has no models yet: the stone bridge and the column could get them.

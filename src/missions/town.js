@@ -13,6 +13,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
+import { propModel } from '../world/props.js';
 
 const F = { x: 80, z: -60 };                  // the town centre (the piazza)
 const START = { x: -300, z: 300 };             // the ridge you start from
@@ -91,7 +92,12 @@ function site(scene) {
   for (const s of [-1, 1]) { const [x, z] = P(-HX, s * 4.6); b.box(1.6, 5.2, 1.6, M.stone, x, y, z); }   // gate towers
 
   // The piazza: a fountain in the middle.
-  { const [x, z] = P(0, 0); b.box(4, 0.7, 4, M.stone, x, y, z); b.box(0.8, 1.8, 0.8, M.stone, x, y + 0.7, z); }
+  {
+    const [x, z] = P(0, 0), model = propModel('fountain', { x: 4.6, y: 3.0, z: 4.6 }, { stretch: true });
+    const hide = new THREE.MeshBasicMaterial({ visible: false });
+    b.box(4, 0.7, 4, model ? hide : M.stone, x, y, z); b.box(0.8, 1.8, 0.8, model ? hide : M.stone, x, y + 0.7, z);
+    if (model) { model.position.set(x, y, z); b.group.add(model); }
+  }
 
   // The church: a tall nave you can walk into, pews and an altar; the bell tower beside it.
   let church;
@@ -271,6 +277,13 @@ function site(scene) {
 
   // Sandbags at the gate.
   for (const s of [-1, 1]) { const [x, z] = P(-68, s * 3.2); b.box(1.6, 0.8, 0.5, M.sandbag, x, y, z); }
+  {   // and a machine-gun nest beside it, covering the road in
+    const [x, z] = P(-64, 9), nest = propModel('mgNest', { x: 3.2, y: 1.3, z: 3.2 }, { stretch: true });
+    if (nest) {
+      nest.position.set(x, y, z); nest.rotation.y = Math.PI / 2; b.group.add(nest);
+      b.box(0.6, 0.95, 3.0, new THREE.MeshBasicMaterial({ visible: false }), x - 1.3, y, z);   // its front wall, for cover
+    }
+  }
 
   // The garrison.
   add(-1, 24, Math.PI, { officer: true, name: 'Commander' });
@@ -405,4 +418,4 @@ const briefing = `
   <p class="brief">The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', props: ['fountain', 'mgNest'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

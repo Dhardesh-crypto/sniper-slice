@@ -13,6 +13,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
+import { hasProp, propModel, clipAbove } from '../world/props.js';
 
 const LODGE = { x: 95, z: -45 }, CAMP = { x: -140, z: 52 }, START = { x: 330, z: 300 }, MEADOW = { x: -10, z: 190 };
 const FB = 200;                                  // the firebreak runs north–south along x = 200
@@ -190,15 +191,21 @@ function site(scene) {
     const [sx, sz] = [cx - 25, cz - 7];
     for (const dx of [-10, -3.3, 3.3, 10]) for (const dz of [-4.5, 4.5]) b.box(0.3, 4.4, 0.3, M.wood, sx + dx, cy, sz + dz);
     b.box(21, 0.2, 10, M.roof, sx, cy + 4.4, sz, { solid: false });
-    b.box(7, 0.9, 1.3, M.wood, sx, cy, sz);
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 6, 12).rotateZ(Math.PI / 2), bark);
-    log.position.set(sx - 1, cy + 1.35, sz); log.castShadow = true; b.group.add(log);
-    const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.03, 24).rotateX(Math.PI / 2), steel);
-    blade.position.set(sx + 2.8, cy + 1.0, sz); b.group.add(blade);
+    const bench = propModel('sawBench', { x: 7.4, z: 1.7 }, { stretch: true });
+    b.box(7, 0.9, 1.3, bench ? hidden : M.wood, sx, cy, sz);
+    if (bench) { bench.position.set(sx, cy, sz); b.group.add(bench); }
+    else {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 6, 12).rotateZ(Math.PI / 2), bark);
+      log.position.set(sx - 1, cy + 1.35, sz); log.castShadow = true; b.group.add(log);
+      const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.03, 24).rotateX(Math.PI / 2), steel);
+      blade.position.set(sx + 2.8, cy + 1.0, sz); b.group.add(blade);
+    }
   }
   // Log piles: you can hide behind them (and climb on them).
   for (const [px, pz] of [[cx + 20, cz - 20], [cx - 30, cz - 24], [cx + 28, cz + 10]]) {
     b.box(8, 2.1, 3, hidden, px, cy, pz);
+    const pile = propModel('logs', { x: 8.4, y: 2.2, z: 3.2 }, { stretch: true });
+    if (pile) { pile.position.set(px, cy, pz); b.group.add(pile); continue; }
     for (let row = 0; row < 3; row++) for (let k = 0; k < 4 - row; k++) {
       const l = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 8, 10).rotateZ(Math.PI / 2), bark);
       l.position.set(px, cy + 0.4 + row * 0.66, pz - 1.1 + k * 0.75 + row * 0.37); l.castShadow = l.receiveShadow = true; b.group.add(l);
@@ -219,7 +226,9 @@ function site(scene) {
   for (const dx of [-8, 0, 8]) {
     const [dxp, dzp] = [cx - 18 + dx, cz + 26];
     const parts = [];
-    for (let layer = 0; layer < 2; layer++) for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+    const stack = propModel('drums', { x: 2.1, y: 1.85, z: 1.45 }, { stretch: true, own: true, bright: 1.9 });
+    if (stack) { stack.position.set(dxp, cy, dzp); b.group.add(stack); parts.push(...stack.userData.meshes); }
+    else for (let layer = 0; layer < 2; layer++) for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
       const d = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.88, 12), drumMat);
       d.position.set(dxp - 0.66 + i * 0.66, cy + 0.44 + layer * 0.9, dzp - 0.33 + j * 0.66); d.castShadow = true; b.group.add(d); parts.push(d);
     }
@@ -265,13 +274,26 @@ function site(scene) {
   // ---- the hunting stands: a cabin on four posts, rails on three sides, a ladder up the fourth ----
   for (const s of STANDS) {
     const y = heightAt(s.x, s.z), top = y + 5;
-    for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(0.18, 7.4, 0.18, M.wood, s.x + dx, y - 0.3, s.z + dz);
+    // The modelled stand (when loaded) gives the legs and its ladder to the south: it's cut off just
+    // under the cabin floor (its generated cabin is solid where the picture had openings and hid the
+    // sniper); the floor, rails, posts and roof above are ours.
+    const model = hasProp('huntingStand') && propModel('huntingStand', { y: 5 / 0.62 });
+    const wood = model ? hidden : M.wood;
+    for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(0.18, 7.4, 0.18, wood, s.x + dx, y - 0.3, s.z + dz);
     b.box(2.4, 0.15, 2.4, M.wood, s.x, top - 0.15, s.z);
     b.box(2.4, 1.0, 0.08, M.wood, s.x, top, s.z - 1.16);
     b.box(0.08, 1.0, 2.4, M.wood, s.x - 1.16, top, s.z);
     b.box(0.08, 1.0, 2.4, M.wood, s.x + 1.16, top, s.z);
     b.box(2.9, 0.12, 2.9, M.roof, s.x, top + 2.0, s.z, { solid: false });
+    const before = b.group.children.length;
     ladders.push(ladder(b, { x: s.x, z: s.z + 1.25, y, top, face: 's' }));
+    if (model) {
+      for (const o of b.group.children.slice(before)) o.material = hidden;   // (the model has its ladder)
+      model.position.set(s.x, y, s.z + 0.82);
+      b.group.add(model);
+      clipAbove(model, top - 0.2);
+      for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(0.14, 2.0, 0.14, M.wood, s.x + dx, top, s.z + dz, { solid: false });
+    }
     s.top = new THREE.Vector3(s.x, top, s.z);
     towerTops.push(s.top);
     add(s.x, s.z - 0.3, face(s.x, s.z, ...s.look), { y: top, name: 'Counter-sniper', stance: 'alert', look: 'guardCamo' });
@@ -390,4 +412,4 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

@@ -55,6 +55,7 @@ export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission
 
 export default {
   id: 'vineyard',
+  props: ['generator', 'watchtower'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
   map: VINEYARD_MAP,
   // The compound and the firing range by the start hill.

@@ -41,3 +41,11 @@ invisible beyond a short range, unspottable unless a clear look or point blank) 
   every new save lost them and loading crashed half-way: a black screen.
 - **Rule:** before adding a key to a saved object, check the existing keys; and keep startup code
   that applies saved data inside try/catch so a bad save can never stop the game from starting.
+
+## A generated model is solid where its picture shows openings (2026-10-25)
+- The image-to-3D watchtower and hunting stand looked right, but their cabins are closed shells (the
+  openings are only painted) and their decks sit higher than ours, so guards on the platforms vanished.
+  Raycasts didn't catch it (models aren't ray targets) and a close, low screenshot looked like normal
+  railing cover.
+- **Rule:** when a generated model goes where someone stands, render the same view with the model on and
+  off. If anyone disappears, keep only the part below them (cut the geometry) and build the rest plainly.

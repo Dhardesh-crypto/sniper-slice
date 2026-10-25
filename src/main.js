@@ -13,6 +13,7 @@ import { loadSettings, saveSettings } from './core/settings.js';
 import { Hud } from './ui/hud.js';
 import { Post } from './core/post.js';
 import { loadAssets, assets } from './world/characters.js';
+import { loadProps, dressSite } from './world/props.js';
 import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
@@ -71,6 +72,11 @@ const MISSION_MODULES = {
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
+// The mission's modelled props (and the safe every mission has), before its site is built.
+playBtn.disabled = true;
+await loadProps(['safe', 'siren', 'crates', ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+playBtn.textContent = 'Click to play';
+playBtn.disabled = false;
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle;
 if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing;
@@ -79,6 +85,7 @@ const input = new Input(canvas);
 const audio = new Audio();
 audio.volume = settings.volume;
 const world = new World(scene, renderer, M.site);
+dressSite(world);
 const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);

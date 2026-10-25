@@ -14,6 +14,8 @@
 import * as THREE from 'three';
 import { M } from './kit.js';
 import { worldUVs } from './textures.js';
+import { propModel } from './props.js';
+
 
 const RISE = 0.24, RUN = 0.3;
 const DOOR_MAT = M.darkWood;
@@ -194,7 +196,10 @@ export const furniture = {
     b.box(w - 0.1, 0.12, d - 0.1, BLANKET, x, y + 0.45, z, { solid: false });
   },
   crates(b, x, y, z, n = 3) {
-    for (let i = 0; i < n; i++) b.box(0.8, 0.8, 0.8, M.crate, x + (i % 2) * 0.85, y + Math.floor(i / 2) * 0.8, z + (i % 3) * 0.1);
+    // The modelled crate stack over the blocks (which stay as cover), when it's loaded.
+    const rows = Math.ceil(n / 2), model = propModel('crates', { x: n > 1 ? 1.7 : 0.9, y: rows * 0.82, z: 0.95 }, { stretch: true });
+    for (let i = 0; i < n; i++) b.box(0.8, 0.8, 0.8, model ? HIDDEN : M.crate, x + (i % 2) * 0.85, y + Math.floor(i / 2) * 0.8, z + (i % 3) * 0.1);
+    if (model) { model.position.set(x + (n > 1 ? 0.425 : 0), y, z + 0.1); model.rotation.y = (x * 7 + z * 3) % 2 < 1 ? 0 : Math.PI; b.group.add(model); }
   },
   shelf(b, x, y, z, alongX = true) { b.box(alongX ? 1.8 : 0.4, 2.0, alongX ? 0.4 : 1.8, M.wood, x, y, z); },
 };

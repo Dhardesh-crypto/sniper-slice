@@ -12,6 +12,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
+import { hasProp, propModel } from '../world/props.js';
 
 const Q = 2.5;                                 // the quay's height above the water (water at 0)
 const START = { x: 330, z: 320 };              // the hill you start from
@@ -168,14 +169,24 @@ function site(scene) {
   };
 
   // Three gantry cranes on the quay; you can climb the one at x −20 (a sniper sits on another).
+  // (With the modelled crane, a portal crane with its cab ~14 m up and the jib out over the water,
+  // the blocks below stay for climbing and standing on, undrawn.)
+  const modelled = hasProp('crane');
   const crane = (cx, climb) => {
-    for (const lx of [-3, 3]) for (const lz of [DZ0 + 2, DZ0 + 10]) b.box(0.6, 14, 0.6, rust, cx + lx, y, lz);
+    const [cr, cs] = modelled ? [hidden, hidden] : [rust, steel];
+    for (const lx of [-3, 3]) for (const lz of [DZ0 + 2, DZ0 + 10]) b.box(0.6, 14, 0.6, cr, cx + lx, y, lz);
     const top = y + 14;
-    b.box(8, 0.4, 20, rust, cx, top, DZ0 + 2);                       // the bridge, out over the water
-    b.box(3, 2.6, 3, steel, cx, top + 0.4, DZ0 + 4);                  // the cab
-    b.box(0.3, 0.9, 20, steel, cx - 3.9, top + 0.4, DZ0 + 2, { solid: false });
-    b.box(0.3, 0.9, 20, steel, cx + 3.9, top + 0.4, DZ0 + 2, { solid: false });
-    const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 9, 4), steel); hook.position.set(cx, top - 4.5, DZ0 - 6); b.group.add(hook);
+    b.box(8, 0.4, 20, cr, cx, top, DZ0 + 2);                       // the bridge, out over the water
+    b.box(3, 2.6, 3, cs, cx, top + 0.4, DZ0 + 4);                  // the cab
+    if (modelled) {
+      const H = 26.5, m = propModel('crane', { y: H });          // its portal top at ~0.53 H; the legs sit 5.9/24 H toward +z
+      m.position.set(cx, y, DZ0 + 6 - 5.88 * H / 24);
+      b.group.add(m);
+    } else {
+      b.box(0.3, 0.9, 20, steel, cx - 3.9, top + 0.4, DZ0 + 2, { solid: false });
+      b.box(0.3, 0.9, 20, steel, cx + 3.9, top + 0.4, DZ0 + 2, { solid: false });
+      const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 9, 4), steel); hook.position.set(cx, top - 4.5, DZ0 - 6); b.group.add(hook);
+    }
     if (climb) ladders.push(ladder(b, { x: cx + 3, z: DZ0 + 10 + 0.35, y, top: top + 0.4, face: 's' }));
     return new THREE.Vector3(cx, top + 0.4, DZ0 + 6);
   };
@@ -193,10 +204,18 @@ function site(scene) {
     t.castShadow = t.receiveShadow = true;
     b.group.add(t);
     b.addSolid(t);
-    const ringMat = new THREE.MeshStandardMaterial({ color: 0x6f736b, roughness: 0.6, metalness: 0.5 });
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(5.3, 5.3, 0.25, 28), ringMat); ring.position.set(tx, y + 9, tz); b.group.add(ring);
+    const parts = [t];
+    const model = propModel('fuelTank', { x: 11.2, y: 9.6, z: 11.2 }, { stretch: true, own: true });
+    if (model) {                                                     // the modelled tank over the shooting cylinder
+      t.material = hidden;
+      model.position.set(tx, y, tz); model.rotation.y = (tx + tz) * 0.7; b.group.add(model);
+      parts.push(...model.userData.meshes);
+    } else {
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0x6f736b, roughness: 0.6, metalness: 0.5 });
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(5.3, 5.3, 0.25, 28), ringMat); ring.position.set(tx, y + 9, tz); b.group.add(ring);
+    }
     fuelTanks.push(t);
-    hotspotDefs.push({ kind: 'fuel', title: 'FUEL TANK', explosive: true, hitsToExplode: 3, meshes: [t], parts: [t],
+    hotspotDefs.push({ kind: 'fuel', title: 'FUEL TANK', explosive: true, hitsToExplode: 3, meshes: [t], parts,
       blast: { radius: 11, hurt: 18, size: 2.6, burn: true, chain: 24, label: 'FUEL TANK' } });
   }
   for (const [x0, z0, x1, z1] of [[118, -4, 162, -4], [118, 42, 162, 42], [118, -4, 118, 16], [118, 22, 118, 42], [162, -4, 162, 42]]) fence(x0, z0, x1, z1);
@@ -205,16 +224,24 @@ function site(scene) {
   // The flak gun on the mole, in a ring of sandbags; a light at the end.
   const fg = { x: 225, z: -150 };
   for (let a = 0; a < 8; a++) { const ang = a / 8 * Math.PI * 2; if (a === 6) continue; b.box(1.6, 0.9, 0.6, M.sandbag, fg.x + Math.cos(ang) * 3.2, y, fg.z + Math.sin(ang) * 3.2, { rotY: -ang }); }
-  b.box(1.4, 1.0, 1.4, steel, fg.x, y, fg.z);
-  const breech = b.box(0.8, 0.7, 1.2, steel, fg.x, y + 1.0, fg.z);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 8), steel);
-  barrel.position.set(fg.x, y + 2.3, fg.z - 1.1); barrel.rotation.x = -0.9; b.group.add(barrel);
-  hotspotDefs.push({ kind: 'engine', title: 'FLAK GUN', explosive: true, hitsToExplode: 2, meshes: [breech], parts: [barrel] });
+  const flakModel = propModel('flak', { y: 2.9 }, { own: true });
+  b.box(1.4, 1.0, 1.4, flakModel ? hidden : steel, fg.x, y, fg.z);
+  const breech = b.box(0.8, 0.7, 1.2, flakModel ? hidden : steel, fg.x, y + 1.0, fg.z);
+  const flakParts = [];
+  if (flakModel) { flakModel.position.set(fg.x, y, fg.z); flakModel.rotation.y = Math.PI / 2; b.group.add(flakModel); flakParts.push(...flakModel.userData.meshes); }
+  else {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 8), steel);
+    barrel.position.set(fg.x, y + 2.3, fg.z - 1.1); barrel.rotation.x = -0.9; b.group.add(barrel);
+    flakParts.push(barrel);
+  }
+  hotspotDefs.push({ kind: 'engine', title: 'FLAK GUN', explosive: true, hitsToExplode: 2, meshes: [breech], parts: flakParts });
   b.box(2.4, 9, 2.4, M.plaster, 225, y, -232);                      // the harbour light
   b.box(2.8, 1.6, 2.8, M.window, 225, y + 9, -232);
 
   // An E-boat tied up inside the mole (it rides on the water: nobody walks on it).
-  { const e = new THREE.Mesh(new THREE.BoxGeometry(5, 2, 30), steel); e.position.set(215, 0.6, -120); e.castShadow = true; b.group.add(e);
+  const eboat = propModel('eboat', { x: 32.7, z: 5.1 }, { stretch: true });
+  if (eboat) { eboat.position.set(214, -0.9, -120); eboat.rotation.y = Math.PI / 2; b.group.add(eboat); }
+  else { const e = new THREE.Mesh(new THREE.BoxGeometry(5, 2, 30), steel); e.position.set(215, 0.6, -120); e.castShadow = true; b.group.add(e);
     const br = new THREE.Mesh(new THREE.BoxGeometry(3, 1.6, 5), steel); br.position.set(215, 2.4, -116); b.group.add(br); }
 
   // ---- the supply ship ----
@@ -308,6 +335,15 @@ function buildShip(scene, steel, rust, hidden) {
   // The engine-room skylight aft of the funnel.
   const hatch = sb.box(2.2, 0.7, 2.2, steel, x - 29, deck, z);
   const parts = sb.group.children.filter(o => o.isMesh);
+  // The modelled steamer, bow east, over the blocks (which stay for the deck you walk on and the
+  // shots); the engine-room skylight stays as it is, the satchel's mark.
+  const model = propModel('ship', { x: len + 2, z: beam }, { stretch: true, own: true, turn: 2 });
+  if (model) {
+    for (const o of parts) if (o !== hatch) o.material = hidden;
+    model.position.set(x, -3.2, z);
+    sb.group.add(model);
+    parts.push(...model.userData.meshes);
+  }
   return { group: sb.group, solids: sb.solids, boxes: sb.boxes, hatch, parts, bridge, sinking: false, sunk: 0 };
 }
 
@@ -427,4 +463,4 @@ const briefing = `
   <p class="brief">The road comes in at the west gate. The south fence has been cut in two places. You can't swim with your kit:
     the water stops you at the quay. A truck of reinforcements comes down the coast road if the siren sounds.</p>`;
 
-export default { id: 'harbour', subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
+export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };

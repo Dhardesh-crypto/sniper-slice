@@ -8,19 +8,32 @@ import { vehicleModel } from './vehicle-models.js';
 
 import { M, Builder } from './kit.js';
 import { building, furniture } from './buildings.js';
+import { propModel, clipAbove } from './props.js';
+
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 
 // A watchtower. Its way up is a ladder on one face (`ladder`: +1 or -1, the side it hangs
 // on along z) or a straight stair flight running west from the platform (`stairs`).
 // Returns the platform top and, for a ladder, the climbing data the player uses.
 function tower(b, x, z, y, { ladder = 0, stairs = false } = {}) {
   const H = 8, S = 3.2, GAP = 0.9;
+  // The modelled tower (when loaded) gives the legs and bracing: it's cut off just under the
+  // platform (its generated cabin is solid where the picture had openings, and its deck sits
+  // higher than ours, so it hid the guard). The platform, railing, posts and roof above are ours.
+  const model = propModel('watchtower', { x: S + 0.8, y: (H + 0.2) / 0.6, z: S + 0.8 }, { stretch: true });
+  const wood = model ? HIDDEN : M.wood, dark = M.darkWood;
+  if (model) {
+    model.position.set(x, y, z); b.group.add(model);
+    clipAbove(model, y + H - 0.1);
+    for (const dx of [-S / 2, S / 2]) for (const dz of [-S / 2, S / 2]) b.box(0.2, 2.4, 0.2, M.wood, x + dx, y + H + 0.2, z + dz, { solid: false });
+  }
   for (const dx of [-S / 2, S / 2]) for (const dz of [-S / 2, S / 2]) {
-    b.box(0.25, H + 2.6, 0.25, M.wood, x + dx, y, z + dz);
+    b.box(0.25, H + 2.6, 0.25, wood, x + dx, y, z + dz);
   }
   b.box(S + 0.4, 0.2, S + 0.4, M.wood, x, y + H, z);                   // platform
   const top = y + H + 0.2;
   // Railing, with an opening where the ladder or stair arrives.
-  const rail = (dx, dz, w, d) => b.box(w, 1.0, d, M.darkWood, x + dx, top, z + dz);
+  const rail = (dx, dz, w, d) => b.box(w, 1.0, d, dark, x + dx, top, z + dz);
   const half = (S + 0.4 - GAP) / 2;
   for (const side of [-1, 1]) {
     if (side === ladder) for (const s of [-1, 1]) rail(s * (GAP + half) / 2, side * S / 2, half, 0.1);

@@ -7,6 +7,9 @@
 // The mission module places them; this keeps the prompt, the progress and the reading view.
 import * as THREE from 'three';
 import { M } from './kit.js';
+import { propModel } from './props.js';
+
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 
 const REACH = 1.6;
 const CRACK_TIME = 9, DIAL_TIME = 1.4;
@@ -42,6 +45,15 @@ export class Interactions {
   // A safe: { id, at (floor point in front of it), yaw (which way its door faces), combination, contents(): labels, docs: [doc] }.
   addSafe(safe) {
     const g = safeModel();
+    const model = propModel('safe', { x: 0.78, y: 0.95, z: 0.72 }, { stretch: true });
+    if (model) {
+      // The modelled safe shows; the simple one stays for its collision block and its swinging door
+      // (which now stands just in front of the model's own door, and swings open when you crack it).
+      g.userData.body.material = HIDDEN;
+      g.userData.door.traverse(o => { if (o.isMesh) o.material = HIDDEN; });
+      g.add(model);
+      g.userData.model = model;
+    }
     g.position.copy(safe.at);
     g.rotation.y = safe.yaw ?? 0;
     this.scene.add(g);
@@ -142,7 +154,7 @@ export class Interactions {
   openSafe(safe) {
     safe.open = true;
     this.progress = 0;
-    safe.model.userData.door.rotation.y = -1.9;
+    showOpen(safe.model);
     this.audio.click(0, 900, 0.4);
     const got = safe.contents?.() ?? [];
     if (got.length) this.hud.message(`${safe.name ?? 'SAFE'} OPEN · ${got.join(' · ').toUpperCase()}`, 'head');
@@ -169,7 +181,7 @@ export class Interactions {
     if (!d) return;
     d.doors?.forEach((o, i) => { if (o && this.doors[i]) { this.doors[i].setOpen(this.world, true); this.doors[i].swing = this.doors[i].target; this.doors[i].pivot.rotation.y = this.doors[i].swing; } });
     d.docs?.forEach((t, i) => { const doc = this.documents[i]; if (t && doc && !doc.taken) { doc.taken = true; doc.mesh.removeFromParent(); } });
-    d.safes?.forEach((o, i) => { const s = this.safes[i]; if (o && s && !s.open) { s.open = true; s.model.userData.door.rotation.y = -1.9; } });
+    d.safes?.forEach((o, i) => { const s = this.safes[i]; if (o && s && !s.open) { s.open = true; showOpen(s.model); } });
     d.levers?.forEach((u, i) => { if (u && this.levers[i]) this.levers[i].used = true; });     // (the module restores what it did)
     for (const k of d.known ?? []) this.known.add(k);
     for (const f of d.found ?? []) this.found.add(f);
@@ -183,6 +195,19 @@ export class Interactions {
     el.addEventListener('click', () => this.closeReader());
     this.reader = el;
   }
+}
+
+// The safe stands open: its door swung out (on the modelled safe, a door panel in its colour
+// swings out of the model and its front shows the dark inside).
+function showOpen(g) {
+  g.userData.door.rotation.y = -1.9;
+  if (!g.userData.model) return;
+  const green = new THREE.MeshStandardMaterial({ color: 0x22372a, roughness: 0.5, metalness: 0.5 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xb08d48, metalness: 0.9, roughness: 0.35 });
+  for (const door of g.userData.door.children) { door.material = green; for (const c of door.children) c.material = brass; }
+  const inside = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.72), new THREE.MeshBasicMaterial({ color: 0x0b0c0b }));
+  inside.position.set(0, 0.47, 0.362);
+  g.add(inside);
 }
 
 function paper() {

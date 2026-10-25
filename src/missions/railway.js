@@ -16,6 +16,7 @@ import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
+import { hasProp, propModel } from '../world/props.js';
 
 const Y = 10;                                   // the line's level
 const START = { x: 330, z: 300 };
@@ -171,10 +172,15 @@ function site(scene, world) {
 
   // ---- the water tower beside the line at the west end of the platform ----
   const [wx, wz] = [-72, -12];
-  for (const [dx, dz] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) b.box(0.4, 9, 0.4, M.stone, wx + dx, Y, wz + dz);
-  b.box(8, 0.15, 8, M.wood, wx, Y + 8.85, wz);                        // the walkway round the tank
-  const tankMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 4, 24), new THREE.MeshStandardMaterial({ color: 0x5d4a3a, roughness: 0.8 }));
-  tankMesh.position.set(wx, Y + 11, wz); tankMesh.castShadow = true; b.group.add(tankMesh);
+  // (The modelled tower: its walkway is 8.1/13 of its height, so 14.4 m tall puts it at the 9 m deck.)
+  const towerModel = propModel('waterTower', { y: 14.4 });
+  for (const [dx, dz] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) b.box(0.4, 9, 0.4, towerModel ? hidden : M.stone, wx + dx, Y, wz + dz);
+  b.box(8, 0.15, 8, towerModel ? hidden : M.wood, wx, Y + 8.85, wz);                        // the walkway round the tank
+  if (towerModel) { towerModel.position.set(wx, Y, wz - 0.99); b.group.add(towerModel); }
+  else {
+    const tankMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 4, 24), new THREE.MeshStandardMaterial({ color: 0x5d4a3a, roughness: 0.8 }));
+    tankMesh.position.set(wx, Y + 11, wz); tankMesh.castShadow = true; b.group.add(tankMesh);
+  }
   b.box(6.4, 4, 6.4, hidden, wx, Y + 9, wz);
   ladders.push(ladder(b, { x: wx, z: wz + 4.3, y: Y, top: Y + 9, face: 's' }));
   b.box(0.3, 0.3, 9, steel, wx + 1, Y + 6.5, wz + 5.5, { solid: false });   // the water crane's arm, out over the line
@@ -182,7 +188,13 @@ function site(scene, world) {
 
   // ---- the yard: sidings with goods wagons, the engine shed, the coal stage, the goods shed ----
   const wagonMat = new THREE.MeshStandardMaterial({ color: 0x6b4434, roughness: 0.85 });
-  for (const [x, z] of [[-120, 10], [-100, 10], [-40, 10], [-160, 15], [-60, 15], [0, 15], [-180, 24]]) {
+  for (const [i, [x, z]] of [[-120, 10], [-100, 10], [-40, 10], [-160, 15], [-60, 15], [0, 15], [-180, 24]].entries()) {
+    const wagon = hasProp('boxcar') && propModel(i % 3 === 2 ? 'boxcarGrey' : 'boxcar', { x: 10.4, y: 4.3, z: 3.0 }, { stretch: true, turn: i % 2 * 2 });
+    if (wagon) {                                                    // the modelled wagon over its block
+      b.box(10, 3.2, 2.8, hidden, x, Y + 0.7, z);
+      wagon.position.set(x, Y + 0.29, z); b.group.add(wagon);
+      continue;
+    }
     b.box(10, 3.2, 2.8, wagonMat, x, Y + 0.7, z);
     b.box(10.3, 0.2, 3.0, M.roof, x, Y + 3.9, z, { solid: false });
     for (const dx of [-3.5, 3.5]) b.box(1.4, 0.7, 2.4, steel, x + dx, Y, z, { solid: false });
@@ -333,6 +345,26 @@ function buildTrain(scene, hidden, steel) {
   box(16, 3.2, 2.9, new THREE.MeshStandardMaterial({ color: 0x3e4a3a, roughness: 0.7 }), 73.5, 1.1);
   box(15, 0.7, 2.94, new THREE.MeshStandardMaterial({ color: 0x1d2226, roughness: 0.2, metalness: 0.4 }), 74, 2.7, 0, false);
   wheelSet(75, 88, 2, 0.45);
+
+  // The modelled train, when its models are there: the blocks above stay for collision, the weak
+  // spots and the shots, but are no longer drawn. (Each weak spot's wagon gets its own materials,
+  // so a wreck blackens only that one.)
+  if (hasProp('locomotive')) {
+    const off = new THREE.MeshBasicMaterial({ visible: false });
+    for (const m of meshes) m.material = off;
+    const put = (key, x0, len, h, parts) => {
+      const m = propModel(key, { x: len, y: h, z: 3.0 }, { stretch: true, own: !!parts });
+      if (!m) return;
+      m.position.set(x0 + len / 2, 0.14, 0);                 // wheels on the rail tops
+      g.add(m);
+      parts?.push(...m.userData.meshes);
+    };
+    put('locomotive', 0, 21.5, 4.6, locoParts);
+    put('flakWagon', 22.2, 12.3, 3.3);
+    put('boxcarGrey', 34.9, 10.8, 4.4, ammoParts);
+    put('railgun', 41.5, 31.2, 5.8, gunParts);                 // its barrel reaches forward over the ammunition van
+    put('coach', 73.3, 16.4, 4.4);
+  }
 
   g.updateMatrixWorld(true);
   const boxes = solids.map(m => { const base = new THREE.Box3().setFromObject(m); return { base, box: base.clone() }; });
@@ -510,4 +542,4 @@ const briefing = `
   <p class="brief">If the train gets away with the gun, the mission is lost. A moving train is loud: it covers your shots.
     The ground round the junction is open; a lookout stands on the water tower.</p>`;
 
-export default { id: 'railway', subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
+export default { id: 'railway', props: ['locomotive', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
