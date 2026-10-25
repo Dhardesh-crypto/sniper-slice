@@ -9,20 +9,41 @@ import { CATALOG } from '../weapons/defs.js';
 const CLIP_SPEED = { walkLegs: 1.35, crouchLegs: 0.95, sprint: 4.6, crawl: 0.55 };
 const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
-function pistolModel() {
-  const steel = new THREE.MeshStandardMaterial({ color: 0x1c1d20, roughness: 0.45, metalness: 0.5 });
+// The Welrod: a long silenced tube with the magazine as the grip, a trigger guard, and the
+// bolt knob at the back. Origin at the grip, muzzle toward -z.
+export function pistolModel() {
+  const steel = new THREE.MeshStandardMaterial({ color: 0x2b2d2f, roughness: 0.45, metalness: 0.55 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x3b3631, roughness: 0.9 });
   const g = new THREE.Group();
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.1, 0.045), steel);
+  const tube = (r, len, z, mat = steel) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 16), mat);
+    m.rotation.x = Math.PI / 2;
+    m.position.set(0, 0.02, z);
+    g.add(m);
+    return m;
+  };
+  tube(0.017, 0.12, -0.02);                 // the receiver
+  tube(0.021, 0.24, -0.2);                  // the silencer, fatter
+  tube(0.019, 0.012, -0.32);                // the end cap
+  tube(0.012, 0.02, 0.05);                  // the bolt knob at the back
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 8), steel);
+  knob.position.set(0, 0.02, 0.065);
+  // The magazine is the grip, wrapped in rubber, angled back a little.
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.1, 0.034), rubber);
   grip.position.set(0, -0.04, 0.02);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.2, 12), steel);
-  body.rotation.x = Math.PI / 2;
-  body.position.set(0, 0.02, -0.08);
-  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 14), steel);
-  can.rotation.x = Math.PI / 2;
-  can.position.set(0, 0.02, -0.27);
-  g.add(grip, body, can);
+  grip.rotation.x = -0.18;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.008, 0.038), steel);
+  base.position.set(0, -0.09, 0.03);
+  base.rotation.x = -0.18;
+  // The trigger and its guard.
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.003, 6, 16, Math.PI), steel);
+  guard.rotation.set(Math.PI, Math.PI / 2, 0);
+  guard.position.set(0, 0.003, -0.022);
+  const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.018, 0.005), steel);
+  trigger.position.set(0, -0.004, -0.02);
+  g.add(knob, grip, base, guard, trigger);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  g.userData.muzzle = new THREE.Vector3(0, 0.02, -0.38);
+  g.userData.muzzle = new THREE.Vector3(0, 0.02, -0.33);
   return g;
 }
 

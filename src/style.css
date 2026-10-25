@@ -164,6 +164,8 @@ body.killcam #hidden-edge, body.mapopen #hidden-edge { opacity: 0; }
   border-radius: 50%; background: radial-gradient(circle, rgba(10,12,10,0.25) 0 28%, rgba(10,12,10,0.6) 29% 70%, rgba(10,12,10,0) 71%); }
 #wheel.on { display: block; }
 #wheel .slot { position: absolute; transform: translate(-50%, -50%); text-align: center; width: 104px; padding: 8px 4px; border-radius: 8px; color: var(--ink); font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+#wheel .slot .icon { display: block; width: 40px; height: 40px; margin: 0 auto 4px; color: var(--ink); }
+#wheel .slot.hover .icon { color: #ffcf6a; }
 #wheel .slot b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 #wheel .slot span { color: var(--dim); }
 #wheel .slot.sel { box-shadow: inset 0 0 0 1px rgba(242,237,225,0.35); }
@@ -195,7 +197,11 @@ body.killcam #wheel, body.mapopen #wheel { display: none; }
 .lo-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr); gap: 22px; }
 @media (max-width: 760px) { .lo-grid { grid-template-columns: 1fr; } }
 .lo-weapons { display: grid; gap: 6px; margin-bottom: 14px; }
-.lo-weapon { text-align: left; padding: 8px 12px; }
+.lo-weapon { text-align: left; padding: 6px 12px 6px 6px; display: grid; grid-template-columns: 132px 1fr; gap: 10px; align-items: center; }
+.lo-pic, .lo-hero { background: radial-gradient(ellipse at center, rgba(242,237,225,0.2), rgba(242,237,225,0) 72%); }
+.lo-pic { width: 132px; height: 41px; object-fit: contain; }
+.lo-pic.unknown { filter: brightness(0); opacity: 0.55; }      /* a silhouette until you find it */
+.lo-hero { display: block; width: 100%; aspect-ratio: 480 / 150; object-fit: contain; margin-bottom: 6px; }
 .lo-weapon b { display: block; font-size: 13px; }
 .lo-weapon small { color: var(--dim); font-size: 11px; }
 .lo-row { display: grid; grid-template-columns: 78px 1fr; gap: 8px; align-items: start; margin-bottom: 8px; font-size: 12px; }

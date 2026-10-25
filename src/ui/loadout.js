@@ -2,6 +2,7 @@
 // they do. Used as the menu's Loadout tab (editable before the mission starts, read-only once
 // it has: find a workbench) and as the workbench screen during the mission.
 import { CATALOG, PARTS, SLOT_NAMES, buildWeapon } from '../weapons/defs.js';
+import { weaponPicture } from './weapon-pictures.js';
 
 // Stats as 0..1 bars (the reach of the slowest round to the fastest, and so on).
 function stats(def) {
@@ -43,11 +44,12 @@ export class LoadoutUI {
           <div class="lo-weapons">${weapons.map(w => {
             const own = prof.ownsWeapon(w.id);
             return `<button class="lo-weapon${w.id === id ? ' on' : ''}" data-weapon="${w.id}" ${!own || !editable ? 'disabled' : ''}>
-              <b>${own ? w.name : '? ' + w.name}</b><small>${own ? w.blurb : 'Not found yet: hidden somewhere in the mission'}</small></button>`;
+              <img class="lo-pic${own ? '' : ' unknown'}" src="${weaponPicture(w.id)}" alt="">
+              <span><b>${own ? w.name : '? ' + w.name}</b><small>${own ? w.blurb : 'Not found yet: hidden somewhere in the mission'}</small></span></button>`;
           }).join('')}</div>
           ${partsHtml}
         </div>
-        <div class="lo-stats"><h2>${def.name}</h2>${stats(def).map(([k, v, t]) => `
+        <div class="lo-stats"><img class="lo-hero" src="${weaponPicture(id, def.suppressor && !def.integralSuppressor ? 'suppressor' : def.brake ? 'brake' : null)}" alt="${def.name}"><h2>${def.name}</h2>${stats(def).map(([k, v, t]) => `
           <div class="lo-stat"><span>${k}</span><i><b style="width:${(v * 100).toFixed(0)}%"></b></i><small>${t}</small></div>`).join('')}
           <p class="lo-scope">Scope: ${def.zoomNames.join(' / ')}</p>
         </div>

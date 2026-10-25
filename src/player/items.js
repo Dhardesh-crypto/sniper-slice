@@ -8,6 +8,7 @@
 //                     it's the one thing besides AP rounds that kills the Panzer
 //   bandage, medkit   heal (H heals without the wheel: a medkit when you're badly hurt)
 import * as THREE from 'three';
+import { ICONS } from '../ui/item-icons.js';
 
 export const ITEMS = [
   { id: 'grenade', name: 'Grenade', kind: 'throw' },
@@ -75,7 +76,7 @@ export class Items {
     el.id = 'wheel';
     el.innerHTML = '<div class="hub"><b></b><span></span></div>' + ITEMS.map((it, i) => {
       const a = (i / ITEMS.length) * Math.PI * 2 - Math.PI / 2;
-      return `<div class="slot" data-id="${it.id}" style="left:${50 + Math.cos(a) * 38}%;top:${50 + Math.sin(a) * 38}%"><b>${it.name}</b><span></span></div>`;
+      return `<div class="slot" data-id="${it.id}" style="left:${50 + Math.cos(a) * 38}%;top:${50 + Math.sin(a) * 38}%">${ICONS[it.id] ?? ''}<b>${it.name}</b><span></span></div>`;
     }).join('');
     document.body.appendChild(el);
     this.wheelEl = el;
