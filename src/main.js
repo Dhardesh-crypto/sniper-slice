@@ -12,7 +12,7 @@ import { Audio } from './core/audio.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { Hud } from './ui/hud.js';
 import { Post } from './core/post.js';
-import { loadAssets } from './world/characters.js';
+import { loadAssets, assets } from './world/characters.js';
 import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
@@ -489,7 +489,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades,
+  beltGrenades, assets,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

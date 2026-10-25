@@ -45,7 +45,7 @@ export class LoadoutUI {
             const own = prof.ownsWeapon(w.id);
             return `<button class="lo-weapon${w.id === id ? ' on' : ''}" data-weapon="${w.id}" ${!own || !editable ? 'disabled' : ''}>
               <img class="lo-pic${own ? '' : ' unknown'}" src="${weaponPicture(w.id)}" alt="">
-              <span><b>${own ? w.name : '? ' + w.name}</b><small>${own ? w.blurb : 'Not found yet: hidden somewhere in the mission'}</small></span></button>`;
+              <span><b>${own ? w.name : '? ' + w.name}</b><small>${own ? w.blurb : `Not found yet: ${w.foundOn ?? 'hidden somewhere in the mission'}`}</small></span></button>`;
           }).join('')}</div>
           ${partsHtml}
         </div>

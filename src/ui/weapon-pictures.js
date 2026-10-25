@@ -35,8 +35,8 @@ export function weaponPicture(id, device = null) {
   let gun;
   if (def.slot === 'rifle') { gun = rifleModel(def.model); fitMuzzle(gun, device, 1); }
   else {
-    gun = (id === 'p38' && pistolModelFor('p38')) || pistolModel();
-    if (id === 'p38') fitMuzzle(gun, device, -1);
+    gun = (id !== 'welrod' && pistolModelFor(def.model)) || pistolModel();
+    if (id !== 'welrod') fitMuzzle(gun, device, -1);
     gun.rotation.y = Math.PI;                 // pistols point to -z: turn the muzzle to +z
   }
   scene.add(gun);

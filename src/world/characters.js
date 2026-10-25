@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
-  enfield: 'enfield', g43: 'g43', p38: 'p38', m1carbine: 'm1carbine', delisle: 'delisle' };
+  enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
@@ -121,21 +121,31 @@ export function rifleModel(kind = 'springfield') {
   return outer;
 }
 
+// Pistol models: the axis they lie along (the muzzle at its + end for both, measured: the thin
+// barrel end, away from the grip that reaches down), the real length, where the hand holds it
+// (from the back) and how high (from the bottom).
+const PISTOLS = {
+  p38: { axis: 'z', length: 0.22, grip: 0.3, gripY: 0.62 },
+  luger: { axis: 'x', length: 0.222, grip: 0.2, gripY: 0.72 },
+};
+
 // A pistol model for the hand: origin at the grip, muzzle toward -z (the body's forward).
 export function pistolModelFor(kind) {
-  if (kind !== 'p38' || !assets.models.p38) return null;
-  const m = assets.models.p38.scene.clone(true);
+  const spec = PISTOLS[kind];
+  if (!spec || !assets.models[kind]) return null;
+  const m = assets.models[kind].scene.clone(true);
   m.traverse(o => { if (o.isMesh) { if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals(); if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace; o.castShadow = true; } });
-  const box = new THREE.Box3().setFromObject(m), len = box.max.z - box.min.z;   // muzzle at +z (measured)
+  const a = spec.axis, box = new THREE.Box3().setFromObject(m), len = box.max[a] - box.min[a];
   const c = box.getCenter(new THREE.Vector3());
-  m.position.set(-c.x, -(box.min.y + (box.max.y - box.min.y) * 0.62), -(box.min.z + len * 0.3)); // grip ~30% from the back, below the slide
+  m.position.set(-c.x, -(box.min.y + (box.max.y - box.min.y) * spec.gripY), -c.z);
+  m.position[a] = -(box.min[a] + len * spec.grip);
   const inner = new THREE.Group();
   inner.add(m);
-  inner.scale.setScalar(0.22 / len);    // a P38 is 22 cm long
-  inner.rotation.y = Math.PI;           // muzzle to -z
+  inner.scale.setScalar(spec.length / len);
+  inner.rotation.y = a === 'x' ? Math.PI / 2 : Math.PI;   // muzzle to -z
   const outer = new THREE.Group();
   outer.add(inner);
-  outer.userData.muzzle = new THREE.Vector3(0, 0.02, -0.22 * 0.7);
+  outer.userData.muzzle = new THREE.Vector3(0, 0.02, -spec.length * (1 - spec.grip));
   return outer;
 }
 

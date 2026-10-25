@@ -9,7 +9,7 @@ import { takeSupplies, MAX_KIT } from './supplies.js';
 // What a body carries: a soldier's own kit. Rifle rounds, sometimes pistol or special rounds,
 // a bandage or a medkit now and then, and the grenade on his belt if he has one. The Oberst: pistol rounds, a medkit, his
 // papers and a weapon part. (Bottles, mines, TNT and satchels are only in the supply caches
-// around the map: see world/pickups.js.)
+// around the map: see world/pickups.js.) The Oberst also gives you his Luger, the first time.
 function rollLoot(soldier, rng = Math.random) {
   const n = (a, b) => a + Math.floor(rng() * (b - a + 1));
   if (soldier.officer) return { rifle: 0, pistol: n(6, 10), papers: 1, kit: { medkit: rng() < 0.5 ? 1 : 0 } };
@@ -74,6 +74,7 @@ export class Search {
     if (!got.length && (loot.rifle || loot.pistol)) got.push('ammo full');
     if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); }
     if (s.officer) { const part = this.pickups?.givePart(); if (part) got.push(`part: ${part.name}`); }  // the Oberst carries a weapon part
+    if (s.officer && this.pickups?.profile.addWeapon('luger')) got.push('weapon: Luger P08 · fit it at a workbench');  // and his Luger
     this.audio.pickup();
     this.hud.message(got.length ? got.join(' · ').toUpperCase() : 'NOTHING USEFUL');
     if (this.wasStance) this.player.setStance(this.wasStance);

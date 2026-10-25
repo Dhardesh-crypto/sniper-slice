@@ -44,6 +44,25 @@ export class Soldier {
     this.applyStance();
     this.char.mixer.setTime(Math.random() * 4); // don't breathe in unison
     this.root.updateMatrixWorld(true);
+    if (officer) this.addHolster();
+  }
+
+  // The officer's Luger in its brown leather holster at his right hip.
+  addHolster() {
+    const leather = new THREE.MeshStandardMaterial({ color: 0x4a2f1c, roughness: 0.7 });
+    const h = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.15, 0.11), leather);
+    const flap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.12), leather);
+    flap.position.set(0, 0.07, 0.01);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.012, 0.03), new THREE.MeshStandardMaterial({ color: 0x8a8678, roughness: 0.4, metalness: 0.6 }));
+    strap.position.set(0, 0.035, 0.05);
+    for (const m of [body, flap, strap]) { m.castShadow = true; h.add(m); }
+    const hips = this.char.bones.Hips ?? this.root;
+    const hipY = this.root.worldToLocal(hips.getWorldPosition(new THREE.Vector3())).y;
+    h.position.set(-0.19, hipY - 0.1, 0.0);
+    h.rotation.set(-0.35, 0, 0.08);   // the grip end tilted forward
+    this.root.add(h);
+    hips.attach(h);
   }
 
   // Apply a bullet hit. Returns { zone, killed, damage } for the HUD and the kill cam.

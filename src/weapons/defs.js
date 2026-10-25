@@ -73,8 +73,13 @@ export const CATALOG = {
   welrod: { ...WEAPONS.pistol, id: 'welrod', slot: 'pistol', name: 'Welrod', model: 'welrod', blurb: 'Built-in silencer: almost silent.' },
   p38: { ...WEAPONS.pistol, id: 'p38', slot: 'pistol', name: 'Walther P38', model: 'p38', blurb: 'More stopping power, but loud unless suppressed.',
     muzzleVelocity: 350, magazine: 8, cycleTime: 0.25, noiseRadius: 120, damage: { head: 999, torso: 95, pelvis: 80, arm: 40, leg: 45 } },
+  // The officer's pistol: steadier and a little faster than the P38, just as loud.
+  luger: { ...WEAPONS.pistol, id: 'luger', slot: 'pistol', name: 'Luger P08', model: 'luger', rare: true, foundOn: 'Oberst Krause carries one: search his body',
+    blurb: 'The officer\'s pistol: steadier and quicker than the P38, just as loud unless suppressed.',
+    muzzleVelocity: 370, magazine: 8, cycleTime: 0.22, noiseRadius: 125, hipSpread: 0.0045,
+    damage: { head: 999, torso: 95, pelvis: 80, arm: 40, leg: 45 } },
 };
-export const STARTING_WEAPONS = ['springfield', 'enfield', 'welrod', 'p38'];   // the rare ones (G43, M1 Carbine, De Lisle) have to be found
+export const STARTING_WEAPONS = ['springfield', 'enfield', 'welrod', 'p38'];   // the rare ones (G43, M1 Carbine, De Lisle, Luger) have to be found
 
 // Parts by slot. `stock: true` = what every weapon starts with. Effects multiply the base.
 export const PARTS = {

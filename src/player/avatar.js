@@ -63,7 +63,7 @@ export class Avatar {
   }
 
   // Carry the loadout: the rifle's model (with a fitted suppressor or muzzle brake on it) and
-  // the pistol (the Welrod, or the P38 with its suppressor if fitted).
+  // the pistol (the Welrod, or the P38 or Luger with a suppressor if fitted).
   setWeapons(loadout, arsenal) {
     const rdef = arsenal.weapons.rifle.def, pdef = arsenal.weapons.pistol.def;
     this.char.setRifle(CATALOG[loadout.rifle].model);
@@ -73,7 +73,7 @@ export class Avatar {
     if (this.pistolKind !== want) {
       const visible = this.pistol.visible;
       this.pistol.removeFromParent();
-      this.pistol = (want === 'p38' && pistolModelFor('p38')) || this.welrod;
+      this.pistol = (want !== 'welrod' && pistolModelFor(CATALOG[want].model)) || this.welrod;
       this.pistol.visible = visible;
       this.root.add(this.pistol);
       this.pistolKind = want;
