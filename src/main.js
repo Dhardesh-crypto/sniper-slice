@@ -8,7 +8,7 @@ import { Arsenal } from './weapons/arsenal.js';
 import { Particles } from './fx/particles.js';
 import { KillCam } from './fx/killcam.js';
 import { Input } from './core/input.js';
-import { Audio } from './core/audio.js';
+import { Audio, SOUND_CHECK } from './core/audio.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { Hud } from './ui/hud.js';
 import { Post } from './core/post.js';
@@ -125,9 +125,21 @@ function closeBench() {
 pickups.onBench = openBench;
 document.getElementById('bench-close').addEventListener('click', closeBench);
 addEventListener('keydown', (e) => { if (e.code === 'Escape' && benchOpen) closeBench(); });
-const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadout-menu'), started
+const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadout-menu'), profile.testAll
+  ? { editable: true, note: 'Test armoury (Settings): everything unlocked, and you can change it any time.' }
+  : started
   ? { editable: false, note: 'The mission is under way: find a workbench to change your weapons and parts.' }
   : { editable: true, note: 'Your weapons and the parts you have found so far. Changes are kept for your next mission.' });
+// Settings → Testing: the test armoury, and a sound check for every weapon sample.
+const testAll = document.getElementById('set-testall');
+testAll.checked = profile.testAll;
+testAll.addEventListener('input', () => { profile.setTestAll(testAll.checked); applyLoadout(profile.loadout); renderMenuLoadout(); });
+document.getElementById('sound-check').append(...SOUND_CHECK.map(([label, name, gain]) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.addEventListener('click', async () => { b.classList.add('playing'); await audio.check(name, gain); setTimeout(() => b.classList.remove('playing'), 600); });
+  return b;
+}));
 const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, applyLoadout });
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);

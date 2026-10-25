@@ -28,8 +28,26 @@ export class Profile {
     try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* storage blocked: kept for this session */ }
   }
 
-  ownsWeapon(id) { return !!this.data.weapons[id]; }
-  ownsPart(part) { return part.stock || !!this.data.parts[part.id]; }
+  // The test armoury (a setting): every weapon and part counts as yours, without touching what
+  // you've really collected. Switching it off puts back anything you don't own.
+  get testAll() { return !!this.data.testAll; }
+  setTestAll(on) {
+    this.data.testAll = on;
+    if (!on) {
+      const lo = this.data.loadout;
+      for (const slot of ['rifle', 'pistol']) if (!this.ownsWeapon(lo[slot])) lo[slot] = fresh().loadout[slot];
+      for (const [weaponId, fit] of Object.entries(lo.fit)) {
+        for (const [slot, partId] of Object.entries(fit)) {
+          const part = PARTS[CATALOG[weaponId]?.slot]?.[slot]?.find(p => p.id === partId);
+          if (!part || !this.ownsPart(part)) delete fit[slot];
+        }
+      }
+    }
+    this.save();
+  }
+
+  ownsWeapon(id) { return this.testAll || !!this.data.weapons[id]; }
+  ownsPart(part) { return part.stock || this.testAll || !!this.data.parts[part.id]; }
 
   addWeapon(id) { if (this.data.weapons[id]) return false; this.data.weapons[id] = true; this.save(); return true; }
   addPart(id) { if (this.data.parts[id]) return false; this.data.parts[id] = true; this.save(); return true; }

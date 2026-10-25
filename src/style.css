@@ -68,6 +68,12 @@ h2 { font-size: 12px; letter-spacing: 0.25em; color: var(--dim); font-weight: 50
 .tab.controls.on { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 32px; align-content: start; }
 .tab.controls h2 { margin-bottom: 8px; }
 .settings { max-width: 460px; }
+.settings .set-head { margin: 18px 0 8px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+.settings .set-note { margin: 4px 0 0 26px; font-size: 11px; line-height: 1.5; color: var(--dim); }
+.sound-check { display: flex; flex-wrap: wrap; gap: 5px; }
+.sound-check button { font: inherit; font-size: 11px; padding: 5px 9px; color: var(--ink); background: rgba(255,255,255,0.05); border: 1px solid rgba(242,237,225,0.18); cursor: pointer; }
+.sound-check button:hover { border-color: #ffcf6a; }
+.sound-check button.playing { border-color: #ffcf6a; background: rgba(255,207,106,0.14); }
 .goals { margin: 0 0 14px; padding-left: 18px; font-size: 13px; line-height: 1.7; }
 .goals b { font-weight: 600; }
 .panel > h1, .panel > .sub, .panel > .buttons, .panel > #slots { flex: none; }

@@ -17,6 +17,15 @@ const RELOADS = {
   springfield: 'reload_stripper', enfield: 'reload_stripper', g43: 'reload_g43', m1carbine: 'reload_m1carbine',
   delisle: 'reload_delisle', welrod: 'reload_welrod', p38: 'reload_pistol', luger: 'reload_pistol',
 };
+// For the sound check in the settings: every weapon sample, at the level it plays in the game.
+export const SOUND_CHECK = [
+  ['Springfield', ...SHOTS.springfield], ['Lee-Enfield', ...SHOTS.enfield], ['Gewehr 43', ...SHOTS.g43],
+  ['M1 Carbine', ...SHOTS.m1carbine], ['De Lisle', ...SHOTS.delisle], ['Rifle + suppressor', ...SUPPRESSED.bolt],
+  ['Semi-auto + suppressor', ...SUPPRESSED.semi], ['Walther P38', ...SHOTS.p38], ['Luger P08', ...SHOTS.luger],
+  ['Welrod', ...SHOTS.welrod], ['Pistol + suppressor', ...SUPPRESSED.pistol], ['Bolt', 'bolt', 0.6],
+  ['Reload: stripper clip', 'reload_stripper', 0.7], ['Reload: G43', 'reload_g43', 0.7], ['Reload: M1 Carbine', 'reload_m1carbine', 0.7],
+  ['Reload: De Lisle', 'reload_delisle', 0.7], ['Reload: pistol', 'reload_pistol', 0.7], ['Reload: Welrod', 'reload_welrod', 0.7],
+];
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt']))];
 
 export class Audio {
@@ -51,7 +60,14 @@ export class Audio {
     this.reverb.connect(this.reverbGain).connect(this.master);
     if (!offline) this.startAmbience();
     this.samples = {};
-    this.loadSamples();
+    this.loading = this.loadSamples();
+  }
+
+  // The sound check: start the audio if needed, wait for the samples, play one.
+  async check(name, gain) {
+    this.start();
+    await this.loading;
+    this.sample(name, { gain });
   }
 
   async loadSamples() {
