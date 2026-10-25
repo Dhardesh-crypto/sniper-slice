@@ -115,7 +115,7 @@ export class Saves {
       },
       stealth: { wariness: stealth.wariness, alarm: stealth.alarm },
       masking: { time: masking.time, nextPlane: masking.planeT >= 0 ? masking.time + 20 : masking.nextPlane, nextBarrage: masking.nextBarrage, generatorOn: masking.generatorOn },
-      tank: { alive: tank.alive, turretYaw: tank.turretYaw },
+      tank: tank ? { alive: tank.alive, turretYaw: tank.turretYaw } : null,
       fires: explosions.fires.map(f => ({ at: v3(f.at), t: f.t })),
       mission: { time: mission.time, stats: { ...mission.stats }, objectives: mission.objectives.map(o => ({ id: o.id, done: o.done, hidden: !!o.hidden })) },
       papers: search.papers,
@@ -189,17 +189,19 @@ export class Saves {
       if (h.kind === 'siren' && hs.broken) { const [horn] = h.meshes; horn.rotation.x = 0.9; horn.position.y -= 0.15; }
       if (hs.exploded && !h.exploded) {
         hotspots.wreck(h);
-        if (h.title === 'RADIO TRUCK ENGINE') world.radio.antenna.visible = false;
-        if (h.kind === 'tank') { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
+        if (h.title === 'RADIO TRUCK ENGINE' && world.radio) world.radio.antenna.visible = false;
+        if (h.kind === 'tank' && tank) { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
       }
     }
-    if (!d.tank.alive && tank.alive) { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
-    tank.turretYaw = d.tank.turretYaw; tank.turretPivot.rotation.y = tank.turretYaw;
+    if (tank && d.tank) {
+      if (!d.tank.alive && tank.alive) { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
+      tank.turretYaw = d.tank.turretYaw; tank.turretPivot.rotation.y = tank.turretYaw;
+    }
     for (const f of d.fires ?? []) explosions.fires.push({ at: toV(f.at), t: f.t, emitT: 0 });
 
     // Alarm, siren, wariness, masking timers.
     Object.assign(ai.alarm, { on: d.ai.alarm.on, working: d.ai.alarm.working, knownDead: d.ai.alarm.knownDead, count: d.ai.alarm.count, quietT: d.ai.alarm.quietT, reinforceT: d.ai.alarm.reinforceT ?? undefined, runner: null });
-    if (!ai.alarm.working) world.siren.wire.visible = false;
+    if (!ai.alarm.working && world.siren) world.siren.wire.visible = false;
     stealth.wariness = d.stealth.wariness;
     stealth.alarm = d.stealth.alarm;
     if (ai.alarm.on) this.g.audio.setSiren(1);

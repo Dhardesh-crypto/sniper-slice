@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms } from './vegetation.js';
-import { buildCompound, buildRange } from './compound.js';
+
 import { buildHorizon } from './horizon.js';
 
 // Late-afternoon sun, about 24° up, low enough for long shadows and warm light.
@@ -13,7 +13,8 @@ export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair
 const SUN_DIR = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(66), THREE.MathUtils.degToRad(215));
 
 export class World {
-  constructor(scene, renderer) {
+  // site: the mission's builder, (scene) => { solids, boxes, soldiers, spawn, ladders, … }.
+  constructor(scene, renderer, site) {
     this.scene = scene;
     this.time = 0;
 
@@ -28,25 +29,26 @@ export class World {
     this.tuftCount = grass.tuftCount;
     this.nearGrass = buildNearGrass(scene, grass.patches);
 
-    const compound = buildCompound(scene);
-    const range = buildRange(scene);
-    this.generatorPos = compound.generator;
-    this.spawn = range.spawn;
-    this.soldiers = [...compound.soldiers, ...range.targets];
-    this.solids = [...compound.solids, ...range.solids, ...trunks];
-    this.boxes = [...compound.boxes, ...range.boxes];
-    this.ladders = compound.ladders;
-    this.towerTops = compound.towerTops;
-    this.siren = compound.siren;
-    this.radio = compound.radio;
-    this.generatorMesh = compound.generatorMesh;
-    this.tankSpot = compound.tank;
-    this.staffCar = compound.staffCar;
-    this.villa = compound.villa;
-    this.doors = compound.doors ?? [];
+    // The mission's site. The siren, radio, generator, tank and staff car are optional.
+    const b = site(scene, this);
+    this.generatorPos = b.generator ?? null;
+    this.spawn = b.spawn;
+    this.soldiers = b.soldiers;
+    this.solids = [...b.solids, ...trunks];
+    this.boxes = b.boxes;
+    this.ladders = b.ladders ?? [];
+    this.towerTops = b.towerTops ?? [];
+    this.siren = b.siren ?? null;
+    this.radio = b.radio ?? null;
+    this.generatorMesh = b.generatorMesh ?? null;
+    this.tankSpot = b.tank ?? null;
+    this.staffCar = b.staffCar ?? null;
+    this.villa = b.villa ?? null;
+    this.site = b;
+    this.doors = b.doors ?? [];
     this.doorBoxes = new Set(this.doors.map(d => d.box));     // the guards' paths go through doors
     // Where a guard kneels to restart it: in front of the shed's open side.
-    this.generatorStand = new THREE.Vector3(this.generatorPos.x, heightAt(this.generatorPos.x, this.generatorPos.z), this.generatorPos.z - 1.4);
+    this.generatorStand = this.generatorPos && new THREE.Vector3(this.generatorPos.x, heightAt(this.generatorPos.x, this.generatorPos.z), this.generatorPos.z - 1.4);
     this.hotspots = [];      // weak spots you can shoot (see src/world/hotspots.js)
     for (const s of this.soldiers) s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05); // where dropped rifles land
     this.hitMeshes = this.soldiers.flatMap(s => s.hitMeshes);

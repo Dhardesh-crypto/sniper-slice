@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { NavGrid } from './nav.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { roadCenterZ, COMPOUND } from '../world/terrain.js';
+import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -74,7 +74,7 @@ export class GuardAI {
     s.brain = {
       mode: 'post', path: null, wpi: 0, goal: null, repathT: 0, lookT: 0, sweeps: 0,
       fixed: s.root.position.y > ground + 3,            // tower guards hold their platform
-      route: ROUTES[s.name]?.map(([x, z, wait = 0]) => Object.assign(new THREE.Vector3(COMPOUND.x + x, ground, COMPOUND.z + z), { wait })), routeI: 0, waitT: 0,
+      route: (activeMap().routes ?? ROUTES)[s.name]?.map(([x, z, wait = 0]) => Object.assign(new THREE.Vector3(COMPOUND.x + x, ground, COMPOUND.z + z), { wait })), routeI: 0, waitT: 0,
       lastSeen: null, lastSeenT: -99, fireT: 0, shots: 0, cover: null, coverTried: false,
       progressT: 0, progressAt: s.root.position.clone(), stuck: 0,
     };
@@ -201,7 +201,8 @@ export class GuardAI {
         break;
       }
       case 'flee': {
-        const safe = this.v.set(COMPOUND.x + 8, s.home.y, COMPOUND.z - 17); // behind the villa
+        const f = activeMap().flee ?? [8, -17];                        // the vineyard: behind the villa
+        const safe = this.v.set(COMPOUND.x + f[0], s.home.y, COMPOUND.z + f[1]);
         if (this.goTo(s, safe, RUN, dt)) { this.stop(s); s.targetYaw = Math.atan2(p.pos.x - s.root.position.x, p.pos.z - s.root.position.z); }
         break;
       }
@@ -291,6 +292,7 @@ export class GuardAI {
   // ---------------------------------------------------------------- alarm
   tickAlarm(dt) {
     const al = this.alarm;
+    if (!this.siren) return;                 // a map without a siren: no alarm to sound
     // Someone has to sound it: the nearest free guard to the post runs for it.
     if (!al.on && !al.runner && !al.knownDead) {
       const alerted = this.guards().some(s => s.aware.state === 'alerted' && s.aware.why !== 'shout');
@@ -340,7 +342,9 @@ export class GuardAI {
   // ---------------------------------------------------------------- reinforcements
   sendTruck({ quiet = false } = {}) {
     this.reinforced = true;
-    const t = { model: truckModel(), x: COMPOUND.x - 230, stopX: COMPOUND.x - 46, speed: 13, unloaded: false, parkT: 0, stalled: false };
+    // It drives in along the map's road, from the west, and stops short of the target area.
+    const road = activeMap().truck ?? { from: -230, stop: -46 };
+    const t = { model: truckModel(), x: COMPOUND.x + road.from, stopX: COMPOUND.x + road.stop, speed: 13, unloaded: false, parkT: 0, stalled: false };
     this.scene.add(t.model);
     this.truck = t;
     // Bullets stop on it; the bonnet is a weak spot: one hit stalls it, two blow it up.
@@ -424,14 +428,15 @@ export class GuardAI {
     this.world.addSoldier(s);
     this.stealth.enlist(s);
     this.enlist(s);
-    s.home = new THREE.Vector3(COMPOUND.x - 20 + (i % 4) * 4, at.y, COMPOUND.z + (i % 2 ? 6 : -6)); // they stay to guard the yard
+    const h = activeMap().reinforceHome ?? [-20, 6];               // they stay to guard the yard
+    s.home = new THREE.Vector3(COMPOUND.x + h[0] + (i % 4) * 4, at.y, COMPOUND.z + (i % 2 ? h[1] : -h[1]));
     return s;
   }
 
   // ---------------------------------------------------------------- sabotage
   // Hold E at the siren's junction box to cut the wire.
   sabotageOption() {
-    if (!this.alarm.working || this.player.climb) return null;
+    if (!this.siren || !this.alarm.working || this.player.climb) return null;
     const p = this.player.pos, j = this.siren.standAt;
     if (Math.hypot(p.x - j.x, p.z - j.z) > 1.4 || Math.abs(p.y - j.y) > 1) return null;
     return { label: 'E · CUT ALARM WIRE', progress: this.cutProgress };

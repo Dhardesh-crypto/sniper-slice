@@ -69,15 +69,17 @@ export class Hotspots {
     this.repairT = 8;
     this.glowCheckT = 0;
 
+    // Whichever of these the map has.
     const siren = world.siren;
-    this.add({ kind: 'siren', title: 'SIREN', meshes: siren.hornMeshes, onHit: (h) => this.breakSiren(h) });
-    this.add({ kind: 'generator', title: 'GENERATOR', meshes: [world.generatorMesh], onHit: (h) => this.breakGenerator(h) });
-    this.add({ kind: 'engine', title: 'RADIO TRUCK ENGINE', explosive: true, meshes: [world.radio.engine], parts: world.radio.truckParts,
+    if (siren) this.add({ kind: 'siren', title: 'SIREN', meshes: siren.hornMeshes, onHit: (h) => this.breakSiren(h) });
+    if (world.generatorMesh) this.add({ kind: 'generator', title: 'GENERATOR', meshes: [world.generatorMesh], onHit: (h) => this.breakGenerator(h) });
+    if (world.radio?.engine) this.add({ kind: 'engine', title: 'RADIO TRUCK ENGINE', explosive: true, meshes: [world.radio.engine], parts: world.radio.truckParts,
       onExplode: () => {
         world.radio.antenna.visible = false;
         this.mission?.radioDestroyed();
       } });
-    this.add({ kind: 'engine', title: 'STAFF CAR ENGINE', explosive: true, meshes: [world.staffCar.engine], parts: world.staffCar.parts });
+    if (world.staffCar) this.add({ kind: 'engine', title: world.staffCar.title ?? 'STAFF CAR ENGINE', explosive: true, meshes: [world.staffCar.engine], parts: world.staffCar.parts });
+    for (const v of world.site?.vehicles ?? []) this.add({ kind: 'engine', title: v.title, explosive: true, meshes: [v.engine], parts: v.parts });
   }
 
   add(opts) {

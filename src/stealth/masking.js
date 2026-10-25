@@ -14,8 +14,8 @@ export class Masking {
   constructor({ scene, world, audio, fx }) {
     Object.assign(this, { scene, world, audio, fx });
     this.rng = makeRng(31337);
-    this.generator = world.generatorPos.clone();
-    this.generatorOn = true;
+    this.generator = world.generatorPos?.clone() ?? null;    // not every map has one
+    this.generatorOn = !!this.generator;
 
     this.plane = vehicleModel('plane');   // a trimotor transport (Higgsfield model), nose toward +z
     this.plane.visible = false;
@@ -88,13 +88,13 @@ export class Masking {
       this.nextBarrage = this.time + ARTY.every;
     }
     while (this.shells.length && this.time >= this.shells[0].t) this.boom(this.shells.shift(), listener);
-    this.audio.setGenerator(this.generatorOn ? Math.max(0, 1 - listener.distanceTo(this.generator) / 60) : 0);
+    this.audio.setGenerator(this.generatorOn && this.generator ? Math.max(0, 1 - listener.distanceTo(this.generator) / 60) : 0);
   }
 
   // How masked a sound made at `pos` is: 0 = not at all, 1 = fully. Also names the source.
   loudnessAt(pos) {
     let best = 0, source = null;
-    if (this.generatorOn) {
+    if (this.generatorOn && this.generator) {
       const g = THREE.MathUtils.clamp(1 - (pos.distanceTo(this.generator) - GEN_RADIUS * 0.5) / (GEN_RADIUS * 0.5), 0, 1);
       if (g > best) { best = g; source = 'generator'; }
     }

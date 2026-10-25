@@ -1,19 +1,14 @@
 // Trees (instanced, trunks block bullets and the player) and wind-swayed grass,
 // including tall-grass patches that will hide a crouched or prone player.
 import * as THREE from 'three';
-import { heightAt, normalAt, COMPOUND, START_HILL, laneDistance, roadCenterZ, inPlayArea, MAP_HALF } from './terrain.js';
+import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF, keepClear as mapKeepClear, activeMap } from './terrain.js';
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
-function keepClear(x, z, margin = 0) {
-  if (Math.hypot(x - COMPOUND.x, z - COMPOUND.z) < 50 + margin) return true;
-  if (laneDistance(x, z) < 6 + margin) return true;
-  if (x < COMPOUND.x - 30 && Math.abs(z - roadCenterZ(x)) < 5 + margin) return true;
-  return false;
-}
+const keepClear = (x, z, margin = 0) => mapKeepClear(x, z, margin);
 
 // A smooth, lumpy blob of leaves: a subdivided sphere pushed in and out by noise,
 // shaded darker underneath and lighter on top (vertex colours).

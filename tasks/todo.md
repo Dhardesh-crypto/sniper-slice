@@ -373,7 +373,7 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 - The Panzer's crew sees like the guards: tall grass hides you crouched or prone, and its range shrinks with your visibility (standing ~300 m, crouched ~220 m, prone ~150 m; was 350 m whatever your stance, grass ignored). Verified with a guard forced to have you in sight: grass prone 220 m and crouched 100 m hidden, open prone 200 m hidden; standing 100–260 m and open prone 100 m seen.
 
 ### 9A. Engine (everything after builds on it)
-- [ ] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and
+- [x] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and
       time of day, buildings, guards and routes, vehicles, pickups, objectives, spawn and extraction.
       `terrain.js`, `compound.js`, `guards.js`, `pickups.js` and `mission.js` stop assuming the vineyard.
 - [x] Mission select in the menu (Mission tab; `src/missions/campaign.js`; only built missions are playable): the eight missions with a briefing each, progress kept in
@@ -385,14 +385,20 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       or in a document. Contents: documents, intel, rare parts, ammo.
 - [x] Documents and intel: readable letters, orders and maps (some reveal a safe combination, a guard
       route or an optional target); a per-mission collection kept in the profile.
-- [ ] Objective engine: kill a target, destroy a thing, retrieve an item (from a safe or a body),
+- [x] Objective engine (mission modules give objectives, target, extraction, markers and a tick): kill a target, destroy a thing, retrieve an item (from a safe or a body),
       sabotage, reach a place, plus the extraction; optional objectives.
 - [x] The vineyard's villa walk-in (two floors, stairs, six doors, four documents, the Oberst's office safe with his orders; the Oberst walks into the hall on his rounds). Verified: front door, stairs up and down, the bedside note gives the combination, the safe opens in 1.4 s and completes the optional objective, the Oberst opens the door and spends ~18 s inside, saves keep doors/documents/safe.
 
 ### 9B. The missions (one step each)
-1. [ ] **Operation Vineyard** (Tuscan countryside): the existing mission, villa now walk-in.
-2. [ ] **Hill town**: narrow streets, a piazza, a church bell tower, the town hall with the Gestapo
-       office and its safe; rooftop routes.
+1. [x] **Operation Vineyard** (Tuscan countryside): the existing mission, villa now walk-in.
+2. [x] **Hill town** (`src/missions/town.js`, 1 km map): a walled town on a flattened hilltop, the road up to the west
+       gate and gaps in the walls; piazza with fountain and siren; walk-in church; bell tower with a ladder inside to the
+       belfry (railed hatch) and two spotters; walk-in town hall (guard room, radio room, the commander's office with
+       the safe, records room); rows of terraced houses with alleys, two walk-in, flat roofs with ladders and a roof
+       sentry; staff car and a truck (weak spots). Weiss walks town hall → piazza → church; four patrols. Seven
+       documents in the town plus his papers. Verified: routines over 2 min, tower ladder up and down, town hall
+       stairs, the memo gives the combination and the safe opens, a rooftop ladder, objectives through extraction,
+       the profile marks the town done, a town save loads back into the town.
 3. [ ] **Harbour**: docks, cranes, warehouses, a fuel depot, a moored U-boat supply ship; sink it.
 4. [ ] **Forest**: dense woods in the hills, a logging camp turned into a fuel dump, a hunting lodge
        HQ; mist, little open ground.

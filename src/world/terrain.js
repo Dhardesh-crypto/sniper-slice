@@ -1,13 +1,15 @@
-// The map: an 800 × 800 m valley with a hill for the player, a flattened farm compound,
-// a flattened shooting-range lane and mountains closing the edges.
+// The terrain of the mission being played. Each mission brings a map (its height function,
+// colours, where the action is and where you start); the vineyard's, below, is the default.
+// Other modules import MAP_HALF, COMPOUND, START_HILL, heightAt… as live values, so they follow
+// whichever map `useMap` puts in place before the world is built.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, clamp } from './noise.js';
 import { textures } from './textures.js';
 
-export const MAP_HALF = 400;
-export const PLAY_HALF = 375;
-export const COMPOUND = { x: 20, z: -30, r: 70 };
-export const START_HILL = { x: -210, z: 170 };
+export let MAP_HALF = 400;
+export let PLAY_HALF = 375;
+export let COMPOUND = { x: 20, z: -30, r: 70 };      // the target area (guards' paths are worked out around it)
+export let START_HILL = { x: -210, z: 170 };         // where you start (and usually extract)
 export const RANGE_LANE = { z: 240, x0: -215, x1: 315, half: 10 };
 export const FIRING_LINE = { x: -200, z: 240 };
 
@@ -25,27 +27,62 @@ function baseHeight(x, z) {
   return h;
 }
 
-export const H_COMPOUND = baseHeight(COMPOUND.x, COMPOUND.z);
+export let H_COMPOUND = baseHeight(COMPOUND.x, COMPOUND.z);
 export const H_LANE = baseHeight(FIRING_LINE.x, FIRING_LINE.z);
 
 // Winding dirt road from the compound's west gate to the map edge.
-export function roadCenterZ(x) {
+function vineyardRoadZ(x) {
   return COMPOUND.z + Math.sin((x - COMPOUND.x) * 0.012) * 18 * smoothstep(-40, -120, x - COMPOUND.x);
 }
 
-export function laneDistance(x, z) {
+function vineyardLaneDistance(x, z) {
   const dx = Math.max(RANGE_LANE.x0 - x, 0, x - RANGE_LANE.x1);
   const dz = Math.max(Math.abs(z - RANGE_LANE.z) - RANGE_LANE.half, 0);
   return Math.hypot(dx, dz);
 }
 
-export function heightAt(x, z) {
+function vineyardHeight(x, z) {
   let h = baseHeight(x, z);
-  const dc = Math.hypot(x - COMPOUND.x, z - COMPOUND.z);
-  h = lerp(H_COMPOUND, h, smoothstep(COMPOUND.r, COMPOUND.r + 60, dc));
-  h = lerp(H_LANE, h, smoothstep(0, 30, laneDistance(x, z)));
+  const dc = Math.hypot(x - 20, z + 30);
+  h = lerp(H_VINEYARD, h, smoothstep(70, 130, dc));
+  h = lerp(H_LANE, h, smoothstep(0, 30, vineyardLaneDistance(x, z)));
   return h;
 }
+const H_VINEYARD = baseHeight(20, -30);
+
+// The vineyard: an 800 × 800 m valley with a hill for the player, a flattened farm compound,
+// a flattened shooting-range lane and mountains closing the edges.
+export const VINEYARD_MAP = {
+  half: 400, playHalf: 375, focus: { x: 20, z: -30, r: 70 }, start: { x: -210, z: 170 },
+  heightAt: vineyardHeight, roadCenterZ: vineyardRoadZ, laneDistance: vineyardLaneDistance,
+  // Grass and trees stay off the compound, the range lane and the road.
+  keepClear(x, z, margin = 0) {
+    if (Math.hypot(x - 20, z + 30) < 50 + margin) return true;
+    if (vineyardLaneDistance(x, z) < 6 + margin) return true;
+    if (x < -10 && Math.abs(z - vineyardRoadZ(x)) < 5 + margin) return true;
+    return false;
+  },
+  // Ground colours: the compound yard, the road and the mown lane on top of the grass.
+  paint(c, x, z, { yard, road, mowed }) {
+    const dc = Math.hypot(x - 20, z + 30);
+    c.lerp(yard, 1 - smoothstep(30, 45, dc));
+    if (x < -10) c.lerp(road, 1 - smoothstep(2, 3.5, Math.abs(z - vineyardRoadZ(x))));
+    c.lerp(mowed, (1 - smoothstep(0, 4, vineyardLaneDistance(x, z))) * 0.7);
+  },
+};
+
+let MAP = VINEYARD_MAP;
+export function useMap(map) {
+  MAP = map;
+  MAP_HALF = map.half; PLAY_HALF = map.playHalf ?? map.half - 25;
+  COMPOUND = map.focus; START_HILL = map.start;
+  H_COMPOUND = map.heightAt(map.focus.x, map.focus.z);
+}
+export const activeMap = () => MAP;
+export function heightAt(x, z) { return MAP.heightAt(x, z); }
+export function roadCenterZ(x) { return MAP.roadCenterZ ? MAP.roadCenterZ(x) : NaN; }
+export function laneDistance(x, z) { return MAP.laneDistance ? MAP.laneDistance(x, z) : Infinity; }
+export function keepClear(x, z, margin = 0) { return MAP.keepClear ? MAP.keepClear(x, z, margin) : false; }
 
 export function normalAt(x, z, out = new THREE.Vector3()) {
   const e = 0.75;
@@ -53,7 +90,7 @@ export function normalAt(x, z, out = new THREE.Vector3()) {
 }
 
 export function buildTerrain() {
-  const SEG = 400;
+  const SEG = Math.round(MAP_HALF);   // 2 m squares
   const geo = new THREE.PlaneGeometry(MAP_HALF * 2, MAP_HALF * 2, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
@@ -75,10 +112,7 @@ export function buildTerrain() {
     c.lerp(dirt, smoothstep(0.12, 0.3, slope));
     if (y > 22) c.lerp(dry, smoothstep(22, 45, y) * 0.45);           // drier grass up the hills
     c.lerp(rock, smoothstep(0.28, 0.5, slope) * 0.85);                  // rock only where it's steep
-    const dc = Math.hypot(x - COMPOUND.x, z - COMPOUND.z);
-    c.lerp(yard, 1 - smoothstep(30, 45, dc));
-    if (x < COMPOUND.x - 30) c.lerp(road, 1 - smoothstep(2, 3.5, Math.abs(z - roadCenterZ(x))));
-    c.lerp(mowed, (1 - smoothstep(0, 4, laneDistance(x, z))) * 0.7);
+    MAP.paint?.(c, x, z, { yard, road, mowed, rock, dirt, dry, y, slope });
     const v = 0.92 + fbm(x * 0.4, z * 0.4, 1) * 0.16; // fine variation
     colors[i * 3] = c.r * v; colors[i * 3 + 1] = c.g * v; colors[i * 3 + 2] = c.b * v;
   }

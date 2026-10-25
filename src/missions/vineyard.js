@@ -1,5 +1,9 @@
-// Operation Vineyard: what's to be found in the Oberst's villa. Four documents (one gives the
-// safe's combination; the Oberst carries it too), and his office safe with his orders.
+// Operation Vineyard: the farm compound in the Tuscan hills (the first mission). The map and
+// the site are the original ones (terrain.js, compound.js); this adds what's to be found in the
+// Oberst's villa: four documents (one gives the safe's combination; the Oberst carries it too)
+// and his office safe with his orders.
+import { VINEYARD_MAP } from '../world/terrain.js';
+import { buildCompound, buildRange } from '../world/compound.js';
 export const VINEYARD_SAFE = { id: 'oberst-safe', name: "THE OBERST'S SAFE", combination: '18 – 04 – 37' };
 
 export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission }) {
@@ -12,7 +16,7 @@ export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission
       'its timings, and the call signs of the escort.\n\n— Generalmajor v. Albrecht',
   };
   it.addSafe({
-    ...VINEYARD_SAFE, at: v.safe.at, yaw: v.safe.yaw, docs: [orders],
+    ...VINEYARD_SAFE, at: v.safe.at, yaw: v.safe.yaw, docs: [orders], objective: 'safe', objectiveText: "THE OBERST'S ORDERS TAKEN",
     contents: () => {
       const got = [];
       const part = pickups?.givePart?.();
@@ -48,3 +52,16 @@ export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission
   };
   mission.documentsTotal = 6;
 }
+
+export default {
+  id: 'vineyard',
+  subtitle: 'Operation Vineyard · Tuscany, 1944',
+  map: VINEYARD_MAP,
+  // The compound and the firing range by the start hill.
+  site(scene) {
+    const c = buildCompound(scene), r = buildRange(scene);
+    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids], boxes: [...c.boxes, ...r.boxes], spawn: r.spawn };
+  },
+  def: {},            // the original objectives (see mission.js)
+  intel: placeVineyardIntel,
+};

@@ -2,10 +2,10 @@
 // world's collision boxes (walls, buildings, crates), with A* for paths and string-pulling
 // to straighten them. Outside the grid the land is open: guards walk straight there.
 import * as THREE from 'three';
-import { COMPOUND } from '../world/terrain.js';
+import { COMPOUND, activeMap } from '../world/terrain.js';
 
 const CELL = 1;
-const HALF = 110;           // the grid covers 220 × 220 m around the compound
+const HALF_DEFAULT = 110;   // the grid covers 220 × 220 m around the target area (a map can ask for more)
 const CLEARANCE = 0.45;     // a guard's radius plus a little
 
 class Heap {
@@ -44,6 +44,7 @@ class Heap {
 export class NavGrid {
   constructor(world) {
     this.world = world;
+    const HALF = activeMap().navHalf ?? HALF_DEFAULT;
     this.n = Math.round((2 * HALF) / CELL);
     this.x0 = COMPOUND.x - HALF;
     this.z0 = COMPOUND.z - HALF;

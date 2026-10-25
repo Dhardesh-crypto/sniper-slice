@@ -200,3 +200,19 @@ export const furniture = {
 };
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const BLANKET = new THREE.MeshStandardMaterial({ color: 0x5b6b4a, roughness: 1 });
+
+// A ladder up a wall face to a roof or platform at `top`. face 's': the ladder hangs on a south
+// face (you stand south of it, facing north, and step off northward); 'n' the other way.
+// Returns the climbing data the player uses (push it onto the map's `ladders`).
+export function ladder(b, { x, z, y, top, face = 's' }) {
+  const s = face === 's' ? 1 : -1;
+  for (const dx of [-0.3, 0.3]) b.box(0.07, top - y + 1.0, 0.07, M.wood, x + dx, y, z, { solid: false });
+  const n = Math.floor((top - y) / 0.4);
+  for (let i = 0; i < n; i++) b.box(0.6, 0.05, 0.05, M.wood, x, y + 0.35 + i * 0.4, z, { solid: false });
+  return {
+    foot: new THREE.Vector3(x, y, z + s * 0.45),
+    topSpot: new THREE.Vector3(x, top, z - s * 0.7),
+    bottom: y, top,
+    yaw: s > 0 ? 0 : Math.PI,
+  };
+}

@@ -32,7 +32,7 @@ import { BeltGrenades } from './world/belt-grenades.js';
 import { Rockets } from './weapons/rockets.js';
 import { Interactions } from './world/interact.js';
 import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missions/campaign.js';
-import { placeVineyardIntel } from './missions/vineyard.js';
+import { useMap } from './world/terrain.js';
 import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
 
@@ -60,10 +60,21 @@ await loadAssets((f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 
+// The mission being played: its module brings the map, the site, the objectives and the intel.
+const MISSION_MODULES = {
+  vineyard: () => import('./missions/vineyard.js'),
+  town: () => import('./missions/town.js'),
+};
+const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
+const M = (await MISSION_MODULES[missionId]()).default;
+useMap(M.map);
+document.querySelector('#menu .sub').textContent = M.subtitle;
+if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing;
+
 const input = new Input(canvas);
 const audio = new Audio();
 audio.volume = settings.volume;
-const world = new World(scene, renderer);
+const world = new World(scene, renderer, M.site);
 const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);
@@ -81,7 +92,7 @@ const stealth = new Stealth({ world, player, arsenal, masking, audio, hud });
 arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
-const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud });
+const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def: M.def });
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 hotspots.ai = ai; hotspots.mission = mission;
@@ -89,8 +100,8 @@ ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
 explosions.hotspots = hotspots;
 explosions.onKills = (n) => mission.blastKills(n);
-const tank = new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots });
-tank.onDestroyed = () => mission.tankDestroyed();
+const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one
+if (tank) tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
 const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
 explosions.chainers.push(items);
@@ -122,12 +133,11 @@ explosions.chainers.push(beltGrenades);
 search.beltGrenades = beltGrenades;
 mapView.pickups = pickups;
 // Doors, documents and safes; the mission places its own.
-const missionId = currentMissionId();
 const interactions = new Interactions({ scene, world, player, input, hud, audio, stealth, profile, missionId });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
-placeVineyardIntel(interactions, world, { pickups, items, arsenal, mission });
-interactions.onSafe = () => mission.complete('safe', "THE OBERST'S ORDERS TAKEN");
+M.intel?.(interactions, world, { pickups, items, arsenal, mission });
+interactions.onSafe = (safe) => { if (safe.objective) mission.complete(safe.objective, safe.objectiveText ?? 'SAFE OPENED'); };
 search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
 const benchEl = document.getElementById('bench');
@@ -382,7 +392,7 @@ function tick(dt) {
   masking.update(dt, camera.position);
   stealth.tick(dt);
   ai.tick(dt);
-  tank.tick(dt);
+  tank?.tick(dt);
   explosions.tick(dt);
   mission.tick(dt);
   hotspots.tick(dt);

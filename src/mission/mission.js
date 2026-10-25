@@ -8,27 +8,32 @@ import { START_HILL, COMPOUND } from '../world/terrain.js';
 const RADIO_TIME = 2.4;     // seconds holding E at the radio truck
 const EXTRACT_RADIUS = 10;
 
+// def (from the mission module): { target: name, objectives: [...], extraction: {x, z},
+//   targetArea: {x, z} (marker until the target is tagged), killText, tick(mission, dt) }.
+// The objectives 'officer' (kill the target) and 'extract' are handled here; the module and
+// the rest of the game complete the others.
 export class Mission {
-  constructor({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud }) {
-    Object.assign(this, { world, player, arsenal, stealth, ai, search, input, audio, fx, hud });
+  constructor({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def = {} }) {
+    Object.assign(this, { world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def });
     this.time = 0;
     this.done = false;
     this.officer = world.soldiers.find(s => s.officer);
-    this.officer.name = 'Oberst Krause';
+    this.officer.name = def.target ?? 'Oberst Krause';
     this.radio = world.radio;
     this.radioProgress = 0;
-    const ex = new THREE.Vector3(START_HILL.x, 0, START_HILL.z);
+    const exAt = def.extraction ?? START_HILL;
+    const ex = new THREE.Vector3(exAt.x, 0, exAt.z);
     ex.y = world.groundAt(ex.x, ex.z);
     this.extraction = ex;
     this.smokeT = 0;
-    this.objectives = [
-      { id: 'officer', text: 'Eliminate Oberst Krause', done: false },
-      { id: 'radio', text: 'Wreck the field radio (no reinforcements)', done: false, optional: true },
-      { id: 'papers', text: "Take the Oberst's papers", done: false, optional: true },
-      { id: 'tank', text: 'Destroy the Panzer (AP rounds or a satchel)', done: false, optional: true },
-      { id: 'safe', text: "Open the Oberst's safe and take his orders", done: false, optional: true },
-      { id: 'extract', text: 'Get back to the start hill', done: false, hidden: true },
-    ];
+    this.objectives = (def.objectives ?? [
+      { id: 'officer', text: 'Eliminate Oberst Krause' },
+      { id: 'radio', text: 'Wreck the field radio (no reinforcements)', optional: true },
+      { id: 'papers', text: "Take the Oberst's papers", optional: true },
+      { id: 'tank', text: 'Destroy the Panzer (AP rounds or a satchel)', optional: true },
+      { id: 'safe', text: "Open the Oberst's safe and take his orders", optional: true },
+      { id: 'extract', text: 'Get back to the start hill', hidden: true },
+    ]).map(o => ({ done: false, ...o }));
     this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, takedowns: 0, longest: 0, spotted: 0, bodiesFound: 0 };
     this.onComplete = null;
   }
@@ -37,7 +42,7 @@ export class Mission {
 
   complete(id, message) {
     const o = this.obj(id);
-    if (o.done) return;
+    if (!o || o.done) return;
     o.done = true;
     this.hud.message(message, '');
     this.audio.pickup();
@@ -74,11 +79,12 @@ export class Mission {
     if (this.done) return;
     this.time += dt;
     if (!this.officer.alive && !this.obj('officer').done) {
-      this.complete('officer', 'TARGET ELIMINATED · GET TO THE START HILL');
+      this.complete('officer', this.def.killText ?? 'TARGET ELIMINATED · GET TO THE START HILL');
       this.obj('extract').hidden = false;
     }
-    if (this.search.papers > 0) this.complete('papers', "OBERST'S PAPERS TAKEN");
-    this.tickRadio(dt);
+    if (this.search.papers > 0) this.complete('papers', this.def.papersText ?? "OBERST'S PAPERS TAKEN");
+    if (this.radio) this.tickRadio(dt);
+    this.def.tick?.(this, dt);
     const ex = this.obj('extract');
     if (!ex.hidden) {
       // Green smoke marks the pick-up.
@@ -95,7 +101,7 @@ export class Mission {
   }
 
   radioOption() {
-    if (this.obj('radio').done || this.player.climb) return null;
+    if (!this.radio || !this.obj('radio') || this.obj('radio').done || this.player.climb) return null;
     const p = this.player.pos, j = this.radio.standAt;
     if (Math.hypot(p.x - j.x, p.z - j.z) > 1.5 || Math.abs(p.y - j.y) > 1) return null;
     return { label: 'E · WRECK THE RADIO', progress: this.radioProgress };
@@ -145,13 +151,15 @@ export class Mission {
   markers() {
     const out = [];
     if (!this.obj('officer').done) {
+      const ta = this.def.targetArea ?? { x: COMPOUND.x + 8, z: COMPOUND.z - 4 };
       out.push(this.officer.tagged
         ? { pos: this.officer.root.position, kind: 'target', label: 'TARGET', height: 2.4 }
-        : { pos: new THREE.Vector3(COMPOUND.x + 8, this.world.groundAt(COMPOUND.x, COMPOUND.z), COMPOUND.z - 4), kind: 'target', label: 'TARGET AREA', height: 9 });
+        : { pos: new THREE.Vector3(ta.x, this.world.groundAt(ta.x, ta.z), ta.z), kind: 'target', label: 'TARGET AREA', height: 9 });
     }
-    if (!this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
-    if (!this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
-    if (!this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
+    if (this.radio && this.obj('radio') && !this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
+    if (this.obj('tank') && !this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
+    if (this.obj('papers') && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
+    for (const m of this.def.markers?.(this) ?? []) out.push(m);
     if (!this.obj('extract').hidden) out.push({ pos: this.extraction, kind: 'extract', label: 'EXTRACTION', height: 3 });
     return out;
   }

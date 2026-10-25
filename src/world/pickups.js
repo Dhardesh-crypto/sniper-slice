@@ -8,7 +8,7 @@
 // Opening makes a little noise. Toolboxes, crates and benches show on the map; supply caches
 // once you've been near them.
 import * as THREE from 'three';
-import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ } from './terrain.js';
+import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ, activeMap } from './terrain.js';
 import { CATALOG, HEAVY_AMMO, partById } from '../weapons/defs.js';
 import { takeSupplies } from '../player/supplies.js';
 
@@ -100,12 +100,10 @@ function workbenchModel() {
   return g;
 }
 
-export class Pickups {
-  constructor({ scene, world, player, input, audio, stealth, hud, profile }) {
-    Object.assign(this, { scene, world, player, input, audio, stealth, hud, profile });
+// The vineyard's layout.
+function vineyardPickups({ world, on, SUPPLY }) {
     const cx = COMPOUND.x, cz = COMPOUND.z, y = H_COMPOUND, [swTower, neTower] = world.towerTops;
-    const on = (x, z, yy) => new THREE.Vector3(x, world.floorAt(x, z, (yy ?? heightAt(x, z)) + 0.6), z);
-    this.boxes = [
+    const boxes = [
       { kind: 'parts', where: 'generator shed', at: on(cx + 22.6, cz + 11.3) },
       { kind: 'parts', where: 'villa terrace', at: on(cx + 16, cz + 0.2, y + 0.5) },
       { kind: 'parts', where: 'beside the barn', at: on(cx - 23.2, cz - 12) },
@@ -133,7 +131,22 @@ export class Pickups {
       // Heavy ammunition (for whichever heavy weapons you've found).
       ['heavy', cx - 14.5, cz - 6], ['heavy', cx + 35, cz + 5.4], ['heavy', cx - 37.2, cz - 9.4],
       ['heavy', sp.x + 8, sp.z + 1], ['heavy', cx - 150, rz(cx - 150, -9.4)], ['heavy', cx + 9, cz - 28.4],
-    ]) this.boxes.push({ kind: 'supply', type, where: SUPPLY[type].name.toLowerCase(), at: on(x, z, yy) });
+    ]) boxes.push({ kind: 'supply', type, where: SUPPLY[type].name.toLowerCase(), at: on(x, z, yy) });
+    const spawn = world.spawn;
+    const benches = [
+      { where: 'start', at: on(spawn.x + 2.5, spawn.z - 4) },
+      { where: 'barn', at: on(cx - 6.6, cz - 15) },
+    ];
+  return { boxes, benches };
+}
+
+export class Pickups {
+  constructor({ scene, world, player, input, audio, stealth, hud, profile }) {
+    Object.assign(this, { scene, world, player, input, audio, stealth, hud, profile });
+    const on = (x, z, yy) => new THREE.Vector3(x, world.floorAt(x, z, (yy ?? heightAt(x, z)) + 0.6), z);
+    // What's where: the mission's layout (toolboxes, weapon crates, supply caches, workbenches).
+    const layout = (activeMap().pickups ?? vineyardPickups)({ world, on, SUPPLY });
+    this.boxes = layout.boxes;
     for (const b of this.boxes) {
       b.mesh = b.kind === 'supply' ? supplyModel(b.type) : b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
       // An unopened explosives crate goes up when it's shot (or caught in another blast).
@@ -146,11 +159,7 @@ export class Pickups {
       scene.add(b.mesh);
       b.opened = false;
     }
-    const spawn = world.spawn;
-    this.benches = [
-      { where: 'start', at: on(spawn.x + 2.5, spawn.z - 4) },
-      { where: 'barn', at: on(cx - 6.6, cz - 15) },
-    ];
+    this.benches = layout.benches;
     for (const b of this.benches) {
       b.mesh = workbenchModel();
       b.mesh.position.copy(b.at);
