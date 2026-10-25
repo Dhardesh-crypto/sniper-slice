@@ -54,7 +54,9 @@ export class Saves {
     if (!data) return false;
     try {
       sessionStorage.setItem(PENDING, slot);
-      sessionStorage.setItem('sniper-slice.mission', data.mission ?? 'vineyard');   // the page rebuilds that mission's map
+      // The page rebuilds that mission's map. (Saves from one build stored the id as `mission`,
+      // overwriting the objectives: those still load, without their objective progress.)
+      sessionStorage.setItem('sniper-slice.mission', data.missionId ?? (typeof data.mission === 'string' ? data.mission : 'vineyard'));
     } catch { return false; }
     location.reload();
     return true;
@@ -123,7 +125,7 @@ export class Saves {
       destroyed: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.destroyed) : [],
       beltGrenades: this.g.beltGrenades?.state() ?? [],
       interactions: this.g.interactions?.snapshot() ?? null,
-      mission: this.g.missionId ?? 'vineyard',
+      missionId: this.g.missionId ?? 'vineyard',
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
   }
@@ -134,9 +136,11 @@ export class Saves {
     world.time = d.worldTime ?? 0;
 
     // Mission clock, score and objectives (set first: nothing below should re-trigger them).
-    mission.time = d.mission.time;
-    Object.assign(mission.stats, d.mission.stats);
-    for (const o of d.mission.objectives) { const m = mission.obj(o.id); if (m) { m.done = o.done; m.hidden = o.hidden; } }
+    if (d.mission && typeof d.mission === 'object') {
+      mission.time = d.mission.time;
+      Object.assign(mission.stats, d.mission.stats);
+      for (const o of d.mission.objectives ?? []) { const m = mission.obj(o.id); if (m) { m.done = o.done; m.hidden = o.hidden; } }
+    }
     search.papers = d.papers ?? 0;
 
     // The reinforcement truck, if it came.

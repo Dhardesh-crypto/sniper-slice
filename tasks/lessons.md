@@ -35,3 +35,9 @@ invisible beyond a short range, unspottable unless a clear look or point blank) 
   could notice it: something lying flat on a raised floor is hidden from below.
 - **Rule:** when adding a perception check, ask what a person at that height and angle would really
   see, not only whether a ray gets through.
+
+## Adding a field to saved data (2026-10-25)
+- I added `mission: 'vineyard'` to the save snapshot, but `mission` already held the objectives, so
+  every new save lost them and loading crashed half-way: a black screen.
+- **Rule:** before adding a key to a saved object, check the existing keys; and keep startup code
+  that applies saved data inside try/catch so a bad save can never stop the game from starting.

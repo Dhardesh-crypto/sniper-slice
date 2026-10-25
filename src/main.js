@@ -534,7 +534,12 @@ function step(realDt, draw = true) {
   mapView.drawMini({ player, stealth: st });
 }
 // A load the player asked for (the page was reloaded to rebuild the world from the save).
-const loadedSlot = saves.applyPending();
+// A save that can't be applied must never leave a black screen: start the mission fresh instead.
+let loadedSlot = null;
+try { loadedSlot = saves.applyPending(); } catch (e) {
+  console.error('Could not load the save', e);
+  hud.message('COULD NOT LOAD THAT SAVE · STARTING FRESH', 'wound');
+}
 if (loadedSlot) {
   document.querySelector('#menu .sub').textContent = `Loaded: ${SLOT_NAMES[loadedSlot]}`;
   hud.message('GAME LOADED', '');
