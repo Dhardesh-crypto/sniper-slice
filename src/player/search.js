@@ -4,22 +4,19 @@ import * as THREE from 'three';
 
 const REACH = 1.9;          // metres from the body (horizontal)
 const SEARCH_TIME = 1.1;    // seconds of holding E
-const MAX_RESERVE = { rifle: 40, pistol: 32 };
-const MAX_KIT = { grenade: 4, bottle: 4, mine: 4, tnt: 3, satchel: 3, bandage: 5, medkit: 2 };
-const MAX_SPECIAL = { subsonic: 20, ap: 12 };
+import { takeSupplies } from './supplies.js';
 
-// What a body carries. Guards: rifle rounds, now and then special rounds, a grenade, a
-// bandage or a bottle. Officers: pistol rounds, a medkit and papers.
+// What a body carries: a soldier's own kit. Rifle rounds, sometimes pistol or special rounds,
+// now and then a grenade, a bandage or a medkit. The Oberst: pistol rounds, a medkit, his
+// papers and a weapon part. (Bottles, mines, TNT and satchels are only in the supply caches
+// around the map: see world/pickups.js.)
 function rollLoot(soldier, rng = Math.random) {
   const n = (a, b) => a + Math.floor(rng() * (b - a + 1));
-  if (soldier.officer) return { rifle: 0, pistol: n(6, 10), papers: 1, kit: { medkit: 1 } };
-  const kit = {};
-  if (rng() < 0.35) kit.grenade = 1;
-  if (rng() < 0.4) kit.bandage = 1;
-  if (rng() < 0.25) kit.bottle = 1;
+  if (soldier.officer) return { rifle: 0, pistol: n(6, 10), papers: 1, kit: { medkit: rng() < 0.5 ? 1 : 0 } };
   return {
-    rifle: n(3, 7), pistol: rng() < 0.35 ? n(2, 5) : 0, papers: 0, kit,
-    special: { subsonic: rng() < 0.3 ? n(2, 4) : 0, ap: rng() < 0.2 ? n(1, 2) : 0 },
+    rifle: n(3, 7), pistol: rng() < 0.35 ? n(2, 5) : 0, papers: 0,
+    special: { subsonic: rng() < 0.25 ? n(2, 4) : 0, ap: rng() < 0.15 ? n(1, 2) : 0 },
+    kit: { grenade: rng() < 0.35 ? 1 : 0, bandage: rng() < 0.35 ? 1 : 0, medkit: rng() < 0.08 ? 1 : 0 },
   };
 }
 
@@ -71,25 +68,8 @@ export class Search {
     s.searched = true;
     const loot = rollLoot(s);
     const got = [];
-    for (const kind of ['rifle', 'pistol']) {
-      if (!loot[kind]) continue;
-      const w = this.arsenal.weapons[kind];
-      // Rifle rounds from a guard are standard ones, whatever you have loaded.
-      const have = kind === 'rifle' ? w.ammo.standard : w.reserve;
-      const take = Math.max(0, Math.min(loot[kind], MAX_RESERVE[kind] - have));
-      if (kind === 'rifle') w.ammo.standard += take; else w.reserve += take;
-      if (take > 0) got.push(`+${take} ${kind} rounds`);
-      else got.push(`${kind} ammo full`);
-    }
-    for (const [type, k] of Object.entries(loot.special ?? {})) {
-      const ammo = this.arsenal.weapons.rifle.ammo, take = Math.max(0, Math.min(k, MAX_SPECIAL[type] - ammo[type]));
-      if (take) { ammo[type] += take; got.push(`+${take} ${type === 'ap' ? 'AP' : 'subsonic'} rounds`); }
-    }
-    for (const [id, k] of Object.entries(loot.kit ?? {})) {
-      if (!this.items) break;
-      const take = Math.max(0, Math.min(k, MAX_KIT[id] - this.items.count[id]));
-      if (take) { this.items.count[id] += take; got.push(`+${take} ${id}`); }
-    }
+    got.push(...takeSupplies({ arsenal: this.arsenal, items: this.items }, loot));
+    if (!got.length && (loot.rifle || loot.pistol)) got.push('ammo full');
     if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); }
     if (s.officer) { const part = this.pickups?.givePart(); if (part) got.push(`part: ${part.name}`); }  // the Oberst carries a weapon part
     this.audio.pickup();

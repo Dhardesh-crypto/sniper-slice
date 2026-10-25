@@ -99,6 +99,7 @@ applyLoadout(profile.loadout);
 const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
 pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
 search.pickups = pickups;
+pickups.arsenal = arsenal; pickups.items = items;
 mapView.pickups = pickups;
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
 const benchEl = document.getElementById('bench');

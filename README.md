@@ -37,6 +37,9 @@ npm run dev    # then open the URL Vite prints
   M1 Carbine and De Lisle are hidden in weapon crates. Toolboxes hold parts (scopes, barrels,
   suppressor or muzzle brake, magazines, stock) that change reach, stability, noise and damage.
   What you find is kept across missions; fit it in the Loadout tab or at a workbench mid-mission.
+- **Supplies:** ammo boxes, medical boxes, explosives crates and bottle crates around the compound
+  and the countryside (on your map once you've been near); soldiers carry ammo and sometimes a
+  grenade, a bandage or a medkit.
 - **Saving:** three save slots and checkpoint autosaves in the pause menu, plus quick save / load (F5 / F9).
 - **Moving around:** third-person camera, crouch behind cover, climb walls and ladders, tower stairs.
 

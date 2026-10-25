@@ -1,11 +1,24 @@
 // Things to find in the mission (SE5 style):
 //   toolboxes      hold E: a weapon part you don't have yet (kept for good, see core/profile.js)
 //   weapon crates  hold E: a rare rifle (Gewehr 43, M1 Carbine, De Lisle), kept for good
+//   supply caches  hold E: ammo boxes, medical boxes, explosives crates, bottle crates (what you
+//                  can carry; if you're full they stay for later)
 //   workbenches    press E: change weapons and fit parts mid-mission (opens the loadout screen)
-// Opening makes a little noise. Unopened boxes and the benches show on the map.
+// Opening makes a little noise. Toolboxes, crates and benches show on the map; supply caches
+// once you've been near them.
 import * as THREE from 'three';
-import { COMPOUND, H_COMPOUND, heightAt } from './terrain.js';
+import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ } from './terrain.js';
 import { CATALOG, partById } from '../weapons/defs.js';
+import { takeSupplies } from '../player/supplies.js';
+
+// What each kind of supply cache holds (rolled when you open it).
+const SUPPLY = {
+  ammo: { name: 'AMMO BOX', roll: (r, n) => ({ rifle: n(8, 12), pistol: r() < 0.5 ? n(6, 10) : 0, special: { subsonic: r() < 0.5 ? n(3, 5) : 0, ap: r() < 0.35 ? n(2, 3) : 0 } }) },
+  medical: { name: 'MEDICAL BOX', roll: (r) => ({ kit: { bandage: 2, medkit: r() < 0.4 ? 1 : 0 } }) },
+  explosives: { name: 'EXPLOSIVES CRATE', roll: (r) => { const x = r(); return { kit: { grenade: 2, mine: x < 0.45 ? 1 : 0, tnt: x >= 0.45 && x < 0.75 ? 1 : 0, satchel: x >= 0.75 ? 1 : 0 } }; } },
+  bottles: { name: 'CRATE OF BOTTLES', roll: () => ({ kit: { bottle: 3 } }) },
+};
+const SEEN_RANGE = 35;          // a cache shows on your map once you've been this close
 
 const REACH = 1.6, OPEN_TIME = 1.4;
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, ...extra });
@@ -39,6 +52,33 @@ function weaponCrateModel() {
   return g;
 }
 
+function supplyModel(type) {
+  const g = new THREE.Group();
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+  let lid;
+  if (type === 'ammo') {
+    const olive = mat(0x4b5233, { metalness: 0.45 });
+    add(new THREE.BoxGeometry(0.42, 0.22, 0.2), olive, 0, 0.11, 0);
+    add(new THREE.BoxGeometry(0.42, 0.2, 0.2), olive, 0.02, 0.1, 0.24).rotation.y = 0.1;    // a second can beside it
+    lid = add(new THREE.BoxGeometry(0.44, 0.04, 0.21), mat(0x3f4529, { metalness: 0.45 }), 0, 0.24, 0);
+  } else if (type === 'medical') {
+    add(new THREE.BoxGeometry(0.5, 0.26, 0.3), mat(0xd9d6c8), 0, 0.13, 0);
+    add(new THREE.BoxGeometry(0.51, 0.06, 0.31), mat(0x3d5a3a), 0, 0.15, 0);                // green band
+    lid = add(new THREE.BoxGeometry(0.5, 0.04, 0.3), mat(0xcfccbe), 0, 0.28, 0);
+  } else if (type === 'explosives') {
+    add(new THREE.BoxGeometry(0.75, 0.34, 0.45), mat(0x6f5a3a), 0, 0.17, 0);
+    add(new THREE.BoxGeometry(0.76, 0.07, 0.46), mat(0x8e2a1e), 0, 0.22, 0);                // red stripe
+    lid = add(new THREE.BoxGeometry(0.75, 0.04, 0.45), mat(0x7d6644), 0, 0.36, 0);
+  } else {
+    add(new THREE.BoxGeometry(0.56, 0.24, 0.38), mat(0x7a6142), 0, 0.12, 0);
+    const glass = mat(0x2f5a2a, { roughness: 0.2 });
+    for (let i = 0; i < 6; i++) add(new THREE.CylinderGeometry(0.012, 0.02, 0.1, 8), glass, -0.17 + (i % 3) * 0.17, 0.29, i < 3 ? -0.09 : 0.09); // bottle necks
+    lid = new THREE.Group(); g.add(lid);
+  }
+  g.userData.lid = lid;
+  return g;
+}
+
 function workbenchModel() {
   const g = new THREE.Group();
   const wood = mat(0x7a6040), dark = mat(0x2b2b28, { metalness: 0.5 });
@@ -68,8 +108,18 @@ export class Pickups {
       { kind: 'weapon', weapon: 'm1carbine', where: 'by the west wall', at: on(cx - 26, cz + 9) },
       { kind: 'weapon', weapon: 'delisle', where: 'behind the barn', at: on(cx - 10, cz - 18.7) },
     ];
+    // Supply caches: in the compound and out in the countryside.
+    const rz = (x, dz = 0) => roadCenterZ(x) + dz, sp = world.spawn;
+    for (const [type, x, z, yy] of [
+      ['ammo', cx - 12.5, cz - 7.6], ['medical', cx + 0.6, cz - 1, y + 0.5], ['explosives', cx - 16, cz + 21],
+      ['ammo', cx - 26, cz + 21.6], ['bottles', cx + 9, cz + 18.5], ['medical', cx + 35, cz + 3],
+      ['explosives', cx - 37.2, cz - 11.6], ['ammo', cx + 5, cz - 28.4],
+      ['bottles', cx - 8, cz + 45], ['ammo', sp.x + 6, sp.z + 3], ['medical', sp.x + 4, sp.z - 6],
+      ['explosives', cx - 95, rz(cx - 95, 6)], ['ammo', cx - 150, rz(cx - 150, -7)], ['medical', -100, 70],
+      ['bottles', START_HILL.x + 38, START_HILL.z - 28], ['ammo', -40, 25],
+    ]) this.boxes.push({ kind: 'supply', type, where: SUPPLY[type].name.toLowerCase(), at: on(x, z, yy) });
     for (const b of this.boxes) {
-      b.mesh = b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
+      b.mesh = b.kind === 'supply' ? supplyModel(b.type) : b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
       b.mesh.position.copy(b.at);
       b.mesh.rotation.y = Math.random() * Math.PI;
       scene.add(b.mesh);
@@ -103,7 +153,13 @@ export class Pickups {
   }
 
   tick(dt) {
-    const p = this.player, b = this.near();
+    const p = this.player;
+    // Caches you've come near show on your map from then on.
+    if ((this.seenT = (this.seenT ?? 0) - dt) <= 0) {
+      this.seenT = 0.5;
+      for (const c of this.boxes) if (c.kind === 'supply' && !c.seen && c.at.distanceTo(p.pos) < SEEN_RANGE) c.seen = true;
+    }
+    const b = this.near();
     if (b !== this.target) { this.target = b; this.progress = 0; }
     if (!b || p.dead || p.climb || p.carrying || p.locked) { this.progress = 0; return; }
     if (this.benches.includes(b)) {
@@ -117,8 +173,19 @@ export class Pickups {
   }
 
   open(b) {
-    b.opened = true;
     this.progress = 0;
+    if (b.kind === 'supply') {
+      const loot = SUPPLY[b.type].roll(Math.random, (a, c) => a + Math.floor(Math.random() * (c - a + 1)));
+      const got = takeSupplies({ arsenal: this.arsenal, items: this.items }, loot);
+      if (!got.length) { this.hud.message(`${SUPPLY[b.type].name} · YOU CAN'T CARRY ANY MORE: COME BACK LATER`, 'wound'); return; }
+      b.opened = true;
+      b.mesh.userData.lid.rotation.x = -1.2;
+      this.stealth.noise(b.at.clone(), 4, 'rustle');
+      this.audio.pickup();
+      this.hud.message(`${SUPPLY[b.type].name} · ${got.join(' · ').toUpperCase()}`, '');
+      return;
+    }
+    b.opened = true;
     b.mesh.userData.lid.rotation.x = -1.2;
     b.mesh.userData.lid.position.z -= 0.1;
     this.stealth.noise(b.at.clone(), 4, 'rustle');
@@ -151,13 +218,14 @@ export class Pickups {
     const b = this.target;
     if (!b) return null;
     if (this.benches.includes(b)) return { label: 'E · WORKBENCH: CHANGE WEAPONS AND PARTS', progress: 0 };
-    return { label: b.kind === 'weapon' ? 'HOLD E · OPEN WEAPON CRATE' : 'HOLD E · OPEN TOOLBOX', progress: this.progress };
+    const what = b.kind === 'supply' ? SUPPLY[b.type].name : b.kind === 'weapon' ? 'WEAPON CRATE' : 'TOOLBOX';
+    return { label: `HOLD E · OPEN ${what}`, progress: this.progress };
   }
 
   // For the map: unopened boxes and the benches.
   markers() {
     return [
-      ...this.boxes.filter(b => !b.opened).map(b => ({ pos: b.at, kind: b.kind === 'weapon' ? 'crate' : 'toolbox' })),
+      ...this.boxes.filter(b => !b.opened && (b.kind !== 'supply' || b.seen)).map(b => ({ pos: b.at, kind: b.kind === 'supply' ? 'supply' : b.kind === 'weapon' ? 'crate' : 'toolbox' })),
       ...this.benches.map(b => ({ pos: b.at, kind: 'bench' })),
     ];
   }
