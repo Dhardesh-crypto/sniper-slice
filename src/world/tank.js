@@ -43,6 +43,25 @@ function splitTurret(geo) {
   return { hull: make(hull), turret: tg };
 }
 
+// A Panzer IV for show (a column on the road): the same model, no turret or crew logic.
+// Tracks at y 0, nose toward +z, in metres.
+export function panzerModel() {
+  const g = new THREE.Group(), model = new THREE.Group();
+  model.scale.setScalar(SCALE);
+  model.position.y = GROUND * SCALE;
+  g.add(model);
+  let mesh = null;
+  assets.models.tank?.scene?.traverse(o => { if (o.isMesh && !mesh) mesh = o; });
+  const mat = mesh ? mesh.material.clone() : new THREE.MeshStandardMaterial({ color: 0xa08a52 });
+  if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+  mat.roughness = 0.85; mat.metalness = 0.2;
+  const m = new THREE.Mesh(mesh ? mesh.geometry : new THREE.BoxGeometry(0.5, 0.36, 0.75), mat);
+  m.castShadow = m.receiveShadow = true;
+  model.add(m);
+  g.userData.mesh = m;
+  return g;
+}
+
 export class Tank {
   constructor({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) {
     Object.assign(this, { scene, world, player, stealth, audio, fx, hud, explosions, hotspots });

@@ -11,7 +11,7 @@ export const CAMPAIGN = [
     brief: 'A counter-sniper unit hunts partisans from a hunting lodge deep in the forest. Find their commander, destroy the fuel dump at the logging camp.' },
   { id: 'railway', ready: true, name: 'Operation Iron Road', place: 'A railway junction: station, sidings, water tower',
     brief: 'A rail gun is being moved by train through the junction. Stop the train, destroy the gun, and take the timetables from the stationmaster.' },
-  { id: 'bridge', name: 'Operation Broken Span', place: 'A river gorge and its stone road bridge',
+  { id: 'bridge', ready: true, name: 'Operation Broken Span', place: 'A river gorge and its stone road bridge',
     brief: 'An armoured column must not cross the gorge. Plant charges on the bridge supports and blow it, and kill the engineer who could repair it.' },
   { id: 'airfield', name: 'Operation Night Owl', place: 'A Luftwaffe airfield: runway, hangars, control tower',
     brief: 'Destroy the night fighters on the ground, wreck the radar, and steal the flight plans from the control tower.' },

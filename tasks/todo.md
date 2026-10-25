@@ -424,8 +424,17 @@ combination or by slow, noisy cracking; new maps about 1 km across.
    Verified by script: on-time arrival and stop, departure and failure, lever before arrival (held at the signal
    past its departure), ammunition-wagon chain, satchel on the breech from the platform, boiler wreck while moving,
    save/load with the train moving, masking; the other four missions still load and patrol.
-6. [ ] **Bridge**: a river gorge, a stone road bridge with checkpoints at both ends, an engineers'
-       camp; demolish the bridge before the column crosses.
+6. [x] **Bridge** (Operation Broken Span): a river gorge with cliffs you can't climb (map maxSlope; guards' nav
+   avoids them too), banks under the cliffs, two gullies down, a footbridge downstream; a three-arch stone bridge on
+   two piers (ladders up them), checkpoints at both ends, an MG nest and watchtower east, the engineers' camp west
+   (hut with Hahn's safe, tents, the bridging truck, generator, siren). Piers are stone (heavyOnly hotspots: only a
+   satchel or TNT at the foot); with both down the spans fall into the gorge with anyone and anything on them.
+   The armoured column (2 Panzers, 3 lorries) arrives at 7:00; it stops at the rim if the bridge is down, falls in
+   if it's on it, and the mission is lost if it gets across.
+   Verified by script: cliffs block both sides, both gullies walkable, pier ladders, AP hits don't harm a pier,
+   satchels on both piers and the collapse, the column crossing (failure), collapse under the column (4 fell, the
+   last stopped at the rim), save/load mid-column and after the collapse, Hahn, the bridging truck, extraction;
+   the other five missions still load and patrol.
 7. [ ] **Airfield**: runway, hangars, control tower, fuel bowsers, parked planes and a radar;
        destroy the planes, steal the flight plans.
 8. [ ] **Coastal radar** (sea cliffs): a radar station and gun battery, bunkers and trenches, a lighthouse, steep climbs.

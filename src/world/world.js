@@ -63,6 +63,7 @@ export class World {
     this.raycastTargets = [...this.solids, ...this.hitMeshes];
     // The sea, if the map has one: a surface bullets splash into (it isn't walked on).
     this.waterLevel = activeMap().waterLevel ?? null;
+    this.maxSlope = activeMap().maxSlope ?? null;          // cliffs you can't walk up (a gorge)
     if (this.waterLevel != null) {
       const water = new THREE.Mesh(new THREE.PlaneGeometry(MAP_HALF * 2 + 3000, MAP_HALF * 2 + 3000).rotateX(-Math.PI / 2),
         new THREE.MeshStandardMaterial({ color: 0x2d4a52, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.88 }));

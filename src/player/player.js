@@ -148,6 +148,13 @@ export class Player {
     // No swimming with all that kit: the water's edge (a quay, a beach, a ship's rail) stops you.
     const wl = this.world.waterLevel;
     if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - 0.3) { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }
+    // Cliffs (maps that have them): no walking up ground steeper than the map allows (stairs,
+    // ladders and other boxes still work; going down a cliff is a fall).
+    const ms = this.world.maxSlope, run = Math.hypot(this.pos.x - ox, this.pos.z - oz);
+    if (ms && run > 1e-4) {
+      const g0 = this.world.groundAt(ox, oz), g1 = this.world.groundAt(this.pos.x, this.pos.z);
+      if (g1 - g0 > ms * run && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) <= g1 + 0.01) { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }
+    }
 
     // Vertical: step up onto low ledges, follow slopes and stairs down, fall off anything higher.
     const floor = this.world.floorAt(this.pos.x, this.pos.z, this.pos.y);

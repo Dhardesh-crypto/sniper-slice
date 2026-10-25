@@ -53,6 +53,7 @@ class Hotspot {
   // Shots left to the next thing that happens, for the tag label.
   get toExplode() { return this.hitsToExplode ?? 2; }
   label() {
+    if (this.heavyOnly) return `${this.title} · a satchel or TNT at its foot`;
     if (this.explosive) {
       const left = this.toExplode - this.hits;
       return this.armored ? `${this.title} · ${left} AP ${left === 1 ? 'hit' : 'hits'} or a satchel` : `${this.title} · ${left} ${left === 1 ? 'hit' : 'hits'}`;
@@ -61,7 +62,7 @@ class Hotspot {
   }
   // Will the next hit (with this ammunition) blow it up? (The kill cam plays those.)
   explodesOnNext(ap = false) {
-    if (!this.explosive || this.exploded || (this.armored && !ap)) return false;
+    if (!this.explosive || this.exploded || this.heavyOnly || (this.armored && !ap)) return false;
     return this.hits + (ap && !this.armored ? 2 : 1) >= this.toExplode;
   }
 }
@@ -136,6 +137,13 @@ export class Hotspots {
 
   // A bullet struck a weak spot (ap: an armour-piercing round).
   hit(h, point, dir, distance, ap = false) {
+    // Stone (a bridge pier): bullets and rockets only chip it; it takes a charge at its foot.
+    if (h.heavyOnly) {
+      this.fx.emit(point, dir.clone().negate(), { color: 0xb8ad98, count: 6, speed: 3, size: 0.1, life: 0.6, grow: 1.5, gravity: -6 });
+      this.audio.impact?.(this.player.pos.distanceTo(point));
+      if (h.active) this.hud.message(h.heavyMessage ?? `${h.title} · PLACE A SATCHEL OR TNT AT ITS FOOT`, '');
+      return;
+    }
     this.fx.emit(point, dir.clone().negate(), { color: 0xffe0a0, count: 6, speed: 4, size: 0.05, life: 0.25, grow: 1, gravity: -6 });
     this.audio.metalHit(this.player.pos.distanceTo(point));
     if (!h.active) return;
