@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane' };
+const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
+  enfield: 'enfield', g43: 'g43', p38: 'p38', m1carbine: 'm1carbine', delisle: 'delisle' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
@@ -14,8 +15,16 @@ const CLIP_FILES = {
 // Arm bones driven by the "holding a rifle" layer instead of the base clip.
 const HOLD_BONES = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
 
-// The rifle model lies along x, ~1.9 units long. These place it in the hands.
-const RIFLE = { scale: 0.58, gripFromButt: 0.32, muzzleSign: -1 }; // muzzle is the thin -x end (measured: 2 cm vs 20 cm at the stock)
+// Rifle models: which axis they lie along, which end is the muzzle (measured from the geometry:
+// the muzzle is the thin end, the butt the tall one) and how long the real rifle is.
+const RIFLES = {
+  springfield: { key: 'rifle', axis: 'x', muzzleSign: -1, length: 1.10 },  // 2 cm at the muzzle vs 20 cm at the stock
+  enfield: { key: 'enfield', axis: 'z', muzzleSign: 1, length: 1.13 },
+  g43: { key: 'g43', axis: 'x', muzzleSign: 1, length: 1.12 },
+  m1carbine: { key: 'm1carbine', axis: 'z', muzzleSign: 1, length: 0.90 },  // butt 14 cm tall at -z, muzzle 5 cm at +z
+  delisle: { key: 'delisle', axis: 'z', muzzleSign: 1, length: 0.96 },
+};
+const GRIP_FROM_BUTT = 0.29;     // fraction of the length from the butt plate to the grip
 
 export const assets = { models: {}, clips: {} };
 
@@ -84,25 +93,67 @@ export function assetsReady() {
 
 // ---------------------------------------------------------------------------------
 
-function rifleModel() {
-  const src = assets.models.rifle?.scene;
+export function rifleModel(kind = 'springfield') {
+  const spec = RIFLES[kind] ?? RIFLES.springfield;
+  const src = assets.models[spec.key]?.scene ?? assets.models.rifle?.scene;
   const outer = new THREE.Group();   // origin at the grip, +z toward the muzzle
   if (!src) return outer;
   const m = src.clone(true);
+  m.traverse(o => { if (o.isMesh && !o.geometry.attributes.normal) o.geometry.computeVertexNormals(); if (o.isMesh && o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace; });
   const box = new THREE.Box3().setFromObject(m);
-  const len = box.max.x - box.min.x;
-  const butt = RIFLE.muzzleSign > 0 ? box.min.x : box.max.x;
-  m.position.set(-(butt + RIFLE.muzzleSign * RIFLE.gripFromButt * len / 1.1), -(box.min.y + box.max.y) / 2 * 0.6, -(box.min.z + box.max.z) / 2);
+  const a = spec.axis, len = box.max[a] - box.min[a];
+  const butt = spec.muzzleSign > 0 ? box.min[a] : box.max[a];
+  const c = box.getCenter(new THREE.Vector3());
+  m.position.copy(c).negate();
+  m.position[a] = -(butt + spec.muzzleSign * GRIP_FROM_BUTT * len);
+  m.position.y = -(box.min.y + box.max.y) / 2 * 0.6;
   const inner = new THREE.Group();
   inner.add(m);
-  inner.scale.setScalar(RIFLE.scale);
-  inner.rotation.y = RIFLE.muzzleSign > 0 ? -Math.PI / 2 : Math.PI / 2; // model x → +z
+  inner.scale.setScalar(spec.length / len);
+  // Turn the muzzle end to +z.
+  inner.rotation.y = a === 'x' ? (spec.muzzleSign > 0 ? -Math.PI / 2 : Math.PI / 2) : (spec.muzzleSign > 0 ? 0 : Math.PI);
   outer.add(inner);
   outer.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   // Muzzle in the outer group's frame.
-  outer.userData.muzzle = new THREE.Vector3(0, 0.04, (len * (1 - RIFLE.gripFromButt / 1.1)) * RIFLE.scale);
-  outer.userData.buttToGrip = RIFLE.gripFromButt * len / 1.1 * RIFLE.scale; // metres from butt plate to grip
+  outer.userData.muzzle = new THREE.Vector3(0, 0.04, spec.length * (1 - GRIP_FROM_BUTT));
+  outer.userData.buttToGrip = GRIP_FROM_BUTT * spec.length; // metres from butt plate to grip
+  outer.userData.kind = kind;
   return outer;
+}
+
+// A pistol model for the hand: origin at the grip, muzzle toward -z (the body's forward).
+export function pistolModelFor(kind) {
+  if (kind !== 'p38' || !assets.models.p38) return null;
+  const m = assets.models.p38.scene.clone(true);
+  m.traverse(o => { if (o.isMesh) { if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals(); if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace; o.castShadow = true; } });
+  const box = new THREE.Box3().setFromObject(m), len = box.max.z - box.min.z;   // muzzle at +z (measured)
+  const c = box.getCenter(new THREE.Vector3());
+  m.position.set(-c.x, -(box.min.y + (box.max.y - box.min.y) * 0.62), -(box.min.z + len * 0.3)); // grip ~30% from the back, below the slide
+  const inner = new THREE.Group();
+  inner.add(m);
+  inner.scale.setScalar(0.22 / len);    // a P38 is 22 cm long
+  inner.rotation.y = Math.PI;           // muzzle to -z
+  const outer = new THREE.Group();
+  outer.add(inner);
+  outer.userData.muzzle = new THREE.Vector3(0, 0.02, -0.22 * 0.7);
+  return outer;
+}
+
+// Fitted parts you can see: a suppressor or a muzzle brake on the muzzle.
+export function fitMuzzle(gun, kind, forward = 1) {
+  gun.userData.device?.removeFromParent();
+  gun.userData.device = null;
+  const base = gun.userData.baseMuzzle ?? (gun.userData.baseMuzzle = gun.userData.muzzle.clone());
+  gun.userData.muzzle = base.clone();
+  if (!kind) return;
+  const steel = new THREE.MeshStandardMaterial({ color: 0x1e1f1c, roughness: 0.45, metalness: 0.6 });
+  const len = kind === 'suppressor' ? (forward > 0 ? 0.2 : 0.12) : 0.06, r = kind === 'suppressor' ? (forward > 0 ? 0.021 : 0.016) : 0.017;
+  const dev = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 14).rotateX(Math.PI / 2), steel);
+  dev.position.copy(base).add(new THREE.Vector3(0, -0.04 * (forward > 0 ? 1 : 0), forward * len / 2));
+  dev.castShadow = true;
+  gun.add(dev);
+  gun.userData.device = dev;
+  gun.userData.muzzle = base.clone().add(new THREE.Vector3(0, 0, forward * len));
 }
 
 export class Character {
@@ -137,6 +188,20 @@ export class Character {
     if (this.hold) { this.hold.play(); this.hold.setEffectiveWeight(1); }
     this.rifle = rifleModel();
     this.root.add(this.rifle);
+    this._initScratch();
+  }
+
+  // Swap the rifle model (a different weapon from the loadout or a workbench).
+  setRifle(kind) {
+    if (this.rifle.userData.kind === kind) return;
+    const old = this.rifle, visible = old.visible;
+    old.removeFromParent();
+    this.rifle = rifleModel(kind);
+    this.rifle.visible = visible;
+    this.root.add(this.rifle);
+  }
+
+  _initScratch() {
     this._v = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), q: new THREE.Quaternion() };
   }
 

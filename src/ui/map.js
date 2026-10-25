@@ -8,7 +8,7 @@ const PX = 800;                      // map image size in pixels (1 m per pixel)
 const GRID = 100;                    // grid squares, metres
 const COLS = 'ABCDEFGH';
 
-const OBJ_COLORS = { target: '#ffcf6a', radio: '#8fd0ff', papers: '#d9b3ff', tank: '#ff8a5a', extract: '#8fe08a', weakspot: '#ff9a3c', waypoint: '#ffe28a' };
+const OBJ_COLORS = { toolbox: '#c9a86a', crate: '#e6b85c', bench: '#9ad0ff', target: '#ffcf6a', radio: '#8fd0ff', papers: '#d9b3ff', tank: '#ff8a5a', extract: '#8fe08a', weakspot: '#ff9a3c', waypoint: '#ffe28a' };
 
 export class MapView {
   constructor(world) {
@@ -183,6 +183,14 @@ export class MapView {
       diamond(x, y, 6 * s, color);
       labels.push({ x, y: y - 7 * s, text: m.label, color });
     }
+    // Toolboxes, weapon crates and workbenches: small squares.
+    for (const m of this.pickups?.markers() ?? []) {
+      const [x, y] = this.toMap(m.pos.x, m.pos.z), r = (m.kind === 'bench' ? 5 : 4) * s;
+      g.fillStyle = OBJ_COLORS[m.kind]; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.2 * s;
+      g.fillRect(x - r, y - r * (m.kind === 'crate' ? 0.6 : 1), r * 2, r * (m.kind === 'crate' ? 1.2 : 2));
+      g.strokeRect(x - r, y - r * (m.kind === 'crate' ? 0.6 : 1), r * 2, r * (m.kind === 'crate' ? 1.2 : 2));
+      if (m.kind === 'bench') labels.push({ x, y: y - 6 * s, text: 'WORKBENCH', color: OBJ_COLORS.bench });
+    }
     for (const h of this.hotspots?.tagged() ?? []) {
       const c = h.center(); const [x, y] = this.toMap(c.x, c.z);
       g.fillStyle = OBJ_COLORS.weakspot; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.5 * s;
@@ -263,7 +271,7 @@ export class MapView {
     g.fillText('Click: set waypoint · Right-click: clear · M: close', L.x0 + L.size, L.y0 - 14 * d);
     g.textAlign = 'left';
     const legend = [['#ffffff', 'You'], [OBJ_COLORS.target, 'Target'], [OBJ_COLORS.radio, 'Radio'], [OBJ_COLORS.papers, 'Papers'], [OBJ_COLORS.tank, 'Panzer'], [OBJ_COLORS.extract, 'Extraction'],
-      [OBJ_COLORS.weakspot, 'Weak spot'], ['#ff4a3d', 'Tagged enemy'], ['#e8d07a', 'Body to search'], ['#ffe28a', 'Waypoint'], ['rgba(190,200,110,0.8)', 'Tall grass']];
+      [OBJ_COLORS.weakspot, 'Weak spot'], [OBJ_COLORS.toolbox, 'Toolbox'], [OBJ_COLORS.crate, 'Weapon crate'], [OBJ_COLORS.bench, 'Workbench'], ['#ff4a3d', 'Tagged enemy'], ['#e8d07a', 'Body to search'], ['#ffe28a', 'Waypoint'], ['rgba(190,200,110,0.8)', 'Tall grass']];
     let lx = L.x0, ly = L.y0 + L.size + 22 * d;
     for (const [color, label] of legend) {
       const w = g.measureText(label).width + 16 * d;

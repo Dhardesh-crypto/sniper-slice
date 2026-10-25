@@ -87,6 +87,20 @@ export class Audio {
     this.noiseBurst({ at: 0.35, dur: 1.6, type: 'lowpass', freq: 700, freqEnd: 200, gain: 0.18, attack: 0.15 });
   }
 
+  // A rifle through a suppressor (or the De Lisle): a muffled thump and the action, no crack.
+  suppressedRifleShot() {
+    this.noiseBurst({ dur: 0.12, type: 'bandpass', freq: 900, q: 1.1, gain: 0.45 });
+    this.noiseBurst({ dur: 0.07, type: 'lowpass', freq: 400, gain: 0.35 });
+    this.thump({ freq: 70, dur: 0.15, gain: 0.3 });
+  }
+
+  // An unsuppressed pistol (the P38): a sharp crack with a short tail.
+  pistolLoud() {
+    this.noiseBurst({ dur: 0.16, type: 'lowpass', freq: 4500, freqEnd: 800, gain: 0.6, wet: 0.6 });
+    this.noiseBurst({ dur: 0.05, type: 'highpass', freq: 2500, gain: 0.35 });
+    this.thump({ freq: 90, dur: 0.18, gain: 0.4 });
+  }
+
   pistolShot() {
     this.noiseBurst({ dur: 0.09, type: 'bandpass', freq: 1400, q: 1.2, gain: 0.35 });
     this.noiseBurst({ dur: 0.05, type: 'lowpass', freq: 500, gain: 0.25 });

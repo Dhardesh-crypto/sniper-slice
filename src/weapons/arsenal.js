@@ -2,7 +2,7 @@
 // the bolt and reloads, binoculars and tagging, and the simulated bullets in flight.
 import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
-import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO } from './defs.js';
+import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, buildWeapon } from './defs.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -87,16 +87,41 @@ export class Arsenal {
   // Can't aim or shoot while climbing, dragging a body, in a takedown, healing or aiming a throw.
   get handsTied() { const p = this.player; return !!(p.climb || p.carrying || p.locked || p.busyHands); }
 
+  // Put on a loadout: { rifle, pistol, fit: { weaponId: { slot: partId } } } (the loadout
+  // screen, a workbench, a loaded save). Each weapon is built from its base and fitted parts.
+  equip(loadout) {
+    for (const slot of ['rifle', 'pistol']) {
+      const id = loadout[slot], w = this.weapons[slot];
+      if (!id) continue;
+      const def = buildWeapon(id, loadout.fit?.[id] ?? {});
+      const newGun = w.def.id !== id;
+      if (newGun && w.def.id) {                       // the old gun's rounds go back in your pouch
+        if (slot === 'rifle') w.ammo[w.loaded] += w.mag; else w.reserve += w.mag;
+        w.mag = 0;
+      }
+      w.def = def;
+      w.zeroIndex = Math.min(w.zeroIndex, def.zeros.length - 1);
+      w.zeroAngles = def.zeros.map(z => solveZeroAngle(def.muzzleVelocity, def.drag, z, SIGHT_HEIGHT));
+      if (w.mag > def.magazine) { if (slot === 'rifle') w.ammo[w.loaded] += w.mag - def.magazine; else w.reserve += w.mag - def.magazine; w.mag = def.magazine; }
+      if (newGun || w.mag === 0) { const n = Math.min(def.magazine - w.mag, w.reserve); w.mag += n; w.reserve -= n; }
+    }
+    this.zoomIndex = Math.min(this.zoomIndex, this.def.zoomFovs.length - 1);
+    this.loadout = JSON.parse(JSON.stringify(loadout));
+    this.onEquip?.(this.loadout);
+  }
+
   // What the next shot is: the weapon, adjusted for the rifle's loaded ammunition.
   shotDef() {
     const def = this.def;
     if (this.current !== 'rifle') return def;
     const a = AMMO[this.weapon.loaded];
-    if (!a.muzzleVelocity && !a.ap) return def;
+    if (!a.velocityScale && !a.ap) return def;
     const out = { ...def, ammo: this.weapon.loaded, ap: !!a.ap };
-    if (a.muzzleVelocity) out.muzzleVelocity = a.muzzleVelocity;
-    if (a.noiseRadius) out.noiseRadius = a.noiseRadius;
-    if (a.damageScale) out.damage = Object.fromEntries(Object.entries(def.damage).map(([k, v]) => [k, v === 999 ? v : v * a.damageScale]));
+    if (a.velocityScale && !def.integralSuppressor) {      // a built-in silencer already fires subsonic
+      out.muzzleVelocity = def.muzzleVelocity * a.velocityScale;
+      out.noiseRadius = def.noiseRadius * a.noiseScale;
+    }
+    if (a.damageScale && !def.integralSuppressor) out.damage = Object.fromEntries(Object.entries(def.damage).map(([k, v]) => [k, v === 999 ? v : v * a.damageScale]));
     return out;
   }
 
@@ -212,7 +237,7 @@ export class Arsenal {
       if (!this.holding) this.audio.breathIn();
       this.holding = true;
       // Lungs run out faster when the heart is racing.
-      const duration = THREE.MathUtils.clamp(6.5 - (this.player.heartRate - 70) / 22, 2.5, 6.5);
+      const duration = THREE.MathUtils.clamp(6.5 - (this.player.heartRate - 70) / 22, 2.5, 6.5) * (this.def.breathScale ?? 1); // a cheek-rest stock helps
       this.breath -= dt / duration;
       if (this.breath <= 0) {
         this.breath = 0;
@@ -273,10 +298,12 @@ export class Arsenal {
     if (!this.scoped) this.fx.flash(origin, dir);
     this.player.heartRate = Math.min(180, this.player.heartRate + 3);
     if (this.current === 'rifle') {
-      this.audio.rifleShot();
-      if (w.mag > 0) { this.boltT = 0; this.audio.bolt(); }
-    } else {
+      if (def.suppressor) this.audio.suppressedRifleShot(); else this.audio.rifleShot();
+      if (w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
+    } else if (def.suppressor) {
       this.audio.pistolShot();
+    } else {
+      this.audio.pistolLoud();
     }
     this.lastShot = { noiseRadius: def.noiseRadius, position: origin.clone(), time: this.world.time };
     this.onShot?.(origin.clone(), def);
@@ -441,7 +468,7 @@ export class Arsenal {
     const p = this.player;
     this.aimT = this.aim;
     const aimTarget = this.aiming ? 1 : 0;
-    this.aim += (aimTarget - this.aim) * (1 - Math.exp(-(this.aiming ? 11 : 14) * dt));
+    this.aim += (aimTarget - this.aim) * (1 - Math.exp(-(this.aiming ? 11 * (this.def.aimSpeed ?? 1) : 14) * dt));
     if (Math.abs(this.aim - aimTarget) < 0.002) this.aim = aimTarget;
     this.binocT = (this.binocT ?? 0) + ((this.binoculars ? 1 : 0) - (this.binocT ?? 0)) * (1 - Math.exp(-12 * dt));
     this.aimT = Math.max(this.aim, this.binocT);
@@ -460,7 +487,7 @@ export class Arsenal {
     this.swayT += dt;
     const hr = p.heartRate;
     const hrFactor = Math.max(0, hr - 100) / 50;
-    let amp = STANCE_SWAY[p.stance] * hrFactor * (p.moving ? 2.2 : 1);
+    let amp = STANCE_SWAY[p.stance] * hrFactor * (p.moving ? 2.2 : 1) * (this.def.swayScale ?? 1);
     if (this.current === 'pistol') amp *= 1.4;
     const holdTarget = this.holding ? 0.1 : this.exhaustedT > 0 ? 2.2 : 1;
     this.swayScale += (holdTarget - this.swayScale) * (1 - Math.exp(-(this.holding ? 5 : 3) * dt));

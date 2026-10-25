@@ -47,9 +47,108 @@ export const WEAPONS = {
 //   ap: armour-piercing: blows an engine in one hit and is the round that hurts the Panzer
 export const AMMO = {
   standard: { name: 'Standard', short: 'STD', start: 30 },
-  subsonic: { name: 'Subsonic', short: 'SUB', start: 10, muzzleVelocity: 400, noiseRadius: 40, damageScale: 0.85 },
+  subsonic: { name: 'Subsonic', short: 'SUB', start: 10, velocityScale: 0.47, noiseScale: 0.1, damageScale: 0.85 },
   ap: { name: 'Armour-piercing', short: 'AP', start: 6, ap: true },
 };
+
+// ---- Weapons you can carry (the rifle slot and the pistol slot) and the parts that fit them.
+// Base weapons; `model` names the 3D model, `semi` = semi-automatic (no bolt to work).
+export const CATALOG = {
+  springfield: { ...WEAPONS.rifle, id: 'springfield', slot: 'rifle', name: 'Springfield M1903', model: 'springfield', blurb: 'Accurate bolt-action, 5 rounds.' },
+  enfield: { ...WEAPONS.rifle, id: 'enfield', slot: 'rifle', name: 'Lee-Enfield No.4', model: 'enfield', blurb: '10 rounds and a quick bolt; a little less reach.',
+    muzzleVelocity: 800, magazine: 10, cycleTime: 1.0, reloadTime: 3.0, recoil: 0.08, swayScale: 1.05,
+    damage: { head: 999, torso: 150, pelvis: 115, arm: 45, leg: 55 } },
+  // Noise follows SE5's ratios (Kar98k 140, Gewehr 43 130, M1 Carbine lower) on this game's 400 m scale.
+  g43: { ...WEAPONS.rifle, id: 'g43', slot: 'rifle', name: 'Gewehr 43', model: 'g43', semi: true, rare: true, blurb: 'Semi-automatic: fast follow-up shots, less steady.',
+    muzzleVelocity: 780, magazine: 10, cycleTime: 0.35, reloadTime: 2.4, recoil: 0.11, noiseRadius: 370, hipSpread: 0.005, swayScale: 1.15,
+    damage: { head: 999, torso: 140, pelvis: 110, arm: 40, leg: 50 } },
+  m1carbine: { ...WEAPONS.rifle, id: 'm1carbine', slot: 'rifle', name: 'M1 Carbine', model: 'm1carbine', semi: true, rare: true,
+    blurb: 'The quietest standard rifle, 15-round semi-automatic; short-ranged round.',
+    muzzleVelocity: 600, drag: 7e-4, magazine: 15, cycleTime: 0.3, reloadTime: 2.2, recoil: 0.06, noiseRadius: 300, hipSpread: 0.0045, swayScale: 0.95,
+    damage: { head: 999, torso: 110, pelvis: 90, arm: 35, leg: 40 } },
+  delisle: { ...WEAPONS.rifle, id: 'delisle', slot: 'rifle', name: 'De Lisle Carbine', model: 'delisle', rare: true, integralSuppressor: true,
+    blurb: 'Built-in silencer: practically silent. Slow, heavy round: short range, less power.',
+    muzzleVelocity: 260, drag: 1.6e-3, magazine: 8, cycleTime: 1.2, reloadTime: 2.8, recoil: 0.05, noiseRadius: 20, swayScale: 0.95,
+    zoomFovs: [7.5, 4.5], zoomNames: ['4×', '6×'], damage: { head: 999, torso: 120, pelvis: 95, arm: 40, leg: 45 } },
+  welrod: { ...WEAPONS.pistol, id: 'welrod', slot: 'pistol', name: 'Welrod', model: 'welrod', blurb: 'Built-in silencer: almost silent.' },
+  p38: { ...WEAPONS.pistol, id: 'p38', slot: 'pistol', name: 'Walther P38', model: 'p38', blurb: 'More stopping power, but loud unless suppressed.',
+    muzzleVelocity: 350, magazine: 8, cycleTime: 0.25, noiseRadius: 120, damage: { head: 999, torso: 95, pelvis: 80, arm: 40, leg: 45 } },
+};
+export const STARTING_WEAPONS = ['springfield', 'enfield', 'welrod', 'p38'];   // the rare ones (G43, M1 Carbine, De Lisle) have to be found
+
+// Parts by slot. `stock: true` = what every weapon starts with. Effects multiply the base.
+export const PARTS = {
+  rifle: {
+    scope: [
+      { id: 'scope_std', name: 'Standard scope', stock: true, info: '4× / 8×' },
+      { id: 'scope_marksman', name: 'Marksman scope', info: '4× / 8× / 10×, steadier', zoomFovs: [7.5, 3.5, 2.8], zoomNames: ['4×', '8×', '10×'], sway: 0.85 },
+      { id: 'scope_long', name: 'Long-range scope', info: '6× / 10× / 12×, steadiest, slower to raise', zoomFovs: [5, 2.8, 2.3], zoomNames: ['6×', '10×', '12×'], sway: 0.75, aimSpeed: 0.8 },
+    ],
+    barrel: [
+      { id: 'barrel_std', name: 'Standard barrel', stock: true, info: '' },
+      { id: 'barrel_heavy', name: 'Heavy barrel', info: '+12% bullet speed, less recoil', velocity: 1.12, recoil: 0.85, sway: 1.05 },
+      { id: 'barrel_match', name: 'Match barrel', info: '+20% bullet speed, tighter, harder-hitting at range', velocity: 1.2, spread: 0.6, damage: 1.1 },
+    ],
+    muzzle: [
+      { id: 'muzzle_none', name: 'No muzzle device', stock: true, info: '' },
+      { id: 'muzzle_suppressor', name: 'Suppressor', info: 'Heard at 30% of the distance; −5% bullet speed', noise: 0.3, velocity: 0.95, suppressor: true },
+      { id: 'muzzle_brake', name: 'Muzzle brake', info: 'Much less recoil, faster bolt; louder', recoil: 0.55, cycle: 0.85, noise: 1.15, brake: true },
+    ],
+    magazine: [
+      { id: 'mag_std', name: 'Standard magazine', stock: true, info: '' },
+      { id: 'mag_extended', name: 'Extended magazine', info: '+60% rounds', mag: 1.6, reload: 1.1 },
+      { id: 'mag_large', name: 'Large magazine', info: 'Double the rounds; slower reload', mag: 2, reload: 1.25 },
+    ],
+    stock: [
+      { id: 'stock_std', name: 'Standard stock', stock: true, info: '' },
+      { id: 'stock_cheek', name: 'Cheek-rest stock', info: 'Less sway, hold your breath longer', sway: 0.8, breath: 1.35 },
+    ],
+  },
+  pistol: {
+    muzzle: [
+      { id: 'pmuzzle_none', name: 'No suppressor', stock: true, info: '' },
+      { id: 'pmuzzle_suppressor', name: 'Pistol suppressor', info: 'The P38 heard at 25 m, not 120', noise: 0.21, velocity: 0.95, suppressor: true },
+    ],
+    barrel: [
+      { id: 'pbarrel_std', name: 'Standard barrel', stock: true, info: '' },
+      { id: 'pbarrel_long', name: 'Long barrel', info: '+20% bullet speed: more range', velocity: 1.2, damage: 1.1 },
+    ],
+    magazine: [
+      { id: 'pmag_std', name: 'Standard magazine', stock: true, info: '' },
+      { id: 'pmag_extended', name: 'Extended magazine', info: '+50% rounds', mag: 1.5, reload: 1.1 },
+    ],
+  },
+};
+export const SLOT_NAMES = { scope: 'Scope', barrel: 'Barrel', muzzle: 'Muzzle', magazine: 'Magazine', stock: 'Stock' };
+export const allParts = () => Object.values(PARTS).flatMap(slots => Object.values(slots).flat());
+export const partById = (id) => allParts().find(p => p.id === id);
+
+// The weapon as fitted: base stats with each fitted part's effects applied.
+export function buildWeapon(weaponId, fit = {}) {
+  const base = CATALOG[weaponId];
+  const def = { ...base, damage: { ...base.damage }, swayScale: base.swayScale ?? 1, breathScale: 1, aimSpeed: 1, fitted: {} };
+  for (const [slot, options] of Object.entries(PARTS[base.slot])) {
+    if (slot === 'muzzle' && base.integralSuppressor) continue;   // nothing fits over a built-in silencer
+    const part = options.find(p => p.id === fit[slot]) ?? options.find(p => p.stock);
+    def.fitted[slot] = part.id;
+    if (part.zoomFovs) { def.zoomFovs = part.zoomFovs; def.zoomNames = part.zoomNames; }
+    if (part.velocity) def.muzzleVelocity *= part.velocity;
+    if (part.recoil) def.recoil *= part.recoil;
+    if (part.sway) def.swayScale *= part.sway;
+    if (part.spread) def.hipSpread *= part.spread;
+    if (part.damage) for (const k of Object.keys(def.damage)) if (def.damage[k] !== 999) def.damage[k] *= part.damage;
+    if (part.noise) def.noiseRadius *= part.noise;
+    if (part.cycle) def.cycleTime *= part.cycle;
+    if (part.mag) def.magazine = Math.round(def.magazine * part.mag);
+    if (part.reload) def.reloadTime *= part.reload;
+    if (part.breath) def.breathScale *= part.breath;
+    if (part.aimSpeed) def.aimSpeed *= part.aimSpeed;
+    if (part.suppressor) def.suppressor = true;
+    if (part.brake) def.brake = true;
+  }
+  if (weaponId === 'welrod' || base.integralSuppressor) def.suppressor = true;   // built in
+  return def;
+}
 
 // Binoculars zoom like the rifle scope: the mouse wheel steps between the same levels.
 export const BINOCULARS = { zoomFovs: [7.5, 3.5], zoomNames: ['4×', '8×'] };

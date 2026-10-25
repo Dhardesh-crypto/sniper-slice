@@ -36,6 +36,7 @@ export class World {
     this.solids = [...compound.solids, ...range.solids, ...trunks];
     this.boxes = [...compound.boxes, ...range.boxes];
     this.ladders = compound.ladders;
+    this.towerTops = compound.towerTops;
     this.siren = compound.siren;
     this.radio = compound.radio;
     this.generatorMesh = compound.generatorMesh;

@@ -185,3 +185,33 @@ body.killcam #wheel, body.mapopen #wheel { display: none; }
 #slots button:disabled { opacity: 0.4; cursor: default; }
 #slots button small { color: var(--dim); }
 #slots .why { color: #ffb07a; font-size: 12px; min-height: 1em; margin: 8px 0 0; }
+
+/* Loadout screen (menu tab and workbench) */
+.lo-note { color: #ffcf6a; font-size: 12px; margin: 0 0 10px; }
+.lo-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.lo-tabs button, .lo-chip, .lo-weapon { font: inherit; color: var(--ink); background: rgba(255,255,255,0.05); border: 1px solid rgba(242,237,225,0.18); cursor: pointer; }
+.lo-tabs button { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; padding: 7px 14px; }
+.lo-tabs button.on, .lo-chip.on, .lo-weapon.on { border-color: #ffcf6a; background: rgba(255,207,106,0.14); }
+.lo-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr); gap: 22px; }
+@media (max-width: 760px) { .lo-grid { grid-template-columns: 1fr; } }
+.lo-weapons { display: grid; gap: 6px; margin-bottom: 14px; }
+.lo-weapon { text-align: left; padding: 8px 12px; }
+.lo-weapon b { display: block; font-size: 13px; }
+.lo-weapon small { color: var(--dim); font-size: 11px; }
+.lo-row { display: grid; grid-template-columns: 78px 1fr; gap: 8px; align-items: start; margin-bottom: 8px; font-size: 12px; }
+.lo-slot { color: var(--dim); padding-top: 6px; }
+.lo-fixed { padding-top: 6px; }
+.lo-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.lo-chip { font-size: 11px; padding: 5px 9px; }
+button:disabled.lo-chip, button:disabled.lo-weapon { cursor: default; opacity: 0.4; }
+.lo-weapon.on:disabled, .lo-chip.on:disabled { opacity: 0.85; }
+.lo-stats h2 { margin-bottom: 10px; }
+.lo-stat { display: grid; grid-template-columns: 70px 1fr; gap: 2px 10px; align-items: center; font-size: 12px; margin-bottom: 7px; }
+.lo-stat i { display: block; height: 6px; background: rgba(255,255,255,0.1); }
+.lo-stat i b { display: block; height: 100%; background: #ffcf6a; transition: width 0.2s; }
+.lo-stat small { grid-column: 2; color: var(--dim); font-size: 10px; }
+.lo-scope { font-size: 12px; color: var(--dim); margin-top: 10px; }
+#bench { position: fixed; inset: 0; display: none; place-content: center; padding: 16px; background: rgba(8, 10, 8, 0.7); z-index: 15; }
+#bench.on { display: grid; }
+#bench .panel { max-width: 900px; overflow-y: auto; }
+#bench-close { font: inherit; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: #111; background: var(--ink); border: 0; padding: 11px 22px; cursor: pointer; margin-top: 14px; }

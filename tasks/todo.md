@@ -308,3 +308,31 @@ New: **Q** (hold) item wheel · **G** use/throw/place the selected item · **H**
 - `src/world/vehicle-models.js` turns each to face +z, scales it to its real length, sits it on the ground. Fronts measured from the geometry (truck: the low bonnet end; car: the windscreen end; plane: the tall fin is the tail; engine noses found as the frontmost points on the centre line and 18% out on each wing).
 - Invisible blocks fitted to each model do collision, bullets, nav and the engine weak spots; wrecks blacken the model. The reinforcement truck bounces, pitches and rolls on the road and throws up dust from the rear wheels; the plane's three propellers spin.
 - Verified: sizes 2.4 × 2.8 × 6.0 m (truck), 1.6 × 1.6 × 3.6 m (car), 26.6 m span × 19.1 m (plane); flyover nose along the flight path; reinforcement truck drives, stalls on one hit, explodes on two; radio truck and staff car explode and blacken; radio objective still completes.
+
+## Phase 8: Weapon upgrades, parts, loadout and workbenches (done 2026-10-25)
+Upgrades change four things you can feel: **reach** (bullet speed, so less drop and wind; zoom), **stability**
+(sway, breath, recoil), **noise** (how far a shot is heard) and **shot quality** (damage, accuracy).
+
+1. **Parts** (per weapon; each slot has a stock part and two upgrades)
+   - [x] Scope: Standard 4–8× · Marksman 4–10× (less sway) · Long-range 6–12× (steadiest, slower to raise)
+   - [x] Barrel: Standard · Heavy (+12% bullet speed, less recoil, heavier) · Match (+20% speed, tighter spread, more damage at range)
+   - [x] Muzzle: None · Suppressor (rifle heard at 120 m instead of 400, subsonic 15; −5% speed) · Muzzle brake (much less recoil, faster bolt; louder)
+   - [x] Magazine: 5 rounds · 8 (extended) · 10 (large; slower reload)
+   - [x] Stock: Standard · Cheek-rest (less sway, longer breath hold)
+   - [x] Pistol: suppressor quality, magazine size, barrel (range)
+2. **Collecting** (kept across missions: a profile saved in the browser, separate from mission saves)
+   - [x] Parts are found in the mission: locked toolboxes around the compound (barn loft, generator shed, a watchtower, the villa terrace, behind the radio truck) and one on the Oberst. Each gives a part you don't have yet; hold E to open (a little noise).
+   - [x] Picked-up parts are yours at once (even if you die), shown on the map and as "PART FOUND · MATCH BARREL".
+3. **Loadout** (menu tab, before a mission starts): choose weapons and fit any collected parts; shows each weapon's stats as bars (reach, stability, noise, damage, magazine). During a mission it's read-only: find a workbench.
+4. **Workbenches** in the mission (start hill and the barn): hold E to open the same screen with the game paused, to swap parts and weapons.
+5. **Saving**: mission saves include the fitted loadout; the profile keeps collected parts.
+**Check:** script each part's effect on the numbers (drop at 300 m, sway, noise radius, magazine), toolbox pickups persisting across a reload, loadout locked mid-mission, workbench swap.
+
+### Phase 8 review (2026-10-25)
+- Weapons: Springfield M1903, Lee-Enfield No.4, Welrod and Walther P38 at the start; Gewehr 43 (stairs tower), M1 Carbine (west wall crates), De Lisle (behind the barn) found in weapon crates. Noise on SE5's ratios (Kar98k 140 : G43 130 : M1 Carbine lower) on this game's 400 m scale: Springfield 400, G43 370, M1 Carbine 300, De Lisle 20 (built-in silencer; muzzle parts don't fit).
+- Higgsfield models (SAM 3D, ~1.25 credits each, 5 weapons ≈ 6 credits): Lee-Enfield, Gewehr 43, M1 Carbine, De Lisle, P38. Muzzle ends measured from the geometry (the thin end), all scaled to real lengths. 16:9 image requests failed on the server; 1:1 worked.
+- Parts (`buildWeapon` in defs.js): scope (zoom levels, sway), barrel (speed, recoil, spread, damage), muzzle (suppressor ×0.3 noise / brake ×0.55 recoil, louder), magazine (×1.6 / ×2), stock (sway, breath). Measured at 300 m with a 100 m zero: Springfield drops 39 cm, 24 cm with the match barrel; suppressor 400 → 120 m.
+- Profile (`src/core/profile.js`, localStorage `sniper-slice.profile`): owned weapons, found parts, last loadout. Six toolboxes per mission (+ one part on the Oberst) give a random part you don't have; crates give the rare rifles. Kept even if you die or restart.
+- Loadout tab (editable before the mission, read-only during) and two workbenches (start, behind the barn) that pause the game. Suppressor or brake visibly on the rifle; the P38 model in hand.
+- Verified by script: part effects on the numbers above; toolbox + crate pickups saved to the profile and kept after a reload; workbench switch to the M1 Carbine + heavy barrel (600 → 672 m/s, 15-round mag, model swapped, game paused, profile updated); loadout tab locked once the mission starts; mission saves include the loadout and opened boxes; muzzle forward in the hands.
+- Not done: scopes look the same on the model (only the zoom and steadiness change); guards still carry the Springfield; parts aren't per-weapon (any rifle part fits any rifle).

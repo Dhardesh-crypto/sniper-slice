@@ -129,6 +129,7 @@ export class Mission {
         ['Time', `${mins}:${String(secs).padStart(2, '0')}`],
         ['Objectives', this.objectives.filter(o => !o.hidden).map(o => `${o.done ? '✓' : '✗'} ${o.text}`).join('\n')],
         ['Kills', `${s.kills} (${s.headshots} headshots, ${s.takedowns} takedowns)`],
+        ['Parts found', String(s.parts ?? 0)],
         ['Longest kill', s.longest ? `${Math.round(s.longest)} m` : '–'],
         ['Accuracy', s.shots ? `${Math.round((100 * s.hits) / s.shots)} % (${s.hits}/${s.shots})` : '–'],
         ['Times spotted', String(s.spotted)],

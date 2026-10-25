@@ -91,6 +91,7 @@ export class Search {
       if (take) { this.items.count[id] += take; got.push(`+${take} ${id}`); }
     }
     if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); }
+    if (s.officer) { const part = this.pickups?.givePart(); if (part) got.push(`part: ${part.name}`); }  // the Oberst carries a weapon part
     this.audio.pickup();
     this.hud.message(got.length ? got.join(' · ').toUpperCase() : 'NOTHING USEFUL');
     if (this.wasStance) this.player.setStance(this.wasStance);

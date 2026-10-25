@@ -33,6 +33,10 @@ npm run dev    # then open the URL Vite prints
 - **Vehicles:** Higgsfield models throughout: a Panzer IV that shells you when it sees you, Opel Blitz
   trucks (the radio truck, and reinforcements that drive up the road), a Kübelwagen staff car and a
   trimotor transport plane overhead; shoot engines, or plant a satchel.
+- **Weapons and upgrades:** Springfield, Lee-Enfield, Welrod and P38 from the start; the Gewehr 43,
+  M1 Carbine and De Lisle are hidden in weapon crates. Toolboxes hold parts (scopes, barrels,
+  suppressor or muzzle brake, magazines, stock) that change reach, stability, noise and damage.
+  What you find is kept across missions; fit it in the Loadout tab or at a workbench mid-mission.
 - **Saving:** three save slots and checkpoint autosaves in the pause menu, plus quick save / load (F5 / F9).
 - **Moving around:** third-person camera, crouch behind cover, climb walls and ladders, tower stairs.
 

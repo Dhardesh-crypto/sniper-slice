@@ -41,6 +41,8 @@
   </div>
   <div id="hidden-edge"></div>
   <div id="hurt"></div>
+  <div id="bench"><div class="panel"><h1>WORKBENCH</h1><p class="sub">Swap weapons and fit the parts you've found</p>
+    <div id="loadout-bench"></div><div class="buttons"><button id="bench-close">Back to the mission</button></div></div></div>
   <div id="end"><div class="panel"><h2>MISSION COMPLETE</h2><div id="rating"></div><table id="end-stats"></table><button id="again">Play again</button></div></div>
   <div id="death"><h2>KILLED IN ACTION</h2><p>Click to restart the mission</p></div>
   <canvas id="mapview"></canvas>
@@ -54,6 +56,7 @@
       <div id="slots"><h2></h2><div class="list"></div><p class="why"></p></div>
       <div class="tabs" role="tablist">
         <button role="tab" data-tab="mission">Mission</button>
+        <button role="tab" data-tab="loadout">Loadout</button>
         <button role="tab" data-tab="settings">Settings</button>
         <button role="tab" data-tab="controls">Controls</button>
       </div>
@@ -67,10 +70,12 @@
           <li><b>Optional:</b> take his papers from his body.</li>
           <li><b>Optional:</b> destroy the Panzer in the yard (AP rounds or a satchel).</li>
           <li><b>Then</b> get back to the start hill, where green smoke marks the pick-up.</li>
+          <li><b>Look for</b> toolboxes (weapon parts) and weapon crates (rare rifles): you keep what you find.</li>
         </ul>
         <p class="brief">Planes, artillery and the generator cover the sound of your shots. Tall grass
           hides you if you crouch or go prone. Guards who spot you run for the siren.</p>
       </div>
+      <div class="tab" data-tab="loadout"><div id="loadout-menu"></div></div>
       <div class="tab" data-tab="settings">
         <div class="settings">
           <label>Mouse sensitivity <input id="set-sens" type="range" min="0.2" max="3" step="0.05" /><output></output></label>
@@ -124,7 +129,8 @@
         <section><h2>Stealth &amp; close combat</h2><dl>
           <dt>F</dt><dd>Knife takedown (behind an unalerted guard, or from hiding in tall grass)</dd>
           <dt>F</dt><dd>Drag / drop a body (hide it in tall grass)</dd>
-          <dt>E (hold)</dt><dd>Search a body · cut the siren wire · wreck the radio</dd>
+          <dt>E (hold)</dt><dd>Search a body · open a toolbox or weapon crate · cut the siren wire · wreck the radio</dd>
+          <dt>E</dt><dd>Use a workbench: swap weapons and fit parts</dd>
           <dt>Weak spots</dt><dd>Shoot the siren horn, the generator, or an engine (2 hits)</dd>
         </dl></section>
         <section><h2>Items &amp; explosives</h2><dl>

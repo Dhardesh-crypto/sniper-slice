@@ -112,6 +112,8 @@ export class Saves {
       fires: explosions.fires.map(f => ({ at: v3(f.at), t: f.t })),
       mission: { time: mission.time, stats: { ...mission.stats }, objectives: mission.objectives.map(o => ({ id: o.id, done: o.done, hidden: !!o.hidden })) },
       papers: search.papers,
+      loadout: this.g.arsenal.loadout ?? null,
+      opened: this.g.pickups ? this.g.pickups.boxes.map(b => b.opened) : [],
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
   }
@@ -202,5 +204,8 @@ export class Saves {
     items.selected = d.items.selected;
     for (const t of d.items.placed) items.restorePlaced(t);
     mapView.waypoint = d.waypoint;
+    // The loadout you carried, and the boxes you'd already opened.
+    if (d.loadout) this.g.applyLoadout(d.loadout);
+    (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (o && b && !b.opened) { b.opened = true; b.mesh.userData.lid.rotation.x = -1.2; b.mesh.userData.lid.position.z -= 0.1; } });
   }
 }

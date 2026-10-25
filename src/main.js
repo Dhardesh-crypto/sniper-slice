@@ -26,6 +26,9 @@ import { Explosions } from './fx/explosions.js';
 import { Tank } from './world/tank.js';
 import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
+import { Profile } from './core/profile.js';
+import { Pickups } from './world/pickups.js';
+import { LoadoutUI } from './ui/loadout.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -88,7 +91,37 @@ explosions.traps = items;
 arsenal.items = items;
 search.items = items;
 arsenal.onAmmo = (name) => hud.message(`LOADING ${name.toUpperCase()} ROUNDS`);
-const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio });
+let started = false;   // has the mission begun (the first click into the game)?
+// Your collection and loadout (kept across missions), the things to find, and the workbenches.
+const profile = new Profile();
+const applyLoadout = (lo) => { arsenal.equip(lo); avatar.setWeapons(lo, arsenal); };
+applyLoadout(profile.loadout);
+const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
+pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
+search.pickups = pickups;
+mapView.pickups = pickups;
+const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
+const benchEl = document.getElementById('bench');
+let benchOpen = false;
+function openBench() {
+  benchOpen = true;
+  benchEl.classList.add('on');
+  loadoutUI.render(document.getElementById('loadout-bench'), { editable: true });
+  document.exitPointerLock?.();
+}
+function closeBench() {
+  if (!benchOpen) return;
+  benchOpen = false;
+  benchEl.classList.remove('on');
+  input.lock();
+}
+pickups.onBench = openBench;
+document.getElementById('bench-close').addEventListener('click', closeBench);
+addEventListener('keydown', (e) => { if (e.code === 'Escape' && benchOpen) closeBench(); });
+const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadout-menu'), started
+  ? { editable: false, note: 'The mission is under way: find a workbench to change your weapons and parts.' }
+  : { editable: true, note: 'Your weapons and the parts you have found so far. Changes are kept for your next mission.' });
+const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, applyLoadout });
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);
 mission.complete = (id, message) => {
@@ -215,6 +248,7 @@ function showTab(name) {
   for (const b of tabButtons) b.setAttribute('aria-selected', String(b.dataset.tab === name));
   for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t.dataset.tab === name);
   try { localStorage.setItem('sniper-slice.menuTab', name); } catch { /* storage blocked */ }
+  if (name === 'loadout' && typeof renderMenuLoadout === 'function') renderMenuLoadout();
 }
 for (const b of tabButtons) b.addEventListener('click', () => showTab(b.dataset.tab));
 let savedTab = null;
@@ -234,12 +268,11 @@ document.getElementById('play').addEventListener('click', () => {
   audio.start();
   input.lock();
 });
-// The menu doubles as the pause screen once the mission has started.
-let started = false;
+// The menu doubles as the pause screen once the mission has started (`started`, declared above).
 canvas.addEventListener('click', () => { if (!input.locked) input.lock(); });
 input.onLockChange = (locked) => {
   const over = player.dead || mission.done;
-  menu.classList.toggle('hidden', locked || mapView.open || over);
+  menu.classList.toggle('hidden', locked || mapView.open || over || benchOpen);
   if (locked && !started) {
     started = true;
     document.body.classList.add('started');
@@ -247,7 +280,8 @@ input.onLockChange = (locked) => {
     document.querySelector('#menu .sub').textContent = 'Paused · Operation Vineyard';
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
-  menuPaused = !locked && !mapView.open && !over;
+  menuPaused = !locked && !mapView.open && !over && !benchOpen;
+  if (!locked && !benchOpen && document.querySelector('.tab.on')?.dataset.tab === 'loadout') renderMenuLoadout();
   if (audio.ctx) menuPaused ? audio.ctx.suspend() : audio.ctx.resume();
 };
 let birdT = 4;
@@ -282,6 +316,7 @@ function tick(dt) {
   items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
+  pickups.tick(dt);
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
@@ -363,7 +398,7 @@ function step(realDt, draw = true) {
   timeScale += (targetScale - timeScale) * (1 - Math.exp(-(slowmoT > 0.2 ? 30 : 6) * realDt));
   const dt = realDt * timeScale;
 
-  if (!paused && (!menuPaused || forceRun)) {
+  if (!paused && (!menuPaused || forceRun) && (!benchOpen || forceRun)) {
     acc += dt;
     while (acc >= FIXED_DT) {
       tick(FIXED_DT);
@@ -430,7 +465,8 @@ function step(realDt, draw = true) {
   const td = takedown.state();
   const its = items.state();
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
-  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const pk = pickups.state();
+  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, pk, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
@@ -445,7 +481,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves,
+  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).

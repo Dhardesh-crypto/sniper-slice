@@ -2,7 +2,8 @@
 // animated by stance and speed (idle, walk, rifle sprint, crouch walk, crawl), with the
 // arms holding the rifle on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
-import { Character } from '../world/characters.js';
+import { Character, pistolModelFor, fitMuzzle } from '../world/characters.js';
+import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
 const CLIP_SPEED = { walkLegs: 1.35, crouchLegs: 0.95, sprint: 4.6, crawl: 0.55 };
@@ -29,7 +30,8 @@ export class Avatar {
   constructor(scene) {
     this.char = new Character('player', { faceMinusZ: true });
     this.root = this.char.root;
-    this.pistol = pistolModel();
+    this.pistol = this.welrod = pistolModel();
+    this.pistolKind = 'welrod';
     this.root.add(this.pistol);
     scene.add(this.root);
     this.yaw = 0;
@@ -37,6 +39,25 @@ export class Avatar {
     this.state = '';
     this.char.play('idleLegs', { fade: 0 });
     this.buildConcealLook();
+  }
+
+  // Carry the loadout: the rifle's model (with a fitted suppressor or muzzle brake on it) and
+  // the pistol (the Welrod, or the P38 with its suppressor if fitted).
+  setWeapons(loadout, arsenal) {
+    const rdef = arsenal.weapons.rifle.def, pdef = arsenal.weapons.pistol.def;
+    this.char.setRifle(CATALOG[loadout.rifle].model);
+    fitMuzzle(this.char.rifle, rdef.suppressor && !rdef.integralSuppressor ? 'suppressor' : rdef.brake ? 'brake' : null, 1);
+    if (this.concealParts) this.char.rifle.traverse(o => { if (o.isMesh && !this.fadeMats.includes(o.material)) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });
+    const want = loadout.pistol;
+    if (this.pistolKind !== want) {
+      const visible = this.pistol.visible;
+      this.pistol.removeFromParent();
+      this.pistol = (want === 'p38' && pistolModelFor('p38')) || this.welrod;
+      this.pistol.visible = visible;
+      this.root.add(this.pistol);
+      this.pistolKind = want;
+    }
+    if (this.pistol !== this.welrod) fitMuzzle(this.pistol, pdef.suppressor ? 'suppressor' : null, -1);
   }
 
   // Concealed in tall grass: the body turns translucent with a white outline. The outline is
