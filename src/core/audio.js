@@ -1,15 +1,17 @@
 // All sound is synthesised with WebAudio: noise bursts, filters and envelopes.
-// Deliberately no bell-like tones: clicks, thumps and filtered noise only.
+// Deliberately no bell-like tones: clicks, thumps and filtered noise. The one pitched sound
+// is the whistle, a lip whistle: a smooth, sustained gliding tone, nothing struck or ringing.
 export class Audio {
   constructor() {
     this.ctx = null;
     this.volume = 0.8;
   }
 
-  // Must be called from a user gesture.
-  start() {
+  // Must be called from a user gesture. (An OfflineAudioContext can be passed in to render
+  // sounds for checking; then there's no ambience.)
+  start(offline = null) {
     if (this.ctx) { this.ctx.resume(); return; }
-    const ctx = new AudioContext();
+    const ctx = offline ?? new AudioContext();
     this.ctx = ctx;
     this.master = ctx.createGain();
     this.master.gain.value = this.volume;
@@ -29,7 +31,7 @@ export class Audio {
     this.reverbGain = ctx.createGain();
     this.reverbGain.gain.value = 0.35;
     this.reverb.connect(this.reverbGain).connect(this.master);
-    this.startAmbience();
+    if (!offline) this.startAmbience();
   }
 
   setVolume(v) {
@@ -201,10 +203,38 @@ export class Audio {
   }
 
   // ---- items ----
-  // A two-note "hey, over here" whistle: breathy (narrow-band noise, not a pure tone).
+  // A two-note "fweet-fwoo" lip whistle, the way you'd call someone over.
   whistle() {
-    this.noiseBurst({ dur: 0.22, type: 'bandpass', freq: 1700, freqEnd: 2500, q: 22, gain: 0.7, attack: 0.02 });
-    this.noiseBurst({ at: 0.28, dur: 0.35, type: 'bandpass', freq: 2500, freqEnd: 1500, q: 22, gain: 0.7, attack: 0.02 });
+    const v = 0.97 + Math.random() * 0.06;        // never quite the same pitch twice
+    this.whistleNote({ at: 0, dur: 0.24, pitch: [1250, 1900, 2150].map(f => f * v), gain: 0.22 });
+    this.whistleNote({ at: 0.32, dur: 0.42, pitch: [2050, 2150, 1850, 1450].map(f => f * v), gain: 0.2 });
+  }
+
+  // One whistled note: a sine whose pitch follows `pitch` (Hz, spread over the note) with a
+  // quick scoop into it, a light vibrato, a soft swell and fade, a faint breathy edge and a
+  // little of the valley's echo.
+  whistleNote({ at = 0, dur = 0.3, pitch = [1800, 2200], gain = 0.2 }) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime + at;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueCurveAtTime(new Float32Array(pitch), t, dur);
+    const lfo = ctx.createOscillator(), depth = ctx.createGain();
+    lfo.frequency.value = 5.5 + Math.random();
+    depth.gain.value = pitch[pitch.length - 1] * 0.012;   // about a fifth of a semitone
+    lfo.connect(depth).connect(o.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.04);
+    g.gain.setValueAtTime(gain, t + dur - 0.07);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g).connect(this.master);
+    const w = ctx.createGain(); w.gain.value = 0.35;
+    g.connect(w).connect(this.reverb);
+    o.start(t); lfo.start(t);
+    o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
+    // Breath: noise in a band around the note, far below the tone.
+    this.noiseBurst({ at, dur, type: 'bandpass', freq: pitch[0] * 1.1, freqEnd: pitch[pitch.length - 1] * 1.1, q: 3, gain: gain * 0.12, attack: 0.03 });
   }
 
   bottleSmash(distance) {
