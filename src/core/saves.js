@@ -115,6 +115,7 @@ export class Saves {
       loadout: this.g.arsenal.loadout ?? null,
       opened: this.g.pickups ? this.g.pickups.boxes.map(b => b.opened) : [],
       seen: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.seen) : [],
+      destroyed: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.destroyed) : [],
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
   }
@@ -208,6 +209,7 @@ export class Saves {
     // The loadout you carried, and the boxes you'd already opened.
     if (d.loadout) this.g.applyLoadout(d.loadout);
     (d.seen ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) b.seen = true; });
+    (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) { b.destroyed = b.opened = true; b.mesh.visible = false; b.mesh.traverse(o => { delete o.userData.trap; }); } });
     (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (o && b && !b.opened) { b.opened = true; b.mesh.userData.lid.rotation.x = -1.2; b.mesh.userData.lid.position.z -= 0.1; } });
   }
 }

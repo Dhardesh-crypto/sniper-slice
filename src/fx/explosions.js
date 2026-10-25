@@ -10,13 +10,14 @@ export class Explosions {
     this.fires = [];          // burning wrecks: smoke columns (and flames early on)
     this.pending = [];        // chain reactions, a beat after the blast that set them off
     this.hotspots = null;     // set by main: vehicles that can be set off
-    this.traps = null;        // set by main: placed mines/TNT/satchels that can be set off
+    this.chainers = [];       // set by main: things a blast can set off (placed charges, explosives crates)
     this.onKills = null;      // (n) => void, for the mission stats
   }
 
   // radius: soldiers closer die; hurt: you take damage nearer than this; size: visual scale;
   // noise: how far guards hear it; burn: leave a smoke column; heavy: can wreck armour (satchel, shell).
-  explode(at, { radius = 6.5, hurt = 12, size = 1, noise = 200, burn = false, heavy = false, label = null, by = 'player' } = {}) {
+  // chain: how close an engine must be to be set off (default: the kill radius, at most 4 m).
+  explode(at, { radius = 6.5, hurt = 12, size = 1, noise = 200, burn = false, heavy = false, label = null, by = 'player', chain = null } = {}) {
     const up = new THREE.Vector3(0, 1, 0);
     this.fx.emit(at, up, { color: 0xfff0c0, count: 6, speed: 4 * size, size: 3.5 * size, life: 0.25, grow: 1.6, gravity: 0 });
     this.fx.emit(at, up, { color: 0xff8a30, count: 12, speed: 7 * size, size: 1.8 * size, life: 0.9, grow: 2.2, gravity: 1.5 });
@@ -43,9 +44,9 @@ export class Explosions {
     // Chain reactions: engines and charges caught in the blast.
     for (const h of this.hotspots?.list ?? []) {
       if (!h.explosive || h.exploded || (h.armored && !heavy)) continue;
-      if (h.center().distanceTo(at) < Math.min(radius, 4)) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
+      if (h.center().distanceTo(at) < (chain ?? Math.min(radius, 4))) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
     }
-    this.traps?.caughtIn(at, radius, this.pending);
+    for (const c of this.chainers) c.caughtIn(at, radius, this.pending);
     return kills;
   }
 

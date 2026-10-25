@@ -120,6 +120,11 @@ export class Pickups {
     ]) this.boxes.push({ kind: 'supply', type, where: SUPPLY[type].name.toLowerCase(), at: on(x, z, yy) });
     for (const b of this.boxes) {
       b.mesh = b.kind === 'supply' ? supplyModel(b.type) : b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
+      // An unopened explosives crate goes up when it's shot (or caught in another blast).
+      if (b.type === 'explosives') {
+        const trap = { detonate: () => this.blowCrate(b) };
+        b.mesh.traverse(o => { if (o.isMesh) { o.userData.trap = trap; world.raycastTargets.push(o); } });
+      }
       b.mesh.position.copy(b.at);
       b.mesh.rotation.y = Math.random() * Math.PI;
       scene.add(b.mesh);
@@ -180,6 +185,7 @@ export class Pickups {
       if (!got.length) { this.hud.message(`${SUPPLY[b.type].name} · YOU CAN'T CARRY ANY MORE: COME BACK LATER`, 'wound'); return; }
       b.opened = true;
       b.mesh.userData.lid.rotation.x = -1.2;
+      if (b.type === 'explosives') b.mesh.traverse(o => { delete o.userData.trap; });   // emptied: nothing left to go off
       this.stealth.noise(b.at.clone(), 4, 'rustle');
       this.audio.pickup();
       this.hud.message(`${SUPPLY[b.type].name} · ${got.join(' · ').toUpperCase()}`, '');
@@ -202,6 +208,24 @@ export class Pickups {
     this.profile.addPart(part.id);
     this.onPart?.(part);
     this.hud.message(`PART FOUND · ${part.name.toUpperCase()} · ${part.info.toUpperCase()}`, 'head');
+  }
+
+  // An explosives crate blows up: a blast like a satchel charge (it can wreck a vehicle parked
+  // close by, the Panzer included), and it's gone. Once you've emptied it, there's nothing to go off.
+  blowCrate(b) {
+    if (b.opened || b.destroyed) return;
+    b.destroyed = b.opened = true;
+    b.mesh.visible = false;
+    b.mesh.traverse(o => { const i = this.world.raycastTargets.indexOf(o); if (i >= 0) this.world.raycastTargets.splice(i, 1); });
+    this.explosions.explode(b.at.clone().add(new THREE.Vector3(0, 0.3, 0)), { radius: 6, hurt: 11, size: 1.2, noise: 260, heavy: true, chain: 5.5, label: 'EXPLOSIVES CRATE' });
+  }
+
+  // Another blast nearby sets off unopened explosives crates.
+  caughtIn(at, radius, pending) {
+    for (const b of this.boxes) {
+      if (b.type !== 'explosives' || b.opened || b.chain) continue;
+      if (b.at.distanceTo(at) < Math.min(radius, 5)) { b.chain = true; pending.push({ t: 0.3, run: () => this.blowCrate(b) }); }
+    }
   }
 
   // A part from somewhere else (the Oberst's body).

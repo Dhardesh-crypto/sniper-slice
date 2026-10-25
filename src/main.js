@@ -87,7 +87,7 @@ const tank = new Tank({ scene, world, player, stealth, audio, fx, hud, explosion
 tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
 const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
-explosions.traps = items;
+explosions.chainers.push(items);
 arsenal.items = items;
 search.items = items;
 arsenal.onAmmo = (name) => hud.message(`LOADING ${name.toUpperCase()} ROUNDS`);
@@ -99,7 +99,8 @@ applyLoadout(profile.loadout);
 const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
 pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
 search.pickups = pickups;
-pickups.arsenal = arsenal; pickups.items = items;
+pickups.arsenal = arsenal; pickups.items = items; pickups.explosions = explosions;
+explosions.chainers.push(pickups);
 mapView.pickups = pickups;
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
 const benchEl = document.getElementById('bench');

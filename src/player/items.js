@@ -349,7 +349,7 @@ export class Items {
   }
 
   // A bullet hit a placed charge.
-  shot(trap) { this.detonate(trap); }
+  shot(trap) { if (trap.detonate) trap.detonate(); else this.detonate(trap); }   // (an explosives crate brings its own)
 
   // For the HUD.
   state() {
