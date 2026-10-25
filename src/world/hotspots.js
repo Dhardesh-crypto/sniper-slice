@@ -43,6 +43,12 @@ class Hotspot {
     m.updateMatrixWorld(true);
     return new THREE.Box3().setFromObject(m).getCenter(out);
   }
+  // How far a point is from the weak spot's surface (a big fuel tank is reached at its side).
+  distanceTo(p) {
+    const m = this.meshes[0];
+    m.updateMatrixWorld(true);
+    return new THREE.Box3().setFromObject(m).distanceToPoint(p);
+  }
   get active() { return !this.exploded && !(this.broken && !this.explosive); }
   // Shots left to the next thing that happens, for the tag label.
   get toExplode() { return this.hitsToExplode ?? 2; }
@@ -80,6 +86,7 @@ export class Hotspots {
       } });
     if (world.staffCar) this.add({ kind: 'engine', title: world.staffCar.title ?? 'STAFF CAR ENGINE', explosive: true, meshes: [world.staffCar.engine], parts: world.staffCar.parts });
     for (const v of world.site?.vehicles ?? []) this.add({ kind: 'engine', title: v.title, explosive: true, meshes: [v.engine], parts: v.parts });
+    for (const d of world.site?.hotspotDefs ?? []) this.add(d);       // the map's own (a ship, fuel tanks, a flak gun)
   }
 
   add(opts) {
@@ -184,7 +191,7 @@ export class Hotspots {
     const at = h.center();
     this.wreck(h);
     const name = h.title.replace(' ENGINE', '');
-    this.explosions.explode(at, { radius: h.armored ? 7.5 : 6.5, size: h.armored ? 1.5 : 1, burn: true, heavy: true, label: `${name} DESTROYED` });
+    this.explosions.explode(at, { radius: h.armored ? 7.5 : 6.5, size: h.armored ? 1.5 : 1, burn: true, heavy: true, label: `${name} DESTROYED`, ...(h.blast ?? {}) });
     h.onExplode?.(h);
   }
 

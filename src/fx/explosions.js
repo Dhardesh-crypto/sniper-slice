@@ -47,7 +47,7 @@ export class Explosions {
     // Chain reactions: engines and charges caught in the blast.
     for (const h of this.hotspots?.list ?? []) {
       if (!h.explosive || h.exploded || (h.armored && !heavy)) continue;
-      if (h.center().distanceTo(at) < (chain ?? Math.min(radius, 4))) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
+      if (h.distanceTo(at) < (chain ?? Math.min(radius, 4))) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
     }
     for (const c of this.chainers) c.caughtIn(at, radius, this.pending);
     return kills;

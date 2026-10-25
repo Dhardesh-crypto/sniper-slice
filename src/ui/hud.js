@@ -182,7 +182,7 @@ export class Hud {
     if (key === this.objKey) return;
     const fresh = this.objKey ? mission.objectives.filter(o => !o.hidden && !this.objKey.includes(`${o.id}${o.done}false`)) : [];
     this.objKey = key;
-    el.innerHTML = '<h3>OPERATION VINEYARD</h3>' + mission.objectives.filter(o => !o.hidden).map(o =>
+    el.innerHTML = `<h3>${(mission.title ?? 'Operation Vineyard').toUpperCase()}</h3>` + mission.objectives.filter(o => !o.hidden).map(o =>
       `<div class="${o.optional ? 'optional' : ''} ${o.done ? 'done' : ''} ${fresh.includes(o) ? 'new' : ''}">${o.done ? '✓' : o.optional ? '◇' : '◆'} ${o.text}${o.optional ? ' <small>(optional)</small>' : ''}</div>`).join('');
   }
 

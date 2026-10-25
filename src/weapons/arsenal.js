@@ -430,7 +430,8 @@ export class Arsenal {
       if (live) { this.stats.hits++; this.onHit?.({ hotspot: hit.hotspot, distance, point: hit.point.clone() }); }
       else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
     } else {
-      this.fx.dust(hit.point, hit.normal, distance);
+      if (hit.object?.userData.water) this.fx.emit(hit.point, new THREE.Vector3(0, 1, 0), { color: 0xe4ecee, count: 10, speed: 4, size: 0.25 * (1 + distance / 150), life: 0.8, grow: 1.5, gravity: -9 });   // a splash
+      else this.fx.dust(hit.point, hit.normal, distance);
       this.audio.impact(this.player.pos.distanceTo(hit.point));
       this.onImpactNoise?.(hit.point.clone()); // the crack of a near miss carries
       this.onHit?.({ miss: true, distance, point: hit.point.clone() });

@@ -67,6 +67,12 @@ export class NavGrid {
       const i = this.ix(t.x), j = this.iz(t.z);
       if (this.inside(i, j)) this.blocked[j * this.n + i] = 1;
     }
+    // Water (a harbour, the sea): nobody walks there.
+    if (world.waterLevel != null) {
+      for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
+        if (world.groundAt(this.x0 + (i + 0.5) * CELL, this.z0 + (j + 0.5) * CELL) < world.waterLevel - 0.3) this.blocked[j * this.n + i] = 1;
+      }
+    }
     // Doorways: the clearance closes a 1 m opening on a 1 m grid, so keep a lane of cells open
     // straight through each door (and a cell either side of the wall).
     for (const b of world.doorBoxes ?? []) {

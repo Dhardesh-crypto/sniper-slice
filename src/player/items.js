@@ -268,10 +268,15 @@ export class Items {
       let best = null, bestD = 3.2;
       for (const h of this.hotspots.list) {
         if (!h.explosive || h.exploded) continue;
-        const d = h.center().distanceTo(p.pos.clone().setY(p.pos.y + 1));
+        const d = h.distanceTo(p.pos.clone().setY(p.pos.y + 1));
         if (d < bestD) { best = h; bestD = d; }
       }
-      if (best) { at = best.center().add(new THREE.Vector3(0, 0.15, 0)); parent = best.meshes[0]; }
+      if (best) {
+        // On a small engine, on top of it; on something big (a fuel tank), against its side where you stand.
+        const box = new THREE.Box3().setFromObject(best.meshes[0]), chest = p.pos.clone().setY(p.pos.y + 1);
+        at = box.getSize(new THREE.Vector3()).length() > 4 ? box.clampPoint(chest, new THREE.Vector3()) : best.center().add(new THREE.Vector3(0, 0.15, 0));
+        parent = best.meshes[0];
+      }
     } else {
       const fwd = new THREE.Vector3(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
       at.addScaledVector(fwd, 0.6);

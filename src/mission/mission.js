@@ -18,7 +18,7 @@ export class Mission {
     this.time = 0;
     this.done = false;
     this.officer = world.soldiers.find(s => s.officer);
-    this.officer.name = def.target ?? 'Oberst Krause';
+    if (this.officer) this.officer.name = def.target ?? 'Oberst Krause';
     this.radio = world.radio;
     this.radioProgress = 0;
     const exAt = def.extraction ?? START_HILL;
@@ -78,14 +78,17 @@ export class Mission {
   tick(dt) {
     if (this.done) return;
     this.time += dt;
-    if (!this.officer.alive && !this.obj('officer').done) {
-      this.complete('officer', this.def.killText ?? 'TARGET ELIMINATED · GET TO THE START HILL');
-      this.obj('extract').hidden = false;
-    }
+    const off = this.obj('officer');
+    if (off && this.officer && !this.officer.alive && !off.done) this.complete('officer', this.def.killText ?? 'TARGET ELIMINATED · GET TO THE START HILL');
     if (this.search.papers > 0) this.complete('papers', this.def.papersText ?? "OBERST'S PAPERS TAKEN");
     if (this.radio) this.tickRadio(dt);
     this.def.tick?.(this, dt);
+    // The extraction opens once every main (not optional) objective is done.
     const ex = this.obj('extract');
+    if (ex.hidden && this.objectives.every(o => o === ex || o.optional || o.done)) {
+      ex.hidden = false;
+      if (!off || off.optional) this.hud.message(this.def.extractText ?? 'ALL DONE · GET TO THE PICK-UP', '');
+    }
     if (!ex.hidden) {
       // Green smoke marks the pick-up.
       this.smokeT -= dt;
@@ -150,7 +153,7 @@ export class Mission {
   // Points for the compass and on-screen markers.
   markers() {
     const out = [];
-    if (!this.obj('officer').done) {
+    if (this.obj('officer') && this.officer && !this.obj('officer').done) {
       const ta = this.def.targetArea ?? { x: COMPOUND.x + 8, z: COMPOUND.z - 4 };
       out.push(this.officer.tagged
         ? { pos: this.officer.root.position, kind: 'target', label: 'TARGET', height: 2.4 }
@@ -158,7 +161,7 @@ export class Mission {
     }
     if (this.radio && this.obj('radio') && !this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
     if (this.obj('tank') && !this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
-    if (this.obj('papers') && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
+    if (this.obj('papers') && this.officer && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
     for (const m of this.def.markers?.(this) ?? []) out.push(m);
     if (!this.obj('extract').hidden) out.push({ pos: this.extraction, kind: 'extract', label: 'EXTRACTION', height: 3 });
     return out;

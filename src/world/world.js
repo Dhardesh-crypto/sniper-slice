@@ -2,7 +2,7 @@
 // hit, where may the player stand, which way is the wind blowing.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF } from './terrain.js';
+import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms } from './vegetation.js';
 
 import { buildHorizon } from './horizon.js';
@@ -53,6 +53,19 @@ export class World {
     for (const s of this.soldiers) s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05); // where dropped rifles land
     this.hitMeshes = this.soldiers.flatMap(s => s.hitMeshes);
     this.raycastTargets = [...this.solids, ...this.hitMeshes];
+    // The sea, if the map has one: a surface bullets splash into (it isn't walked on).
+    this.waterLevel = activeMap().waterLevel ?? null;
+    if (this.waterLevel != null) {
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(MAP_HALF * 2 + 3000, MAP_HALF * 2 + 3000).rotateX(-Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0x2d4a52, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.88 }));
+      water.position.y = this.waterLevel;
+      water.receiveShadow = true;
+      water.userData.noAO = true;
+      water.userData.water = true;
+      scene.add(water);
+      this.water = water;
+      this.raycastTargets.push(water);
+    }
 
     // Wind: direction it blows TOWARD (radians, 0 = +x), base speed, slow gusts.
     this.windAngle = THREE.MathUtils.degToRad(100);

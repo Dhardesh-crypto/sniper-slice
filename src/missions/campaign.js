@@ -5,7 +5,7 @@ export const CAMPAIGN = [
     brief: 'Oberst Krause runs the German post at the vineyard farm. Kill him, open the safe in his villa office for his orders, and get back to the hill you started from.' },
   { id: 'town', name: 'Operation Bell Tower', place: 'A hill town: narrow streets, a piazza, a church tower', ready: true,
     brief: 'The Gestapo has taken over the town hall. Kill the commander, take the arrest lists from his safe, and silence the bell-tower observation post.' },
-  { id: 'harbour', name: 'Operation Low Tide', place: 'A harbour: docks, cranes, warehouses',
+  { id: 'harbour', ready: true, name: 'Operation Low Tide', place: 'A harbour: docks, cranes, warehouses',
     brief: 'A supply ship is loading fuel for the U-boats. Sink it at its moorings, blow the fuel depot, and steal the convoy schedule from the harbourmaster.' },
   { id: 'forest', name: 'Operation Black Pine', place: 'Pine forest in the mountains: a logging camp and a hunting lodge',
     brief: 'A counter-sniper unit hunts partisans from a hunting lodge deep in the forest. Find their commander, destroy the fuel dump at the logging camp.' },

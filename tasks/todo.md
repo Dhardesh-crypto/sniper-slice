@@ -399,7 +399,13 @@ combination or by slow, noisy cracking; new maps about 1 km across.
        documents in the town plus his papers. Verified: routines over 2 min, tower ladder up and down, town hall
        stairs, the memo gives the combination and the safe opens, a rooftop ladder, objectives through extraction,
        the profile marks the town done, a town save loads back into the town.
-3. [ ] **Harbour**: docks, cranes, warehouses, a fuel depot, a moored U-boat supply ship; sink it.
+3. [x] **Harbour** (Operation Low Tide): fenced docks on a 1 km coast, quay with rails and cranes (one climbable,
+   a sniper on another), warehouses (two walk-in), the harbourmaster's 2-floor office with the safe, a fuel depot
+   of four tanks that set each other off, a mole with a flak gun, and the supply ship: a satchel on its engine-room
+   skylight or two rockets sink it (it settles and rolls; deck guards go down with it). Water: no swimming, guards
+   path round it, bullets splash, you climb out onto the quay. Extraction opens when the ship and depot are done.
+   Verified by script: routes, ship by satchel and by rockets, depot chain, satchel on a tank's side, documents and
+   safe placement, extraction, save/load with the ship sunk; vineyard and town still load and play.
 4. [ ] **Forest**: dense woods in the hills, a logging camp turned into a fuel dump, a hunting lodge
        HQ; mist, little open ground.
 5. [ ] **Railway station**: station building, yard with sidings, a water tower, an armoured train

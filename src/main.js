@@ -64,6 +64,7 @@ playBtn.disabled = false;
 const MISSION_MODULES = {
   vineyard: () => import('./missions/vineyard.js'),
   town: () => import('./missions/town.js'),
+  harbour: () => import('./missions/harbour.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
@@ -93,6 +94,7 @@ arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
 const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def: M.def });
+mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 hotspots.ai = ai; hotspots.mission = mission;
@@ -346,7 +348,7 @@ input.onLockChange = (locked) => {
     started = true;
     document.body.classList.add('started');
     document.getElementById('play').textContent = 'Resume';
-    document.querySelector('#menu .sub').textContent = 'Paused · Operation Vineyard';
+    document.querySelector('#menu .sub').textContent = `Paused · ${M.subtitle.split(' · ')[0]}`;
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
   menuPaused = !locked && !mapView.open && !over && !benchOpen;

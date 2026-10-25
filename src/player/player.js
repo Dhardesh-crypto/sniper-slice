@@ -141,9 +141,13 @@ export class Player {
     this.vel.x += (wish.x - this.vel.x) * a;
     this.vel.z += (wish.z - this.vel.z) * a;
 
+    const ox = this.pos.x, oz = this.pos.z;
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
     this.world.collideCircle(this.pos, this.radius, this.pos.y, this.pos.y + this.eye + 0.15);
+    // No swimming with all that kit: the water's edge (a quay, a beach, a ship's rail) stops you.
+    const wl = this.world.waterLevel;
+    if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - 0.3) { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }
 
     // Vertical: step up onto low ledges, follow slopes and stairs down, fall off anything higher.
     const floor = this.world.floorAt(this.pos.x, this.pos.z, this.pos.y);
