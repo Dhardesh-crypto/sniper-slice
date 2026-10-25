@@ -578,6 +578,10 @@ if (loadedSlot) {
   document.querySelector('#menu .sub').textContent = `Loaded: ${SLOT_NAMES[loadedSlot]}`;
   hud.message('GAME LOADED', '');
 }
+// Upload every texture and compile every shader now, behind the menu, so nothing stalls the
+// first time it comes into view.
+scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v); });
+await renderer.compileAsync(scene, camera);
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.

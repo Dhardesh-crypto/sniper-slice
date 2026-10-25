@@ -492,3 +492,17 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 - [x] Verified: all eight missions load with no errors and no props left out; patrols still walk in all eight
       (the officers wait at their first post as before); looked at the vineyard, town, harbour, railway,
       airfield and coast. Forest and bridge were checked by script only.
+
+## Performance fix: "the game is lagging" (2026-10-25)
+- [x] Measured: on a 1512×945 Retina-sized view a frame took 21–26 ms at 2× and 11–13 ms at 1×. The
+      embellishment added about 10% (200k triangles drawn three times: scene, ambient occlusion, shadows); the
+      main cost was already there: 4× multisampling at 2× was about half the frame.
+- [x] Every prop, vehicle and enemy soldier model simplified with meshoptimizer (gltf-transform weld +
+      simplify, error 0.005): props and vehicles 1.0M → 0.36M triangles, soldiers 20k → 7–14k each (the
+      player's own model kept). Checked side by side: the lattice models (cranes, radars, watchtower) and
+      the soldiers look the same; the bridge still splits into its pieces.
+- [x] Multisampling only at 1× pixel ratio (above that the pixels are fine enough): 2× now 5–8 ms a frame,
+      and each step the resolution scaler takes down is cheaper than the last.
+- [x] Every texture uploaded and every shader compiled while the mission loads, so nothing stalls the first
+      time it comes into view.
+- [x] All eight missions load with no errors.

@@ -56,3 +56,9 @@ invisible beyond a short range, unspottable unless a clear look or point blank) 
   into a wall (two guards stood still) and a player in a trench could never have climbed out.
 - **Rule:** when a map gets a slope rule, check every other bit of ground shaped on that map (trenches, ramps,
   craters) against it, and limit a nav block to where it's meant to apply.
+
+## Generated models are far denser than they look (2026-10-25)
+Tripo models come out at 10–38k triangles each, and every one is drawn three times (scene, ambient
+occlusion, shadows). Simplify them on import (gltf-transform weld + simplify --ratio 0.25 --error 0.005,
+which keeps their look) and measure the frame (GPU-timed post.draw at a real screen size, compared with the
+previous commit) after any graphics pass, before calling it done.

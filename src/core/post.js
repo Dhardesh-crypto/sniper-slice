@@ -81,6 +81,13 @@ export class Post {
     this.pixelRatio = pr;
     this.renderer.setPixelRatio(pr);
     this.composer.setPixelRatio(pr);
+    // Above 1x the pixels are fine enough on their own; 4x multisampling there costs about half
+    // the frame, so it's only used at 1x (and every step the resolution scaler takes down is
+    // cheaper than the one before).
+    const samples = pr > 1 ? 0 : 4;
+    for (const rt of [this.composer.renderTarget1, this.composer.renderTarget2]) {
+      if (rt.samples !== samples) { rt.samples = samples; rt.dispose(); }
+    }
     this.setSize(innerWidth, innerHeight);
   }
 
