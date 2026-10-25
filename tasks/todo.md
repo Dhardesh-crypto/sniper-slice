@@ -443,7 +443,15 @@ combination or by slow, noisy cracking; new maps about 1 km across.
    Kessler and his papers optional. Engine run-ups on the apron mask shots near the hangars for 22 s every 95 s.
    Verified by script: patrols, run-up masking, planes and radar, the safe by its combination, extraction,
    save/load with two planes and the radar wrecked.
-8. [ ] **Coastal radar** (sea cliffs): a radar station and gun battery, bunkers and trenches, a lighthouse, steep climbs.
+8. [x] **Coastal radar** (Operation Sea Wall): a headland 45 m above the sea; you land in the west cove and climb the
+   gully or the iron ladder below the lighthouse (the cliffs can't be climbed: map maxSlope, cliff-only navBlocked).
+   On top: the Freya and Würzburg radars, three casemated guns (armoured: AP rounds or a satchel at the magazine door),
+   pillboxes, trenches you can drop into and climb out of, the command bunker (the codebooks, required), barracks,
+   the lighthouse with a lookout on its gallery. The surf covers shots on the beach. Modelled from the start: Freya,
+   casemate, lighthouse, Czech hedgehogs, Tobruk pits (with the Würzburg, flak, searchlight and generator models).
+   Verified by script: the cliff stops you, the gully and the ladder get you up, patrols (after fixing trenches that
+   walled the guards in), surf masking, normal rounds bounce off the guns and AP destroys them, both radars, the safe,
+   extraction, save/load.
 - New models where needed (Higgsfield): locomotive and wagons, boats and a ship, cranes, planes,
   furniture and safes; recorded sounds where needed.
 

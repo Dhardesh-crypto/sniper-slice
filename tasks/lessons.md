@@ -49,3 +49,10 @@ invisible beyond a short range, unspottable unless a clear look or point blank) 
   railing cover.
 - **Rule:** when a generated model goes where someone stands, render the same view with the model on and
   off. If anyone disappears, keep only the part below them (cut the geometry) and build the rest plainly.
+
+## A slope rule applies to every slope (2026-10-25)
+- The cliff rule (no walking up ground steeper than maxSlope, and steep cells blocked for the guards) also caught the
+  trenches I cut on the same map: their sides were steeper than the cliffs' limit, so the nav grid turned every trench
+  into a wall (two guards stood still) and a player in a trench could never have climbed out.
+- **Rule:** when a map gets a slope rule, check every other bit of ground shaped on that map (trenches, ramps,
+  craters) against it, and limit a nav block to where it's meant to apply.

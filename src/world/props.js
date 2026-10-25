@@ -48,6 +48,11 @@ export const PROPS = {
   hangar: { file: 'prop_hangar', turn: 1 },              // its doors were at +x: now at −z
   bowser: { file: 'prop_bowser', turn: 1 },
   searchlight: { file: 'prop_searchlight', turn: 0 },
+  freya: { file: 'prop_freya', turn: 0 },
+  casemate: { file: 'prop_casemate', turn: 1 },           // gun was toward +x: now −z (its door then faces +x)
+  lighthouse: { file: 'prop_lighthouse', turn: 0 },
+  hedgehog: { file: 'prop_hedgehog', turn: 0 },
+  tobruk: { file: 'prop_tobruk', turn: 0 },
 };
 
 export async function loadProps(keys, onProgress = () => {}) {

@@ -15,7 +15,7 @@ export const CAMPAIGN = [
     brief: 'An armoured column must not cross the gorge. Plant charges on the bridge supports and blow it, and kill the engineer who could repair it.' },
   { id: 'airfield', ready: true, name: 'Operation Night Owl', place: 'A Luftwaffe airfield: runway, hangars, control tower',
     brief: 'Destroy the night fighters on the ground, wreck the radar, and steal the flight plans from the control tower.' },
-  { id: 'radar', name: 'Operation Sea Wall', place: 'A coastal radar station and gun battery on the cliffs',
+  { id: 'radar', ready: true, name: 'Operation Sea Wall', place: 'A coastal radar station and gun battery on the cliffs',
     brief: 'The radar on the cliffs watches the invasion beaches. Destroy it and the battery guns, and take the codebooks from the command bunker.' },
 ];
 

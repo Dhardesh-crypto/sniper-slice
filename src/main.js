@@ -70,6 +70,7 @@ const MISSION_MODULES = {
   railway: () => import('./missions/railway.js'),
   bridge: () => import('./missions/bridge.js'),
   airfield: () => import('./missions/airfield.js'),
+  radar: () => import('./missions/coast.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
