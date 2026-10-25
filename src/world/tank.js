@@ -12,7 +12,7 @@ const DECK = 0.08;               // model y of the hull deck: the turret is what
 const TURRET_Z = -0.15;          // model z of the turret ring
 const TRAVERSE = 0.35;           // rad/s
 const RELOAD = 9;                // s between shots
-const RANGE = 350;
+const RANGE = 300;               // m, for a standing man in the open
 
 // Split one mesh into hull and turret+gun by where each triangle sits.
 function splitTurret(geo) {
@@ -110,9 +110,13 @@ export class Tank {
     const p = this.player;
     // The crew fights when the compound is: some guard has really spotted you.
     const fighting = this.world.soldiers.some(s => s.alive && s.aware?.state === 'alerted' && s.aware.spotted);
-    const target = p.pos.clone().setY(p.pos.y + 1.0);
+    const target = p.pos.clone().setY(p.pos.y + Math.max(0.3, p.eye * 0.6));
+    // The crew sees like the guards do, with better optics: tall grass hides you (crouched or
+    // prone), and the range shrinks with how visible you are (standing ~300 m, prone ~150 m).
+    const vis = this.stealth.playerVisibility();
+    const range = RANGE * Math.sqrt(Math.min(1, vis));
     let canSee = false;
-    if (fighting && !p.dead && target.distanceTo(this.root.position) < RANGE) {
+    if (fighting && !p.dead && !this.stealth.concealed && target.distanceTo(this.root.position) < range) {
       const eye = this.root.position.clone().setY(this.root.position.y + 2.6);
       const hit = this.world.raycastSegment(eye, target);
       canSee = !hit || hit.distance > eye.distanceTo(target) - 0.6 || hit.object === this.hull || hit.object === this.turret;
