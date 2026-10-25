@@ -116,7 +116,8 @@ export class Soldier {
     const facing = new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y));
     const fromFront = bulletDir.dot(facing) < 0;
     this.char.setHoldWeight(0);
-    if (!(quiet && this.grabClip)) this.char.play(fromFront ? 'deathBack' : 'deathFwd', { fade: 0.08, once: true, timeScale: 1.15 });
+    this.deathClip = quiet && this.grabClip ? 'takedownVic' : fromFront ? 'deathBack' : 'deathFwd'; // for saving: the pose he ends in
+    if (!(quiet && this.grabClip)) this.char.play(this.deathClip, { fade: 0.08, once: true, timeScale: 1.15 });
     this.fallFrom = this.root.position.clone();
     this.knock = new THREE.Vector3(bulletDir.x, 0, bulletDir.z).normalize().multiplyScalar(quiet ? 0 : 0.35);
     this.deathT = 0;
@@ -209,6 +210,29 @@ export class Soldier {
     for (const a of Object.values(this.char.actions)) if (a !== this.char.hold) a.stop();
     this.char.base = null;
     this.applyStance();
+    this.root.updateMatrixWorld(true);
+  }
+
+  // Lying dead from the start (a loaded save): the end of his death clip, no fall, no noise.
+  restoreDead(clip, rifle) {
+    this.alive = false;
+    this.hp = 0;
+    this.deathClip = clip;
+    this.deathNoted = true;
+    this.fallFrom = this.root.position.clone();
+    this.deathT = 1;
+    this.knock = new THREE.Vector3();
+    this.char.setHoldWeight(0);
+    this.char.play(clip, { fade: 0, once: true });
+    if (this.char.base) this.char.base.time = this.char.base.getClip().duration;
+    if (rifle && this.char.rifle.visible) {
+      const r = this.char.rifle;
+      this.root.parent.attach(r);
+      r.position.fromArray(rifle.pos);
+      r.quaternion.fromArray(rifle.quat);
+      this.drop = { done: true };
+    }
+    this.char.update(0);
     this.root.updateMatrixWorld(true);
   }
 

@@ -200,6 +200,23 @@ export class Audio {
     }
   }
 
+  // ---- items ----
+  // A two-note "hey, over here" whistle: breathy (narrow-band noise, not a pure tone).
+  whistle() {
+    this.noiseBurst({ dur: 0.22, type: 'bandpass', freq: 1700, freqEnd: 2500, q: 22, gain: 0.7, attack: 0.02 });
+    this.noiseBurst({ at: 0.28, dur: 0.35, type: 'bandpass', freq: 2500, freqEnd: 1500, q: 22, gain: 0.7, attack: 0.02 });
+  }
+
+  bottleSmash(distance) {
+    const at = Math.min(distance / 343, 1), k = Math.max(0.15, 1 - distance / 120);
+    this.noiseBurst({ at, dur: 0.05, type: 'highpass', freq: 3500, gain: 0.6 * k });
+    this.noiseBurst({ at: at + 0.02, dur: 0.4, type: 'bandpass', freq: 5000, freqEnd: 2500, q: 2, gain: 0.3 * k });
+  }
+
+  throwWhoosh() {
+    this.noiseBurst({ dur: 0.25, type: 'bandpass', freq: 500, freqEnd: 1200, q: 1.5, gain: 0.15, attack: 0.05 });
+  }
+
   // ---- weak spots ----
   // A bullet on metal: a dull knock with a short gritty scrape (no ring).
   metalHit(distance) {

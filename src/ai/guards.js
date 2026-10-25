@@ -334,7 +334,7 @@ export class GuardAI {
   }
 
   // ---------------------------------------------------------------- reinforcements
-  sendTruck() {
+  sendTruck({ quiet = false } = {}) {
     this.reinforced = true;
     const t = { model: truckModel(), x: COMPOUND.x - 230, stopX: COMPOUND.x - 46, speed: 13, unloaded: false, parkT: 0, stalled: false };
     this.scene.add(t.model);
@@ -346,7 +346,7 @@ export class GuardAI {
     t.hotspot = this.hotspots?.add({ kind: 'engine', title: 'TRUCK ENGINE', explosive: true, meshes: [bonnet], parts: meshes,
       onBreak: () => { t.stalled = true; this.hud.message('TRUCK STALLED · THEY GET OUT ON FOOT', ''); },
       onExplode: () => { t.stalled = true; if (!t.unloaded) { t.unloaded = true; t.lost = true; this.hotspots.mission?.blastKills(4); } this.audio.setTruck(0); } });
-    this.hud.message('ENEMY REINFORCEMENTS ON THE ROAD', 'wound');
+    if (!quiet) this.hud.message('ENEMY REINFORCEMENTS ON THE ROAD', 'wound');
   }
 
   tickTruck(dt) {
@@ -378,11 +378,7 @@ export class GuardAI {
     for (let i = 0; i < 4; i++) {
       const at = t.model.position.clone().addScaledVector(back, 4.2).addScaledVector(side, (i - 1.5) * 0.9);
       at.y = this.world.groundAt(at.x, at.z);
-      const s = new Soldier({ position: at, yaw: Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z), name: 'Reinforcement', stance: 'alert' });
-      this.world.addSoldier(s);
-      this.stealth.enlist(s);
-      this.enlist(s);
-      s.home = new THREE.Vector3(COMPOUND.x - 20 + i * 4, at.y, COMPOUND.z + (i % 2 ? 6 : -6)); // they stay to guard the yard
+      const s = this.spawnReinforcement(at, Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z), i);
       const known = this.guards().reduce((k, o) => (o.brain.lastSeenT > (k?.t ?? -1) && o.brain.lastSeen ? { t: o.brain.lastSeenT, at: o.brain.lastSeen } : k), null)?.at;
       const guess = (known ?? this.player.pos).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
       this.stealth.raise(s, 'alerted', guess, 'shout');
@@ -401,6 +397,16 @@ export class GuardAI {
       if (d < bestD) { best = s; bestD = d; }
     }
     if (best) best.brain.task = { at, t: 8, done };
+  }
+
+  // A reinforcement soldier at `at` (from the truck, or from a loaded save).
+  spawnReinforcement(at, yaw, i = 0) {
+    const s = new Soldier({ position: at, yaw, name: 'Reinforcement', stance: 'alert' });
+    this.world.addSoldier(s);
+    this.stealth.enlist(s);
+    this.enlist(s);
+    s.home = new THREE.Vector3(COMPOUND.x - 20 + (i % 4) * 4, at.y, COMPOUND.z + (i % 2 ? 6 : -6)); // they stay to guard the yard
+    return s;
   }
 
   // ---------------------------------------------------------------- sabotage

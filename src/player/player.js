@@ -75,9 +75,11 @@ export class Player {
 
   tick(dt, { aiming }) {
     const inp = this.input;
-    // Wounds close slowly once you're out of the fight for a while.
+    // Wounds close slowly once you're out of the fight for a while, but only up to the next
+    // quarter of your health (25 / 50 / 75 / 100): bandages and medkits do the rest.
     this.hurtT += dt;
-    if (this.hurtT > 8 && this.health < 100 && !this.dead) this.health = Math.min(100, this.health + 5 * dt);
+    const cap = Math.ceil(this.health / 25 - 1e-6) * 25;
+    if (this.hurtT > 8 && this.health < cap && !this.dead) this.health = Math.min(cap, this.health + 5 * dt);
     if (this.locked) return; // a takedown moves you itself
     if (this.dead) { this.prevPos.copy(this.pos); this.prevEye = this.eye; this.eye += (0.3 - this.eye) * (1 - Math.exp(-3 * dt)); return; }
     if (inp.wasPressed('KeyC') && !this.climb) this.setStance(this.stance === 'crouch' ? 'stand' : 'crouch');

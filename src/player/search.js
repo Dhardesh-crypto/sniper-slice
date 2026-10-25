@@ -5,12 +5,22 @@ import * as THREE from 'three';
 const REACH = 1.9;          // metres from the body (horizontal)
 const SEARCH_TIME = 1.1;    // seconds of holding E
 const MAX_RESERVE = { rifle: 40, pistol: 32 };
+const MAX_KIT = { grenade: 4, bottle: 4, mine: 4, tnt: 3, satchel: 3, bandage: 5, medkit: 2 };
+const MAX_SPECIAL = { subsonic: 20, ap: 12 };
 
-// What a body carries. Guards: rifle rounds, sometimes pistol rounds.
-// Officers: pistol rounds and papers (intel for later objectives).
+// What a body carries. Guards: rifle rounds, now and then special rounds, a grenade, a
+// bandage or a bottle. Officers: pistol rounds, a medkit and papers.
 function rollLoot(soldier, rng = Math.random) {
-  if (soldier.officer) return { rifle: 0, pistol: 6 + Math.floor(rng() * 5), papers: 1 };
-  return { rifle: 3 + Math.floor(rng() * 5), pistol: rng() < 0.35 ? 2 + Math.floor(rng() * 4) : 0, papers: 0 };
+  const n = (a, b) => a + Math.floor(rng() * (b - a + 1));
+  if (soldier.officer) return { rifle: 0, pistol: n(6, 10), papers: 1, kit: { medkit: 1 } };
+  const kit = {};
+  if (rng() < 0.35) kit.grenade = 1;
+  if (rng() < 0.4) kit.bandage = 1;
+  if (rng() < 0.25) kit.bottle = 1;
+  return {
+    rifle: n(3, 7), pistol: rng() < 0.35 ? n(2, 5) : 0, papers: 0, kit,
+    special: { subsonic: rng() < 0.3 ? n(2, 4) : 0, ap: rng() < 0.2 ? n(1, 2) : 0 },
+  };
 }
 
 export class Search {
@@ -64,10 +74,21 @@ export class Search {
     for (const kind of ['rifle', 'pistol']) {
       if (!loot[kind]) continue;
       const w = this.arsenal.weapons[kind];
-      const take = Math.max(0, Math.min(loot[kind], MAX_RESERVE[kind] - w.reserve));
-      w.reserve += take;
+      // Rifle rounds from a guard are standard ones, whatever you have loaded.
+      const have = kind === 'rifle' ? w.ammo.standard : w.reserve;
+      const take = Math.max(0, Math.min(loot[kind], MAX_RESERVE[kind] - have));
+      if (kind === 'rifle') w.ammo.standard += take; else w.reserve += take;
       if (take > 0) got.push(`+${take} ${kind} rounds`);
       else got.push(`${kind} ammo full`);
+    }
+    for (const [type, k] of Object.entries(loot.special ?? {})) {
+      const ammo = this.arsenal.weapons.rifle.ammo, take = Math.max(0, Math.min(k, MAX_SPECIAL[type] - ammo[type]));
+      if (take) { ammo[type] += take; got.push(`+${take} ${type === 'ap' ? 'AP' : 'subsonic'} rounds`); }
+    }
+    for (const [id, k] of Object.entries(loot.kit ?? {})) {
+      if (!this.items) break;
+      const take = Math.max(0, Math.min(k, MAX_KIT[id] - this.items.count[id]));
+      if (take) { this.items.count[id] += take; got.push(`+${take} ${id}`); }
     }
     if (loot.papers) { this.papers += loot.papers; got.push("officer's papers"); }
     this.audio.pickup();

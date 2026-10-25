@@ -25,6 +25,7 @@ export class Mission {
       { id: 'officer', text: 'Eliminate Oberst Krause', done: false },
       { id: 'radio', text: 'Wreck the field radio (no reinforcements)', done: false, optional: true },
       { id: 'papers', text: "Take the Oberst's papers", done: false, optional: true },
+      { id: 'tank', text: 'Destroy the Panzer (AP rounds or a satchel)', done: false, optional: true },
       { id: 'extract', text: 'Get back to the start hill', done: false, hidden: true },
     ];
     this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, takedowns: 0, longest: 0, spotted: 0, bodiesFound: 0 };
@@ -64,6 +65,8 @@ export class Mission {
   }
 
   blastKills(n) { this.stats.kills += n; }
+
+  tankDestroyed() { this.complete('tank', 'PANZER DESTROYED'); }
 
   // ---- per tick ----
   tick(dt) {
@@ -144,6 +147,7 @@ export class Mission {
         : { pos: new THREE.Vector3(COMPOUND.x + 8, this.world.groundAt(COMPOUND.x, COMPOUND.z), COMPOUND.z - 4), kind: 'target', label: 'TARGET AREA', height: 9 });
     }
     if (!this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
+    if (!this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
     if (!this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
     if (!this.obj('extract').hidden) out.push({ pos: this.extraction, kind: 'extract', label: 'EXTRACTION', height: 3 });
     return out;

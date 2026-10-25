@@ -3,11 +3,12 @@
 //   generator      one hit stops it: no more sound cover there, and a guard comes to fix it
 //   truck engines  first hit: smoke (the reinforcement truck stalls); second hit: it explodes,
 //                  killing anyone close, and the radio truck takes the radio with it
+//   staff car      the same, engine at the back
+//   tank           armoured: standard rounds ping off; two armour-piercing hits on the engine
+//                  grille, or a satchel charge, destroy it
+// An armour-piercing round counts as two hits on an ordinary engine (it blows in one shot).
 // Each can be tagged with the binoculars; tagged spots show on screen and on the compass.
 import * as THREE from 'three';
-
-const BLAST_RADIUS = 6.5;        // soldiers this close to an exploding engine die
-const PLAYER_BLAST = 12;         // the blast hurts you out to here
 
 class Hotspot {
   constructor(opts) {
@@ -21,22 +22,25 @@ class Hotspot {
   }
   get active() { return !this.exploded && !(this.broken && !this.explosive); }
   // Shots left to the next thing that happens, for the tag label.
+  get toExplode() { return this.hitsToExplode ?? 2; }
   label() {
     if (this.explosive) {
-      const left = 2 - this.hits;
-      return `${this.title} · ${left} ${left === 1 ? 'hit' : 'hits'}`;
+      const left = this.toExplode - this.hits;
+      return this.armored ? `${this.title} · ${left} AP ${left === 1 ? 'hit' : 'hits'} or a satchel` : `${this.title} · ${left} ${left === 1 ? 'hit' : 'hits'}`;
     }
     return `${this.title} · 1 hit`;
   }
-  // Will the next hit blow it up? (The kill cam plays those.)
-  explodesOnNext() { return this.explosive && !this.exploded && this.hits === 1; }
+  // Will the next hit (with this ammunition) blow it up? (The kill cam plays those.)
+  explodesOnNext(ap = false) {
+    if (!this.explosive || this.exploded || (this.armored && !ap)) return false;
+    return this.hits + (ap && !this.armored ? 2 : 1) >= this.toExplode;
+  }
 }
 
 export class Hotspots {
-  constructor({ scene, world, player, stealth, masking, audio, fx, hud, arsenal }) {
-    Object.assign(this, { scene, world, player, stealth, masking, audio, fx, hud, arsenal });
+  constructor({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions }) {
+    Object.assign(this, { scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
     this.list = world.hotspots;
-    this.fires = [];              // burning wrecks: smoke columns and flames
     this.ai = null;               // set by main (alarm, repairs, the reinforcement truck)
     this.mission = null;          // set by main (radio objective, kill count)
     this.repairT = 8;
@@ -49,6 +53,7 @@ export class Hotspots {
         world.radio.antenna.visible = false;
         this.mission?.radioDestroyed();
       } });
+    this.add({ kind: 'engine', title: 'STAFF CAR ENGINE', explosive: true, meshes: [world.staffCar.engine], parts: world.staffCar.parts });
   }
 
   add(opts) {
@@ -63,14 +68,15 @@ export class Hotspots {
     if (i >= 0) this.list.splice(i, 1);
   }
 
-  // A bullet struck a weak spot.
-  hit(h, point, dir, distance) {
+  // A bullet struck a weak spot (ap: an armour-piercing round).
+  hit(h, point, dir, distance, ap = false) {
     this.fx.emit(point, dir.clone().negate(), { color: 0xffe0a0, count: 6, speed: 4, size: 0.05, life: 0.25, grow: 1, gravity: -6 });
     this.audio.metalHit(this.player.pos.distanceTo(point));
     if (!h.active) return;
-    h.hits++;
+    if (h.armored && !ap) { this.hud.message(`${h.title} · ARMOURED: USE AP ROUNDS OR A SATCHEL`, ''); return; }
+    h.hits += ap && !h.armored ? 2 : 1;
     if (h.explosive) {
-      if (h.hits === 1) {
+      if (h.hits < h.toExplode) {
         h.broken = true;
         this.hud.message(`${h.title} HIT · SMOKING · ONE MORE SHOT`, '');
         h.onBreak?.(h);
@@ -115,15 +121,17 @@ export class Hotspots {
 
   // ---- explosions ----
   explode(h) {
-    h.exploded = true;
+    if (h.exploded) return;
     const at = h.center();
-    // Fireball, debris and a black smoke column that keeps burning.
-    this.fx.emit(at, new THREE.Vector3(0, 1, 0), { color: 0xfff0c0, count: 6, speed: 4, size: 3.5, life: 0.25, grow: 1.6, gravity: 0 });
-    this.fx.emit(at, new THREE.Vector3(0, 1, 0), { color: 0xff8a30, count: 14, speed: 7, size: 1.8, life: 0.9, grow: 2.2, gravity: 1.5 });
-    this.fx.emit(at, new THREE.Vector3(0, 1, 0), { color: 0x2a2520, count: 14, speed: 11, size: 0.25, life: 1.6, grow: 1, gravity: -9.8 });
-    this.fx.emit(at, new THREE.Vector3(0, 1, 0), { color: 0x24211d, count: 10, speed: 4, size: 2.5, life: 5, grow: 3, gravity: 1.2 });
-    this.fires.push({ at: at.clone(), t: 75, emitT: 0 });
-    // The wreck goes black.
+    this.wreck(h);
+    const name = h.title.replace(' ENGINE', '');
+    this.explosions.explode(at, { radius: h.armored ? 7.5 : 6.5, size: h.armored ? 1.5 : 1, burn: true, heavy: true, label: `${name} DESTROYED` });
+    h.onExplode?.(h);
+  }
+
+  // The wreck goes black (also used when a save restores one).
+  wreck(h) {
+    h.exploded = true;
     for (const m of h.parts ?? h.meshes) {
       if (!m.material) continue;
       m.material = m.material.clone();
@@ -131,30 +139,11 @@ export class Hotspots {
       m.material.map = null;
       m.material.needsUpdate = true;
     }
-    const d = this.player.pos.distanceTo(at);
-    this.audio.explosion(d);
-    this.arsenal.shake = Math.max(this.arsenal.shake ?? 0, Math.max(0, 1.5 - d / 60));
-    // Everyone around hears it: close guards know where it was.
-    this.stealth.noise(at, 200, 'explosion');
-    // Casualties.
-    let kills = 0;
-    for (const s of this.world.soldiers) {
-      if (!s.alive || s.range) continue;
-      const v = s.bodyPosition(new THREE.Vector3()).sub(at);
-      if (v.length() < BLAST_RADIUS) {
-        s.applyHit('torso', { damage: { torso: 999 } }, v.setY(0).normalize());
-        kills++;
-      }
-    }
-    if (d < PLAYER_BLAST) this.player.damage(110 * (1 - d / PLAYER_BLAST), at);
-    if (kills) this.mission?.blastKills(kills);
-    this.hud.message(kills ? `${h.title.replace(' ENGINE', '')} DESTROYED · ${kills} KILLED` : `${h.title.replace(' ENGINE', '')} DESTROYED`, 'head');
-    h.onExplode?.(h);
   }
 
   // ---- per tick ----
   tick(dt) {
-    // Damaged engines smoke; wrecks burn.
+    // Damaged engines smoke (wrecks burn: see explosions.js).
     for (const h of this.list) {
       if (!h.explosive || !h.broken || h.exploded) continue;
       h.smokeT = (h.smokeT ?? 0) - dt;
@@ -163,16 +152,6 @@ export class Hotspots {
         this.fx.emit(h.center(), new THREE.Vector3(0, 1, 0), { color: 0x8a867e, count: 1, speed: 1.2, size: 0.5, life: 3, grow: 4, gravity: 0.5 });
       }
     }
-    for (const f of this.fires) {
-      f.t -= dt;
-      f.emitT -= dt;
-      if (f.t > 0 && f.emitT <= 0) {
-        f.emitT = 0.3;
-        this.fx.emit(f.at, new THREE.Vector3(0, 1, 0), { color: 0x262320, count: 1, speed: 2, size: 1.6, life: 7, grow: 4, gravity: 0.8 });
-        if (f.t > 30) this.fx.emit(f.at, new THREE.Vector3(0, 1, 0), { color: 0xff7a28, count: 1, speed: 1.5, size: 0.7, life: 0.5, grow: 1.5, gravity: 2 });
-      }
-    }
-    this.fires = this.fires.filter(f => f.t > 0);
     // A broken generator: once things are quiet, a guard is sent to fix it.
     const gen = this.list.find(x => x.kind === 'generator');
     if (gen?.broken && this.ai && !this.ai.alarm.on) {

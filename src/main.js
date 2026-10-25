@@ -22,6 +22,10 @@ import { GuardAI } from './ai/guards.js';
 import { Mission } from './mission/mission.js';
 import { Hotspots } from './world/hotspots.js';
 import { Takedown } from './player/takedown.js';
+import { Explosions } from './fx/explosions.js';
+import { Tank } from './world/tank.js';
+import { Items } from './player/items.js';
+import { Saves } from './core/saves.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -69,10 +73,29 @@ arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
 const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud });
-const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal });
+const explosions = new Explosions({ world, player, stealth, audio, fx, hud, arsenal });
+const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
+explosions.hotspots = hotspots;
+explosions.onKills = (n) => mission.blastKills(n);
+const tank = new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots });
+tank.onDestroyed = () => mission.tankDestroyed();
+mission.tank = tank;
+const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
+explosions.traps = items;
+arsenal.items = items;
+search.items = items;
+arsenal.onAmmo = (name) => hud.message(`LOADING ${name.toUpperCase()} ROUNDS`);
+const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio });
+// Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
+const completeObjective = mission.complete.bind(mission);
+mission.complete = (id, message) => {
+  const was = mission.obj(id).done;
+  completeObjective(id, message);
+  if (!was && !mission.done) setTimeout(() => { if (saves.save('auto').ok) hud.message('CHECKPOINT SAVED', ''); }, 1500);
+};
 const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud });
 takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
@@ -92,6 +115,38 @@ mission.onComplete = (sum) => {
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
 document.getElementById('restart').addEventListener('click', () => location.reload());
+
+// Save / load slots in the menu.
+const slotsEl = document.getElementById('slots');
+const SLOT_NAMES = { 1: 'Slot 1', 2: 'Slot 2', 3: 'Slot 3', auto: 'Checkpoint (autosave)', quick: 'Quick save (F5)' };
+function showSlots(mode, toggle = true) {
+  if (toggle && slotsEl.classList.contains('on') && slotsEl.dataset.mode === mode) { slotsEl.classList.remove('on'); return; }
+  slotsEl.dataset.mode = mode;
+  slotsEl.classList.add('on');
+  slotsEl.querySelector('h2').textContent = mode === 'save' ? 'Save game' : 'Load game';
+  const why = mode === 'save' ? saves.canSave('1') : null;
+  slotsEl.querySelector('.why').textContent = why ?? '';
+  const list = slotsEl.querySelector('.list');
+  list.innerHTML = '';
+  for (const { slot, save } of saves.list()) {
+    if (mode === 'save' && (slot === 'auto' || slot === 'quick')) continue;
+    const b = document.createElement('button');
+    const when = save ? new Date(save.savedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '';
+    b.innerHTML = `<span>${SLOT_NAMES[slot]}${save ? ` · ${save.label}` : ' · empty'}</span><small>${when}</small>`;
+    b.disabled = mode === 'save' ? !!why : !save;
+    b.addEventListener('click', () => {
+      if (mode === 'load') { saves.load(slot); return; }
+      const r = saves.save(slot);
+      if (r.ok) { showSlots('save', false); refreshLoadButton(); }
+      slotsEl.querySelector('.why').textContent = r.ok ? `Saved to ${SLOT_NAMES[slot]}.` : r.why;
+    });
+    list.appendChild(b);
+  }
+}
+document.getElementById('save-btn').addEventListener('click', () => showSlots('save'));
+document.getElementById('load-btn').addEventListener('click', () => showSlots('load'));
+const refreshLoadButton = () => document.getElementById('load-btn').classList.toggle('none', !saves.list().some(x => x.save));
+refreshLoadButton();
 
 // Killed: the body falls, the cursor comes back, a click restarts the mission.
 const deathScreen = document.getElementById('death');
@@ -207,9 +262,12 @@ let paused = false;
 
 function tick(dt) {
   if (input.wasPressed('F3')) ai.pathLines.visible = hud.debugOn = !hud.debugOn;
+  if (input.wasPressed('F5')) { const r = saves.save('quick'); hud.message(r.ok ? 'QUICK SAVED' : `CAN'T SAVE: ${r.why.toUpperCase()}`, r.ok ? '' : 'wound'); }
+  if (input.wasPressed('F9')) { if (!saves.load('quick')) hud.message('NO QUICK SAVE YET', 'wound'); }
   if (input.wasPressed('KeyT')) trajLine.visible = !trajLine.visible;
   if (player.dead) { input.keys.clear(); input.buttons.clear(); input.pressed.clear(); }
   player.tick(dt, { aiming: arsenal.aiming });
+  items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
@@ -217,6 +275,8 @@ function tick(dt) {
   masking.update(dt, camera.position);
   stealth.tick(dt);
   ai.tick(dt);
+  tank.tick(dt);
+  explosions.tick(dt);
   mission.tick(dt);
   hotspots.tick(dt);
   // Birdsong in the quiet; a gunshot or the siren silences it for a while.
@@ -287,7 +347,7 @@ function step(realDt, draw = true) {
 
   // Kill slow-mo: drop to 25% speed, then ease back to full speed.
   if (slowmoT > 0) slowmoT = Math.max(0, slowmoT - realDt);
-  const targetScale = slowmoT > 0.2 ? 0.25 : 1;
+  const targetScale = items.wheelOpen ? 0.2 : slowmoT > 0.2 ? 0.25 : 1; // the item wheel slows time too
   timeScale += (targetScale - timeScale) * (1 - Math.exp(-(slowmoT > 0.2 ? 30 : 6) * realDt));
   const dt = realDt * timeScale;
 
@@ -303,7 +363,9 @@ function step(realDt, draw = true) {
   // Look: raw mouse delta, scaled down with zoom so the scope isn't twitchy.
   const m = input.takeMouse();
   const zoomScale = Math.tan(THREE.MathUtils.degToRad(arsenal.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(settings.fov) / 2);
-  player.look(m.x, m.y, settings.sensitivity * zoomScale, settings.invertY);
+  if (items.wheelOpen) items.wheelMouse(m);   // the mouse picks from the wheel instead of turning you
+  else player.look(m.x, m.y, settings.sensitivity * zoomScale, settings.invertY);
+  items.drawWheel();
   arsenal.frame(dt);
 
   // Third person while moving; the rifle scope and binoculars go to the eye.
@@ -354,16 +416,24 @@ function step(realDt, draw = true) {
   const st = stealth.state();
   const ss = search.state(), cs = carry.state(), co = player.climbOption(), cut = ai.sabotageOption(), rad = mission.radioOption();
   const td = takedown.state();
-  const prompts = carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const its = items.state();
+  const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
+  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
-  hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio });
+  hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
+}
+// A load the player asked for (the page was reloaded to rebuild the world from the save).
+const loadedSlot = saves.applyPending();
+if (loadedSlot) {
+  document.querySelector('#menu .sub').textContent = `Loaded: ${SLOT_NAMES[loadedSlot]}`;
+  hud.message('GAME LOADED', '');
 }
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution,
+  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).

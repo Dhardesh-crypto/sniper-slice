@@ -214,7 +214,7 @@ export class Hud {
     }
     g.fillStyle = 'rgba(242,237,225,0.9)';
     g.fillRect(W / 2 - 0.75 * d, H * 0.66, 1.5 * d, H * 0.3);
-    const COLORS = { target: '#ffcf6a', radio: '#8fd0ff', extract: '#8fe08a', papers: '#d9b3ff', waypoint: '#ffe28a', enemy: '#ff4a3d', weakspot: '#ff9a3c' };
+    const COLORS = { target: '#ffcf6a', radio: '#8fd0ff', extract: '#8fe08a', papers: '#d9b3ff', tank: '#ff8a5a', waypoint: '#ffe28a', enemy: '#ff4a3d', weakspot: '#ff9a3c' };
     for (const m of marks) {
       const x = xOf(Math.atan2(m.pos.x - player.pos.x, -(m.pos.z - player.pos.z)));
       if (x === null) continue;
@@ -228,7 +228,7 @@ export class Hud {
     }
   }
 
-  update(dt, { camera, player, arsenal, world, fps, search, waypoint, stealth, mission, hotspots, res }) {
+  update(dt, { camera, player, arsenal, world, fps, search, waypoint, stealth, mission, hotspots, res, items }) {
     const a = arsenal.hudState();
     const el = this.el;
 
@@ -283,6 +283,17 @@ export class Hud {
     el.breath.classList.toggle('exhausted', a.exhausted);
 
     el.weapon.textContent = a.reloading ? 'RELOADING…' : a.name;
+    // The item in hand (Q to change, G to use).
+    if (items) {
+      const box = el.item ?? (el.item = document.getElementById('item'));
+      const key = `${items.name}|${items.count}|${items.charges}`;
+      if (box.dataset.key !== key) {
+        box.dataset.key = key;
+        box.querySelector('b').textContent = items.name;
+        box.querySelector('span').textContent = items.count == null ? '' : `×${items.count}`;
+        box.querySelector('small').textContent = `Q change · G use${items.charges ? ` · K detonate (${items.charges})` : ''}`;
+      }
+    }
     el.mag.innerHTML = `${a.mag}<span>/ ${a.reserve}</span>`;
     el.zero.textContent = a.zero ? `ZERO ${a.zero} m` : '';
 
@@ -335,7 +346,7 @@ export class Hud {
     }
     // Objectives: diamonds in the world with a name and distance.
     if (mission) {
-      const COLORS = { target: '255,207,106', radio: '143,208,255', extract: '143,224,138', papers: '217,179,255' };
+      const COLORS = { target: '255,207,106', radio: '143,208,255', extract: '143,224,138', papers: '217,179,255', tank: '255,138,90' };
       for (const m of mission.markers()) {
         const at = (this.v3 ?? (this.v3 = new THREE.Vector3())).copy(m.pos); at.y += m.height;
         const sp = project(at);

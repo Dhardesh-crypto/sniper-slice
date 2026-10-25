@@ -42,6 +42,15 @@ export const WEAPONS = {
   },
 };
 
+// Rifle ammunition (X switches; a switch reloads the magazine with the new type).
+//   subsonic: quiet (heard at 40 m, not 400 m) but slow, so it drops a lot more and hits softer
+//   ap: armour-piercing: blows an engine in one hit and is the round that hurts the Panzer
+export const AMMO = {
+  standard: { name: 'Standard', short: 'STD', start: 30 },
+  subsonic: { name: 'Subsonic', short: 'SUB', start: 10, muzzleVelocity: 400, noiseRadius: 40, damageScale: 0.85 },
+  ap: { name: 'Armour-piercing', short: 'AP', start: 6, ap: true },
+};
+
 // Binoculars zoom like the rifle scope: the mouse wheel steps between the same levels.
 export const BINOCULARS = { zoomFovs: [7.5, 3.5], zoomNames: ['4×', '8×'] };
 

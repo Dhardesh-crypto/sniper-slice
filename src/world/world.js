@@ -39,6 +39,8 @@ export class World {
     this.siren = compound.siren;
     this.radio = compound.radio;
     this.generatorMesh = compound.generatorMesh;
+    this.tankSpot = compound.tank;
+    this.staffCar = compound.staffCar;
     // Where a guard kneels to restart it: in front of the shed's open side.
     this.generatorStand = new THREE.Vector3(this.generatorPos.x, heightAt(this.generatorPos.x, this.generatorPos.z), this.generatorPos.z - 1.4);
     this.hotspots = [];      // weak spots you can shoot (see src/world/hotspots.js)
@@ -159,7 +161,7 @@ export class World {
     if (hits.length) {
       const h = hits[0];
       const normal = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
-      best = { point: h.point, distance: h.distance, object: h.object, normal, zone: h.object.userData.zone, soldier: h.object.userData.soldier, hotspot: h.object.userData.hotspot };
+      best = { point: h.point, distance: h.distance, object: h.object, normal, zone: h.object.userData.zone, soldier: h.object.userData.soldier, hotspot: h.object.userData.hotspot, trap: h.object.userData.trap };
     }
     const t = intersectTerrain(a, b);
     if (t && (!best || t.distance < best.distance)) {

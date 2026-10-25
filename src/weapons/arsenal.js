@@ -2,7 +2,7 @@
 // the bolt and reloads, binoculars and tagging, and the simulated bullets in flight.
 import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
-import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT } from './defs.js';
+import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO } from './defs.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -28,6 +28,12 @@ export class Arsenal {
         zeroAngles: def.zeros.map(z => solveZeroAngle(def.muzzleVelocity, def.drag, z, SIGHT_HEIGHT)),
       };
     }
+    // Rifle rounds by type; `reserve` reads and writes the pool of the type that's loaded.
+    const rifle = this.weapons.rifle;
+    rifle.ammo = Object.fromEntries(Object.entries(AMMO).map(([k, a]) => [k, a.start]));
+    rifle.loaded = 'standard';
+    rifle.pendingAmmo = null;
+    Object.defineProperty(rifle, 'reserve', { get() { return this.ammo[this.loaded]; }, set(v) { this.ammo[this.loaded] = v; } });
     this.current = 'rifle';
     this.aim = 0;            // 0 hip … 1 fully aimed (scoped)
     this.aiming = false;
@@ -78,6 +84,37 @@ export class Arsenal {
   get scoped() { return this.current === 'rifle' && this.aim > 0.9; }
   get zero() { return this.def.zeros[this.weapon.zeroIndex]; }
   get busy() { return this.reloadT > 0 || this.switchT > 0; }
+  // Can't aim or shoot while climbing, dragging a body, in a takedown, healing or aiming a throw.
+  get handsTied() { const p = this.player; return !!(p.climb || p.carrying || p.locked || p.busyHands); }
+
+  // What the next shot is: the weapon, adjusted for the rifle's loaded ammunition.
+  shotDef() {
+    const def = this.def;
+    if (this.current !== 'rifle') return def;
+    const a = AMMO[this.weapon.loaded];
+    if (!a.muzzleVelocity && !a.ap) return def;
+    const out = { ...def, ammo: this.weapon.loaded, ap: !!a.ap };
+    if (a.muzzleVelocity) out.muzzleVelocity = a.muzzleVelocity;
+    if (a.noiseRadius) out.noiseRadius = a.noiseRadius;
+    if (a.damageScale) out.damage = Object.fromEntries(Object.entries(def.damage).map(([k, v]) => [k, v === 999 ? v : v * a.damageScale]));
+    return out;
+  }
+
+  // X: load the next ammunition type you have rounds of (a reload).
+  switchAmmo() {
+    const w = this.weapons.rifle, types = Object.keys(AMMO);
+    const from = w.pendingAmmo ?? w.loaded;
+    for (let i = 1; i <= types.length; i++) {
+      const next = types[(types.indexOf(from) + i) % types.length];
+      if (next === w.loaded || w.ammo[next] > 0) {
+        if (next === w.loaded && !w.pendingAmmo) return;
+        w.pendingAmmo = next === w.loaded ? null : next;
+        if (w.pendingAmmo) this.beginReload();
+        this.onAmmo?.(AMMO[next].name);
+        return;
+      }
+    }
+  }
 
   // ---- fixed-step simulation ----
   tick(dt) {
@@ -101,13 +138,15 @@ export class Arsenal {
       if (inp.wasPressed('Mouse2')) this.aimLatched = !this.aimLatched;
       if (this.player.sprinting || this.player.climb || this.player.carrying || this.pendingSwitch) this.aimLatched = false;
     } else this.aimLatched = inp.down('Mouse2');
-    this.aiming = this.aimLatched && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && !this.player.locked;
+    this.aiming = this.aimLatched && !this.player.sprinting && !this.busy && !this.handsTied;
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
+    if (inp.wasPressed('KeyX') && this.current === 'rifle' && !this.switchT && !this.handsTied) this.switchAmmo();
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) {
+        if (w.pendingAmmo) { w.ammo[w.loaded] += w.mag; w.mag = 0; w.loaded = w.pendingAmmo; w.pendingAmmo = null; } // unload, then load the new type
         const n = Math.min(def.magazine - w.mag, w.reserve);
         w.mag += n;
         w.reserve -= n;
@@ -144,7 +183,7 @@ export class Arsenal {
     }
     // Fire: left mouse, or Space while aiming (Space climbs when you're not aiming).
     const trigger = inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
-    if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.player.carrying && !this.player.climb && !this.player.locked && this.cooldown <= 0) {
+    if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.handsTied && this.cooldown <= 0) {
       if (w.mag > 0) this.fire();
       else { this.audio.dryFire(); this.cooldown = 0.3; }
     }
@@ -191,7 +230,7 @@ export class Arsenal {
   }
 
   fire() {
-    const w = this.weapon, def = this.def, cam = this.camera;
+    const w = this.weapon, def = this.shotDef(), cam = this.camera;
     const q = cam.quaternion;
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
@@ -269,7 +308,7 @@ export class Arsenal {
     const sim = this.simulate(bullet);
     const hit = sim.hit;
     // A shot that will blow up a vehicle always gets the cam (unless one just played).
-    if (hit?.hotspot?.explodesOnNext()) {
+    if (hit?.hotspot?.explodesOnNext(bullet.def.ap)) {
       if (this.world.time - this.lastKillCam < 6) return null;
       this.lastKillCam = this.world.time;
       return { bullet, ...sim, distance: bullet.origin.distanceTo(hit.point) };
@@ -335,10 +374,12 @@ export class Arsenal {
       const evt = { ...res, distance, soldier: hit.soldier, point: hit.point.clone(), speed: bullet.vel.length(), time: bullet.time };
       this.onHit?.(evt);
       if (res.killed) this.onKill?.(evt);
+    } else if (hit.trap && this.items) {
+      this.items.shot(hit.trap);       // TNT or a satchel: it goes off
     } else if (hit.hotspot && this.hotspots) {
       // A weak spot: the hotspot system decides what breaks or blows up.
       const live = hit.hotspot.active;
-      this.hotspots.hit(hit.hotspot, hit.point, dir, distance);
+      this.hotspots.hit(hit.hotspot, hit.point, dir, distance, !!bullet.def.ap);
       this.onImpactNoise?.(hit.point.clone());
       if (live) { this.stats.hits++; this.onHit?.({ hotspot: hit.hotspot, distance, point: hit.point.clone() }); }
       else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
@@ -469,7 +510,7 @@ export class Arsenal {
     const show = this.scoped && this.camera && (mode === 'always' || (mode === 'breath' && this.holding));
     if (!show) { this.prediction = null; return; }
     if ((this.predictFrame++ & 1) && this.prediction) return;
-    const w = this.weapon, def = this.def, q = this.camera.quaternion;
+    const w = this.weapon, def = this.shotDef(), q = this.camera.quaternion;
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
     const a = w.zeroAngles[w.zeroIndex];
@@ -489,7 +530,7 @@ export class Arsenal {
   hudState() {
     const w = this.weapon;
     return {
-      weapon: this.current, name: this.def.name, mag: w.mag, reserve: w.reserve,
+      weapon: this.current, name: this.def.name + (w.loaded ? ` · ${AMMO[w.pendingAmmo ?? w.loaded].name}` : ''), mag: w.mag, reserve: w.reserve,
       zero: this.def.zeros.length > 1 ? this.zero : null,
       zoomName: this.def.zoomNames[this.zoomIndex], zoomFov: this.def.zoomFovs[this.zoomIndex],
       binocFov: BINOCULARS.zoomFovs[this.binocZoomIndex], binocZoomName: BINOCULARS.zoomNames[this.binocZoomIndex],

@@ -54,7 +54,13 @@ export class Post {
     };
     this.composer.addPass(this.gtao);
 
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.12, 0.4, 8);
+    // Bloom on what's brighter than 8 (the sun, fire), fed only the part above 8 and capped:
+    // the stock pass passes a bright pixel's whole value, and the sun's wide halo (up to
+    // ~28,000) then flooded the screen white whenever you looked toward it.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.12, 0.4, 0);
+    const hp = this.bloom.materialHighPassFilter;
+    hp.fragmentShader = hp.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); texel.rgb = min( max( texel.rgb - vec3( 8.0 ), vec3( 0.0 ) ), vec3( 4.0 ) );');
+    hp.needsUpdate = true;
     this.composer.addPass(this.bloom);
     this.grade = new ShaderPass(GradeShader);
     this.composer.addPass(this.grade);

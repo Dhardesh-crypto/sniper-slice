@@ -16,7 +16,7 @@ export class Input {
       if (e.repeat) return;
       this.keys.add(e.code);
       this.pressed.add(e.code);
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Equal', 'Minus'].includes(e.code)) e.preventDefault();
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Equal', 'Minus', 'F5', 'F9'].includes(e.code)) e.preventDefault();
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => { this.keys.clear(); this.buttons.clear(); });

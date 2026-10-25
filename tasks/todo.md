@@ -262,3 +262,43 @@ crouched one, and only the head while peeking to aim.
 - AO and bloom now run at half the render size (bloom blurs at a quarter): High 43 → 37 ms, Medium 33 → 28 ms in the same conditions; no visible change.
 - Shadow map redrawn every other frame (~2 ms saved).
 - Resolution scaler: the graphics setting is now a ceiling; while you play, average frame time over 1.5 s above 19 ms drops the render scale by 0.25 (down to 1×, 0.75× on Low), below 14 ms twice in a row raises it back. Paused behind the menu or map it holds; single hitches are ignored. F3 shows the current scale.
+
+## Phase 7: Items, explosives, ammo and saving (done 2026-10-25)
+Keys in use: WASD/arrows, Shift, C, Z, Space, B, R, 1, 2, M, E, F, T, V, = / −, F3, Esc, Page Up/Down.
+New: **Q** (hold) item wheel · **G** use/throw/place the selected item · **H** heal · **X** switch rifle ammo · **K** detonate TNT.
+
+1. **Inventory and item wheel**
+   - [x] Inventory: bandages, medkits, grenades, bottles, mines, TNT, satchels, rifle ammo by type. Start loadout, more from searching bodies (and ammo crates).
+   - [x] Hold Q: radial wheel, time slows (SE5); pick an item; G uses it. HUD shows the selected item and count.
+2. **Healing**
+   - [x] Health comes back on its own only up to the next quarter (25/50/75/100), not all the way.
+   - [x] H: bandage (+35, 1.5 s, you can't shoot while bandaging) or a medkit (full, 3 s). Taking a hit interrupts.
+3. **Throwables** (hold G to aim with a dotted arc, release to throw)
+   - [x] Grenade: bounces, 4 s fuse, 5 m kill radius, loud; guards nearby dive or run.
+   - [x] Bottle: shatters where it lands; guards hear it (25 m) and go to investigate, a distraction.
+4. **Whistle** (a wheel item, unlimited)
+   - [x] A noise around you (30 m) that brings the nearest guard to investigate: lure him into a trap or a takedown.
+5. **Traps**
+   - [x] Mine: placed at your feet; a guard (or a vehicle) stepping on it sets it off. Shown on the map.
+   - [x] TNT: placed anywhere, detonated with K (remote) or by a shot; bigger blast.
+   - [x] Guards can spot a mine or TNT in the open and become suspicious.
+6. **Ammo types** (X cycles)
+   - [x] Standard: as now.
+   - [x] Subsonic (suppressed): heard at 40 m instead of 400 m, slower and drops more, less damage at range.
+   - [x] Armour-piercing: goes through engine blocks and a tank's grille: one AP shot to an engine counts as two.
+7. **Vehicles and satchels**
+   - [x] A staff car (Kübelwagen) parked by the villa, with an engine weak spot.
+   - [x] A Panzer IV parked in the yard: turret turns toward alerts and fires a shell at you if it spots you (lethal blast). Only a satchel on its engine deck or AP rounds into its grille can destroy it. Optional objective "Destroy the Panzer".
+   - [x] Satchel: placed on a vehicle (or anywhere), 10 s fuse or K to detonate; wrecks any vehicle.
+8. **Save and load**
+   - [x] What's saved: player (position, stance, health, inventory, ammo), every soldier (alive or dead, position, pose, awareness, searched/hidden), weak spots and vehicles, traps placed, alarm, siren and radio state, mission objectives, stats and time, masking timers, waypoint.
+   - [x] Manual saves in 3 slots from the pause menu, plus an autosave at each objective. No manual saving while guards are in combat with you (as SE5).
+   - [x] Load from the pause menu or the main menu; restore rebuilds the world from the save (dead soldiers lie where they fell). Versioned JSON in localStorage, written atomically.
+**Check:** script each item; full mission with a save mid-way, reload, finish; save/load round-trips compared field by field.
+
+### Phase 7 review (2026-10-25)
+- Panzer: Higgsfield `sam_3_3d` from a gpt_image_2_5 reference (1.25 credits; the textured Meshy route was 38, more than the balance). One mesh, 29k triangles; the turret and gun are cut out at load by where triangles sit (above the deck at y 0.08, inside the turret ring, or along the gun), so the turret traverses. Gun end measured from the geometry (+z end is 4 cm wide). Scale 7.5.
+- Explosions are one module (`src/fx/explosions.js`): fireball, debris, kill radius (walls block it), hurt radius, noise (close guards alerted toward the blast), burning wrecks, chain reactions to engines and placed charges.
+- Not done: guards don't notice placed mines/TNT; the whistle brings every guard within 28 m, not just the nearest; guards don't dive away from grenades; no throwing/placing animation.
+- Also fixed: looking toward the sun washed the screen white (the bloom passed the sun's whole ~28,000 brightness); the bloom now takes only what's above 8, capped at 4.
+- Verified by script: wheel pick by mouse direction; grenade arc landed 0.5 m from a guard and killed him; bottle and whistle lures (guards investigate); a patrolling guard walked onto a mine; TNT with K killed both gate guards; medkit/bandage, interrupted by a hit, regen only to the next quarter; ammo switching, subsonic heard at 40 m vs 400 m; AP one-shots the staff car; standard rounds ping off the Panzer, 2 AP hits or a satchel (10.5 s) destroy it (objective done); the Panzer turret laid on and fired every 9 s once you were spotted; save → load round trip identical (player, kit, traps, soldiers and their death poses, wrecks, tags, alarm, objectives, waypoint).

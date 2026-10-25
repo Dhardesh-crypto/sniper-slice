@@ -26,6 +26,7 @@
       <div class="hr"><span id="heart">♥</span> <span id="heart-text">74</span> <small>BPM</small></div>
       <div id="breath"><div id="breath-fill"></div></div>
     </div>
+    <div id="item"><b></b><span></span><small></small></div>
     <div id="ammo">
       <div id="weapon-name"></div>
       <div id="mag"></div>
@@ -53,7 +54,8 @@
         routine: the villa terrace, his field radio at the truck, the yard. Kill him, then get back
         to the hill you started from. Wreck his radio first and no help can be called; his papers
         are worth taking. Use the planes, the artillery and the generator to cover your shots.</p>
-      <div class="buttons"><button id="play">Click to play</button><button id="restart" class="ghost">Restart mission</button></div>
+      <div class="buttons"><button id="play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button></div>
+      <div id="slots"><h2></h2><div class="list"></div><p class="why"></p></div>
       <div class="cols">
         <div>
           <h2>Settings</h2>
@@ -103,10 +105,16 @@
             <dt>E (hold)</dt><dd>Search a body for supplies</dd>
             <dt>F</dt><dd>Knife takedown (behind an unalerted guard, or from hiding in tall grass) · drag / drop a body</dd>
             <dt>E (hold, at the siren)</dt><dd>Cut the alarm wire</dd>
+            <dt>Q (hold)</dt><dd>Item wheel: grenade, bottle, whistle, mine, TNT, satchel, bandage, medkit</dd>
+            <dt>G</dt><dd>Use the item (hold to aim a throw, release to throw)</dd>
+            <dt>H</dt><dd>Heal (bandage, or a medkit when badly hurt)</dd>
+            <dt>K</dt><dd>Detonate TNT and satchels</dd>
+            <dt>X</dt><dd>Switch rifle ammo: standard, subsonic (quiet), armour-piercing</dd>
             <dt>Weak spots</dt><dd>Shoot the siren horn, the generator, or a truck's engine (2 hits: it explodes). Tag them with B</dd>
             <dt>T</dt><dd>Show last bullet's path</dd>
             <dt>Right mouse (pistol)</dt><dd>Aim over the shoulder</dd>
             <dt>Click / Space</dt><dd>Skip the kill cam</dd>
+            <dt>F5 / F9</dt><dd>Quick save / quick load (on a Mac keyboard: fn + F5 / F9)</dd>
             <dt>F3</dt><dd>Debug info</dd>
           </dl>
         </div>

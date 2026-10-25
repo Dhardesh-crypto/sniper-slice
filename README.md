@@ -28,6 +28,11 @@ npm run dev    # then open the URL Vite prints
 - **Weak spots:** shoot the siren horn, the generator, or a truck's engine (two hits: it explodes).
 - **Knife takedowns:** sneak up behind a guard and press F, or ambush one who comes too close to your
   hiding spot in the grass (Higgsfield thrust and grabbed-and-fall clips).
+- **Kit:** an item wheel (hold Q) with grenades, bottles to distract, a whistle to lure, mines,
+  remote TNT, satchel charges, bandages and medkits; three rifle ammo types (standard, subsonic, AP).
+- **Vehicles:** a Panzer IV (Higgsfield model) that shells you when it sees you, a staff car and trucks;
+  shoot engines, or plant a satchel.
+- **Saving:** three save slots and checkpoint autosaves in the pause menu, plus quick save / load (F5 / F9).
 - **Moving around:** third-person camera, crouch behind cover, climb walls and ladders, tower stairs.
 
 ## Controls
@@ -46,6 +51,12 @@ npm run dev    # then open the URL Vite prints
 | R | Reload |
 | 1 / 2 | Rifle / suppressed pistol |
 | E (hold) | Search bodies, cut the alarm wire, wreck the radio |
+| Q (hold) | Item wheel |
+| G | Use the item (hold to aim a throw, release to throw) |
+| H | Heal |
+| K | Detonate TNT and satchels |
+| X | Switch rifle ammo |
+| F5 / F9 | Quick save / quick load |
 | F | Knife takedown (behind an unalerted guard, or from hiding in tall grass) · drag / drop a body |
 | M | Map |
 | Esc | Pause |

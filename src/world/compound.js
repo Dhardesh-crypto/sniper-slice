@@ -239,6 +239,32 @@ export function buildCompound(scene) {
   for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
   const siren = { pos: new THREE.Vector3(sx, y, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, y, sz + 0.9) };
 
+  // A Panzer IV parked in the yard, gun toward the gate. The model is added by vehicles.js;
+  // this invisible box is its body for collision, bullets and the guards' paths.
+  const tank = { pos: new THREE.Vector3(cx - 20, y, cz + 17), yaw: -Math.PI / 2, length: 5.7, width: 3.7, height: 2.0 };
+  const tankBox = new THREE.Mesh(new THREE.BoxGeometry(tank.length, tank.height, tank.width), new THREE.MeshBasicMaterial({ visible: false }));
+  tankBox.position.set(tank.pos.x + 0.6, y + tank.height / 2, tank.pos.z);
+  b.group.add(tankBox);
+  b.addSolid(tankBox);
+  tank.proxy = tankBox;
+
+  // The Oberst's staff car (a Kübelwagen) by the villa. Its engine is at the back: a weak spot.
+  const carMat = new THREE.MeshStandardMaterial({ color: 0x6b6a4a, roughness: 0.75, metalness: 0.15 });
+  const carDark = new THREE.MeshStandardMaterial({ color: 0x1d1e1b, roughness: 0.8 });
+  const kx = cx + 21.5, kz = cz - 6;                        // nose toward -z (north)
+  const car = [
+    b.box(1.6, 0.75, 3.4, carMat, kx, y + 0.35, kz),         // body tub
+    b.box(1.5, 0.12, 1.0, carMat, kx, y + 1.1, kz - 1.15, { solid: false }), // bonnet slope
+  ];
+  const carEngine = b.box(1.5, 0.55, 0.85, carMat, kx, y + 1.0, kz + 1.25); // rear engine deck
+  car.push(carEngine);
+  b.box(1.45, 0.45, 0.04, M.window, kx, y + 1.1, kz - 0.55, { solid: false }); // windscreen
+  for (const [dx, dz] of [[-0.78, -1.2], [0.78, -1.2], [-0.78, 1.15], [0.78, 1.15]]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.22, 14).rotateZ(Math.PI / 2), carDark);
+    w.position.set(kx + dx, y + 0.34, kz + dz); w.castShadow = true; b.group.add(w); car.push(w);
+  }
+  const staffCar = { engine: carEngine, parts: car };
+
   // Crates and sandbag nests for cover
   for (const [dx, dz, s] of [[-24, 6, 1.1], [-23, 7.4, 0.9], [-4, -20, 1.2], [14, 18, 1], [15.2, 18.3, 0.8]]) {
     b.box(s, s, s, M.crate, cx + dx, y, cz + dz);
@@ -277,7 +303,7 @@ export function buildCompound(scene) {
   add(10, 0.5, Math.PI * 0.1, { officer: true, name: 'Officer', y: y + 0.5 });
   add(-15, -6, 2.6, { name: 'Barn guard' });
 
-  return { solids: b.solids, boxes: b.boxes, soldiers, generator: generator.position.clone(), generatorMesh: generator, towerTops, ladders, siren, radio };
+  return { solids: b.solids, boxes: b.boxes, soldiers, generator: generator.position.clone(), generatorMesh: generator, towerTops, ladders, siren, radio, tank, staffCar };
 }
 
 function distanceSign(text) {
