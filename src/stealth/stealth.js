@@ -220,6 +220,9 @@ export class Stealth {
       const to = bp.clone().sub(s.root.position).setY(0).normalize();
       if (to.dot(facing) < Math.cos(THREE.MathUtils.degToRad(70)) && d > 4) continue;
       const eye = s.headPosition(new THREE.Vector3());
+      // A body lying on a tower platform or a roof can't be seen from the ground below: only
+      // from about the same height (another tower) or from above.
+      if (bp.y - eye.y > 1.2 && (bp.y - eye.y) / Math.max(1, Math.hypot(bp.x - eye.x, bp.z - eye.z)) > 0.08) continue;
       const hit = this.world.raycastSegment(eye.clone().addScaledVector(bp.clone().sub(eye).normalize(), 0.4), bp.clone().add(new THREE.Vector3(0, 0.2, 0)));
       if (hit && hit.soldier !== b) continue;
       b.found = true;

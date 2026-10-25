@@ -368,6 +368,7 @@ Built in steps, one commit per step, each playable when it lands.
 
 Decisions (2026-10-25): missions unlock in order (the test armoury opens all); safes open with a found
 combination or by slow, noisy cracking; new maps about 1 km across.
+- Bodies on raised floors (tower platforms, upper storeys, roofs) are only noticed by guards at about the same height or above (more than 1.2 m above the eye and steeper than 1 in 12 is hidden). A silent kill on a tower no longer alerts the yard. Verified: both tower guards killed, nobody alerted in 20 s each.
 
 ### 9A. Engine (everything after builds on it)
 - [ ] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and

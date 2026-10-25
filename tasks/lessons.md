@@ -28,3 +28,10 @@ as yes: alerted guards got your exact position, went into combat and shot you wh
 **Pattern:** separate "noticing something" from "has spotted you". Decide what hiding guarantees (here:
 invisible beyond a short range, unspottable unless a clear look or point blank) and make every consumer
 (AI targeting, firing, last-seen position, alarm) use the spotted flag, not the raw rate.
+
+## Line of sight isn't visibility (2026-10-25)
+- A guard on the ground "saw" a body lying on an 8 m tower platform through the railing gaps, so a
+  silent De Lisle kill alerted the yard. A raycast that reaches something doesn't mean a person
+  could notice it: something lying flat on a raised floor is hidden from below.
+- **Rule:** when adding a perception check, ask what a person at that height and angle would really
+  see, not only whether a ray gets through.
