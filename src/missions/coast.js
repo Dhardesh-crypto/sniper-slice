@@ -14,7 +14,8 @@ import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
-import { propModel } from '../world/props.js';
+import { vehicleModel } from '../world/vehicle-models.js';
+import { propModel, dressProps } from '../world/props.js';
 
 const Y = 45, BEACH = 3, WATER = 0;
 const GULLY_X = -260, LADDER_X = 120;
@@ -58,6 +59,9 @@ function heightAt(x, z) {
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
+  // Dusk before the landings: a low sun in the west under heavy cloud, haze over the sea.
+  light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95 },
+  fog: { color: 0xa6adb2, near: 180, far: 1100 },
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 160 }, start: START, navHalf: 320, waterLevel: WATER,
   maxSlope: 0.9,
   navBlocked: (x, z) => { const d = z - zc(x); return (d < 15 || (Math.abs(x - GULLY_X) < 14 && d < 95)) && slopeAt(x, z) > 0.9; },   // the cliffs and the gully's walls
@@ -226,12 +230,32 @@ function site(scene, world) {
   add(60, 64, 0, { name: 'Barracks guard' });
   add(-60, ROAD_Z - 4, Math.PI / 2, { name: 'Road guard', stance: 'alert' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
     hotspotDefs, radars, casemates, bunker, hut,
   };
+}
+
+// Set dressing: vehicles by the bunker, stores behind the casemates, sandbags along the edge, wire
+// on the beach, the barracks' kitchen and tents, a gun on the approach, boats in the cove, poles
+// along the road.
+function dressing() {
+  const poles = [-400, -360, -320, -280, -240, -200, -160, -120].map(x => ['pole', x, ROAD_Z + 6]);
+  return [
+    ...poles, ['signpost', -46, ROAD_Z - 6, 0.3],
+    ['truck', -62, 40, Math.PI / 2], ['car', -6, 46, 0], ['motorcycle', -15, 42, 0.4],
+    ...CASEMATES.map(c => ['supplies', c.x - 4, c.z + 10, 0.4]),
+    ...[-200, -80, 20, 140].map(x => ['sandbags', x, zc(x) + 5, 0]),
+    ...[-200, -170, -140, -110, -80, -50, -20, 10, 40, 70].map(x => ['wire', x, zc(x) - 30, 0]),
+    ['kitchen', 40, 82, 0], ['tent', 86, 92], ['tent', 98, 96, 0.3], ['pak40', -60, 0, Math.PI / 2],
+    ['mgNest', GULLY_X + 10, zc(GULLY_X) + 100], ['searchlight', -100, zc(-100) + 7, 0.4],
+    ['fishingBoat', START.x + 9, START.z + 5, 0.4], ['fishingBoat', START.x - 12, START.z + 2, -0.3],
+  ];
 }
 
 // ---- what's to be found ----
@@ -324,5 +348,5 @@ const briefing = `
   <p class="brief">The cliffs can't be climbed: go up the gully at the west end of the cove, or the iron ladder below the lighthouse,
     where a lookout stands on the gallery. Down on the beach, the surf covers your shots.</p>`;
 
-export default { id: 'radar', props: ['freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator'],
+export default { id: 'radar', props: ['freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost'],
   subtitle: 'Operation Sea Wall · Ligurian coast, 1944', map, site, def, intel, briefing };

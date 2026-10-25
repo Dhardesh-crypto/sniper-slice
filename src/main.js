@@ -14,6 +14,7 @@ import { Hud } from './ui/hud.js';
 import { Post } from './core/post.js';
 import { loadAssets, assets } from './world/characters.js';
 import { loadProps, dressSite } from './world/props.js';
+import { usePhotoTextures } from './world/textures.js';
 import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
@@ -88,6 +89,7 @@ const audio = new Audio();
 audio.volume = settings.volume;
 const world = new World(scene, renderer, M.site);
 dressSite(world);
+await usePhotoTextures(scene);                   // the photographs over the drawn textures
 const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);

@@ -10,7 +10,11 @@ import { buildHorizon } from './horizon.js';
 // Late-afternoon sun, about 24° up, low enough for long shadows and warm light.
 export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair treads, the terrace)
 
-const SUN_DIR = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(66), THREE.MathUtils.degToRad(215));
+// A map's own light and weather (all optional; these are the defaults): the sun's angle from the
+// zenith and its compass bearing in degrees, its colour and strength, the sky's haze, the clouds,
+// the sky-and-ground fill, and the exposure.
+const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
+  hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85 };
 
 export class World {
   // site: the mission's builder, (scene) => { solids, boxes, soldiers, spawn, ladders, … }.
@@ -88,21 +92,24 @@ export class World {
 
   setupSkyAndLight(renderer) {
     const scene = this.scene;
+    const L = { ...LIGHT, ...activeMap().light };
+    this.sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(L.zenith), THREE.MathUtils.degToRad(L.azimuth));
+    renderer.toneMappingExposure = L.exposure;
     const sky = new Sky();
     sky.scale.setScalar(4000);
     const u = sky.material.uniforms;
-    u.turbidity.value = 5;
-    u.rayleigh.value = 1.6;
+    u.turbidity.value = L.turbidity;
+    u.rayleigh.value = L.rayleigh;
     u.mieCoefficient.value = 0.005;
     u.mieDirectionalG.value = 0.82;
     // Drifting fair-weather clouds (the shader's own cloud layer; `time` advances in tick).
-    u.cloudCoverage.value = 0.48;
+    u.cloudCoverage.value = L.clouds;
     u.cloudDensity.value = 0.5;
     u.cloudScale.value = 0.00022;
     u.cloudSpeed.value = 0.00003;
     u.cloudElevation.value = 0.55;
     this.sky = sky;
-    u.sunPosition.value.copy(SUN_DIR);
+    u.sunPosition.value.copy(this.sunDir);
     scene.add(sky);
 
     // Environment lighting from the sky itself.
@@ -110,14 +117,14 @@ export class World {
     const envScene = new THREE.Scene();
     envScene.add(sky.clone());
     scene.environment = pmrem.fromScene(envScene, 0, 1, 5000).texture;
-    scene.environmentIntensity = 0.22;
+    scene.environmentIntensity = L.env;
     pmrem.dispose();
 
     const fog = activeMap().fog;          // a misty map brings the fog in close
     scene.fog = fog?.density ? new THREE.FogExp2(fog.color, fog.density) : new THREE.Fog(fog?.color ?? 0xb9c6cc, fog?.near ?? 320, fog?.far ?? 1600);
-    scene.add(new THREE.HemisphereLight(0xc9dbea, 0x6a5232, 0.5));
+    scene.add(new THREE.HemisphereLight(L.hemiSky, L.hemiGround, L.hemi));
 
-    const sun = new THREE.DirectionalLight(0xffe0b0, 2.7);
+    const sun = new THREE.DirectionalLight(L.sun, L.sunIntensity);
     sun.castShadow = true;
     sun.shadow.mapSize.set(4096, 4096);
     const c = sun.shadow.camera;
@@ -134,7 +141,7 @@ export class World {
     const fx = Math.round(point.x / snap) * snap, fz = Math.round(point.z / snap) * snap;
     const fy = heightAt(fx, fz);
     this.sun.target.position.set(fx, fy, fz);
-    this.sun.position.set(fx, fy, fz).addScaledVector(SUN_DIR, 300);
+    this.sun.position.set(fx, fy, fz).addScaledVector(this.sunDir, 300);
   }
 
   updateWind() {

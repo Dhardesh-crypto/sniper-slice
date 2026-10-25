@@ -17,7 +17,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { propModel, clipAbove } from '../world/props.js';
+import { propModel, clipAbove, dressProps } from '../world/props.js';
 
 const Y = 20;                                    // the airfield's level
 const START = { x: 330, z: 345 };
@@ -47,6 +47,8 @@ const inTaxi = (x, z) => (Math.abs(z - TAXI_Z) < 8 && x > -268 && x < 208) || ((
 const inApron = (x, z) => x > -130 && x < 130 && z > 78 && z < 175;
 
 const map = {
+  // Dawn after the night's flying: the sun just up in the east, cold blue shadows.
+  light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95 },
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 150 }, start: START, navHalf: 300,
   heightAt,
   roadCenterZ: (x) => (x <= 10 ? ROAD_Z : NaN),
@@ -280,12 +282,29 @@ function site(scene, world) {
   add(wx, wz - 0.3, Math.PI * 0.75, { y: wtop, name: 'Tower lookout', stance: 'alert', look: 'guardCamo' });
   add(-150, 162, 0, { name: 'Mess guard' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
     hotspotDefs, planes, bowsers, tower, mess, radar, runup,
   };
+}
+
+// Set dressing: trucks and a staff car on the apron, motorcycles by the tower, the ground crew's
+// tents and kitchen, a halftrack and sentry at the gate, stores by the hangars, a gun by the runway,
+// poles along the road.
+function dressing() {
+  const poles = [-400, -360, -320, -280, -240, -200, -160, -120, -80].map(x => ['pole', x, ROAD_Z + 6]);
+  return [
+    ...poles, ['signpost', -8, ROAD_Z - 6, 0.3],
+    ['truck', -20, 165, 0], ['truck', 112, 166, 0], ['car', 56, 98, 0], ['motorcycle', 30, 100, 0.4], ['motorcycle', 33, 103, 0.2],
+    ['tent', -200, 150], ['tent', -212, 165], ['tent', -190, 172, 0.3], ['kitchen', -133, 182, 0],
+    ['halftrack', 14, 188, 0], ['sentryBox', -8, 195, 0], ['mgNest', -22, 188], ['sandbags', 54, -126, 0], ['sandbags', 66, -126, 0],
+    ['supplies', -82, 162], ['supplies', -118, 160, 0.5], ['pak40', 300, 42, Math.PI], ['wire', -150, -206, 0], ['wire', 120, -206, 0],
+  ];
 }
 
 // ---- what's to be found ----
@@ -385,5 +404,5 @@ const briefing = `
   <p class="brief">The field is flat and open; the fence is cut on the north side and the east side. When the mechanics run an engine
     up on the apron, nobody near the hangars hears a shot.</p>`;
 
-export default { id: 'airfield', props: ['bf110', 'ju88', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'watchtower', 'generator'],
+export default { id: 'airfield', props: ['bf110', 'ju88', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'watchtower', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost'],
   subtitle: 'Operation Night Owl · Lombardy, 1944', map, site, def, intel, briefing };

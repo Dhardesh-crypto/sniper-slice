@@ -13,7 +13,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { hasProp, propModel, clipAbove } from '../world/props.js';
+import { hasProp, propModel, clipAbove, dressProps } from '../world/props.js';
 
 const LODGE = { x: 95, z: -45 }, CAMP = { x: -140, z: 52 }, START = { x: 330, z: 300 }, MEADOW = { x: -10, z: 190 };
 const FB = 200;                                  // the firebreak runs north–south along x = 200
@@ -74,6 +74,8 @@ const NEEDLES = new THREE.Color(0x4a3a28);
 const inFirebreak = (x, z, m = 0) => Math.abs(x - FB) < 8 + m && Math.abs(z) < 470;
 
 const map = {
+  // A misty autumn morning: a weak sun low in the east.
+  light: { zenith: 72, azimuth: 115, sun: 0xffe2c4, sunIntensity: 1.7, turbidity: 9, clouds: 0.7, hemi: 0.65, hemiSky: 0xc4ccc8, env: 0.28 },
   half: 500, playHalf: 470, focus: { x: LODGE.x, z: LODGE.z, r: 60 }, start: START, navHalf: 285,
   fog: { color: 0xb6bfbd, density: 0.008 },          // mist: half gone at 100 m, nearly all at 200 m
   canopyShade: true,
@@ -314,6 +316,9 @@ function site(scene) {
   add(FB, -160, Math.PI, { name: 'Firebreak patrol' });
   add(mx + 2, mz + 4, 0, { name: 'Meadow sentry' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
@@ -321,6 +326,19 @@ function site(scene) {
     vehicles: [{ title: 'FUEL TRUCK ENGINE', engine: tankerEngine, parts: [tanker.userData.mesh] }],
     hotspotDefs, lodge, hut, hay, dumps, stands: STANDS,
   };
+}
+
+// Set dressing: the camp's tents and kitchen, a truck on the road, the lodge's motorcycle and
+// stores, haystacks and a cart in the meadow, poles and a signpost along the road.
+function dressing() {
+  const poles = [-420, -380, -340, -300, -260, -220].map(x => ['pole', x, roadZ(x) + 6]);
+  return [
+    ...poles, ['signpost', -112, roadZ(-112) + 5, 0.5],
+    ['tent', -186, 50, Math.PI / 2], ['tent', -186, 38, Math.PI / 2], ['kitchen', -126, 40, 0.3], ['truck', -150, roadZ(-150) + 7, Math.PI / 2],
+    ['supplies', -132, 72], ['drums', -105, 45, 0.4],
+    ['motorcycle', 74, -24, 0.5], ['supplies', 112, -23], ['sandbags', 78, -58, 0], ['halftrack', 30, roadZ(30) + 8, Math.PI / 2],
+    ['haystack', -36, 196], ['haystack', 6, 176], ['cart', 12, 202, 0.6], ['well', -24, 178],
+  ];
 }
 
 // ---- what's to be found ----
@@ -412,4 +430,4 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

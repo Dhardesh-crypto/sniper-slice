@@ -2,7 +2,9 @@
 // the site are the original ones (terrain.js, compound.js); this adds what's to be found in the
 // Oberst's villa: four documents (one gives the safe's combination; the Oberst carries it too)
 // and his office safe with his orders.
-import { VINEYARD_MAP } from '../world/terrain.js';
+import { VINEYARD_MAP, heightAt, roadCenterZ } from '../world/terrain.js';
+import { dressProps } from '../world/props.js';
+import { vehicleModel } from '../world/vehicle-models.js';
 import { buildCompound, buildRange } from '../world/compound.js';
 export const VINEYARD_SAFE = { id: 'oberst-safe', name: "THE OBERST'S SAFE", combination: '18 – 04 – 37' };
 
@@ -53,15 +55,35 @@ export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission
   mission.documentsTotal = 6;
 }
 
+// Set dressing: a sentry box, sandbags and a motorcycle at the west gate, vehicles parked outside,
+// haystacks and a cart in the fields, a well and a field kitchen in the yard, a gun on the east
+// side, telegraph poles and a signpost along the road.
+function dressing() {
+  const poles = [-30, -70, -110, -150, -190, -230].map(x => ['pole', x, roadCenterZ(x) + 7]);
+  return [
+    ...poles, ['signpost', -20, roadCenterZ(-20) + 5, 0.3],
+    ['sentryBox', -19, -40, Math.PI / 2], ['sandbags', -18.5, -20, Math.PI / 2], ['motorcycle', -22, -24, 0.4],
+    ['truck', -35, -18, Math.PI / 2], ['halftrack', -36, -31, Math.PI / 2], ['mgNest', -21, -46],
+    ['haystack', 65, 20], ['haystack', 72, 30], ['haystack', 60, 46], ['cart', 55, 10, 0.5],
+    ['barrels', -5, -33, 0], ['well', 32, -12], ['kitchen', 42, -51, 0], ['supplies', -6, -9],
+    ['pak40', 58, -30, Math.PI],
+  ];
+}
+
 export default {
   id: 'vineyard',
-  props: ['generator', 'watchtower'],
+  props: ['generator', 'watchtower', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
-  map: VINEYARD_MAP,
+  map: {
+    ...VINEYARD_MAP,
+    // Late morning in Tuscany: high, warm sun through a light haze.
+    light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4 },
+  },
   // The compound and the firing range by the start hill.
   site(scene) {
     const c = buildCompound(scene), r = buildRange(scene);
-    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids], boxes: [...c.boxes, ...r.boxes], spawn: r.spawn };
+    const boxes = [...c.boxes, ...r.boxes], d = dressProps(scene, dressing(), heightAt, boxes, vehicleModel);
+    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...d.solids], boxes: [...boxes, ...d.boxes], spawn: r.spawn };
   },
   def: {},            // the original objectives (see mission.js)
   intel: placeVineyardIntel,

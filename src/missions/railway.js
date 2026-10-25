@@ -16,7 +16,8 @@ import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
-import { hasProp, propModel } from '../world/props.js';
+import { vehicleModel } from '../world/vehicle-models.js';
+import { hasProp, propModel, dressProps } from '../world/props.js';
 
 const Y = 10;                                   // the line's level
 const START = { x: 330, z: 300 };
@@ -43,6 +44,8 @@ function heightAt(x, z) {
 }
 
 const map = {
+  // An overcast noon on the plain: soft light, faint shadows.
+  light: { zenith: 42, azimuth: 200, sun: 0xfff0e0, sunIntensity: 1.5, turbidity: 9, rayleigh: 1.2, clouds: 0.85, hemi: 0.8, hemiSky: 0xd0d6dc, env: 0.32, exposure: 0.92 },
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280,
   heightAt,
   roadCenterZ: (x) => (x <= 20 ? ROAD_Z : NaN),
@@ -267,6 +270,9 @@ function site(scene, world) {
   add(-200, ROAD_Z + 3, Math.PI / 2, { name: 'Checkpoint', look: 'guardSergeant' });
   add(100, -20, -Math.PI / 2, { name: 'Crossing patrol' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, towerTops,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
@@ -381,6 +387,20 @@ function buildTrain(scene, hidden, steel) {
   t.setFront(680);
   g.visible = false;
   return t;
+}
+
+// Set dressing: vehicles in the forecourt, stores on the platform, a sentry by the signal box, the
+// telegraph poles along the line, a Tiger waiting in the yard, a gun at the crossing.
+function dressing() {
+  const poles = [-400, -360, -320, -280, -240, 120, 160, 200, 240, 280, 320].map(x => ['pole', x, -9]);
+  return [
+    ...poles, ['signpost', -30, -44, 0.3],
+    ['truck', -18, -30, Math.PI / 2], ['truck', 18, -30, Math.PI / 2], ['car', -25, -33, 0], ['motorcycle', 8, -26, 0.4], ['kitchen', 26, -45, 0],
+    ['supplies', 32, -20], ['supplies', -40, -20, 0.5], ['barrels', 62, 23, 0],
+    ['sentryBox', 70, -7, 0], ['sandbags', 86, -4, Math.PI / 2],
+    ['tiger', -80, 33, Math.PI / 2], ['halftrack', 100, 31, Math.PI / 2], ['pak40', 190, 16, Math.PI],
+    ['wire', -100, 46, 0], ['wire', -40, 46, 0],
+  ];
 }
 
 // ---- what's to be found ----
@@ -542,4 +562,4 @@ const briefing = `
   <p class="brief">If the train gets away with the gun, the mission is lost. A moving train is loud: it covers your shots.
     The ground round the junction is open; a lookout stands on the water tower.</p>`;
 
-export default { id: 'railway', props: ['locomotive', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
+export default { id: 'railway', props: ['locomotive', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };

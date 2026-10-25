@@ -13,7 +13,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { propModel } from '../world/props.js';
+import { propModel, dressProps } from '../world/props.js';
 
 const F = { x: 80, z: -60 };                  // the town centre (the piazza)
 const START = { x: -300, z: 300 };             // the ridge you start from
@@ -36,6 +36,8 @@ const roadZ = (x) => F.z + Math.sin((x - F.x) * 0.011) * 26 * smoothstep(-80, -2
 const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Math.max(Math.abs(z - F.z) - HZ - 2, 0));
 
 const map = {
+  // Late afternoon: a low golden sun from the west, long shadows down the streets.
+  light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
   half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 130,
   // The hilltop is flattened inside the walls and falls away outside them.
   heightAt(x, z) { return lerp(H, base(x, z), smoothstep(0, 40, outside(x, z))); },
@@ -300,6 +302,9 @@ function site(scene) {
   const sentryRoof = roofs.find(r => r.flat && !r.hb && r.cz > F.z + 40 && r.cx > F.x + 10) ?? roofs.find(r => r.flat && !r.hb);
   if (sentryRoof) add(sentryRoof.cx - F.x, sentryRoof.cz - F.z, 0, { y: sentryRoof.top, name: 'Roof sentry', stance: 'alert', look: 'guardCamo' });
 
+  const dressed = dressProps(scene, dressing(), map.heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren,
     spawn: new THREE.Vector3(START.x, map.heightAt(START.x, START.z), START.z),
@@ -307,6 +312,21 @@ function site(scene) {
     vehicles: [{ title: 'TRUCK ENGINE', engine: truckEngine, parts: [truck.userData.mesh] }],
     hall, church, walkIns, towerTop: new THREE.Vector3(T[0], TOP, T[1]), towerTops: [new THREE.Vector3(T[0], TOP, T[1])],
   };
+}
+
+// Set dressing: carts and barrels in the streets, a well, sentry boxes at the gates, the road's
+// telegraph poles and signpost, haystacks and wire outside the walls.
+function dressing() {
+  const poles = [-20, -60, -100, -140, -180].map(x => ['pole', x, roadZ(x) + 6]);
+  return [
+    ...poles, ['signpost', -6, -70, 0.4],
+    ['well', 110, -70], ['cart', 60, -45, 0.4], ['cart', 125, -55, -0.6], ['barrels', 40, -80, Math.PI / 2], ['barrels', 128, -90, 0],
+    ['motorcycle', 100, -38, 0.3], ['truck', -14, -72, Math.PI / 2], ['halftrack', -8, -50, Math.PI / 2], ['kitchen', 100, -82, 0.2],
+    ['supplies', 66, -24],
+    ['sentryBox', 6, -68, Math.PI / 2], ['sentryBox', 56, -129, 0], ['sentryBox', 127, 8, Math.PI], ['sentryBox', 161, -46, -Math.PI / 2],
+    ['sandbags', 50, -119, 0], ['sandbags', 151, -45, Math.PI / 2], ['pak40', 110, 13, Math.PI / 2],
+    ['haystack', 40, 18], ['haystack', 58, 24], ['haystack', -20, -100], ['wire', 90, 12, 0], ['wire', 150, 10, 0],
+  ];
 }
 
 // ---- what's to be found ----
@@ -418,4 +438,4 @@ const briefing = `
   <p class="brief">The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', props: ['fountain', 'mgNest'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', props: ['fountain', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

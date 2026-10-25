@@ -12,7 +12,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { hasProp, propModel } from '../world/props.js';
+import { hasProp, propModel, dressProps } from '../world/props.js';
 
 const Q = 2.5;                                 // the quay's height above the water (water at 0)
 const START = { x: 330, z: 320 };              // the hill you start from
@@ -44,6 +44,8 @@ function heightAt(x, z) {
 const roadZ = (x) => 40 + Math.sin(x * 0.012) * 14 * smoothstep(-260, -330, x);
 
 const map = {
+  // Evening over the sea: the sun low in the west, orange light on the quay.
+  light: { zenith: 76, azimuth: 285, sun: 0xffa868, sunIntensity: 2.4, turbidity: 8, rayleigh: 2.4, clouds: 0.45, hemiSky: 0xc8b8b0, hemiGround: 0x5a4a3a, exposure: 0.95 },
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 160 }, start: START, navHalf: 262, waterLevel: 0,
   heightAt,
   roadCenterZ: (x) => (x < -DX ? roadZ(x) : NaN),
@@ -288,6 +290,9 @@ function site(scene) {
   add(fg.x + 1.5, fg.z - 1, Math.PI, { name: 'Flak crew' });
   add(225, -226, 0, { name: 'Mole sentry', stance: 'alert' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
@@ -345,6 +350,21 @@ function buildShip(scene, steel, rust, hidden) {
     parts.push(...model.userData.meshes);
   }
   return { group: sb.group, solids: sb.solids, boxes: sb.boxes, hatch, parts, bridge, sinking: false, sunk: 0 };
+}
+
+// Set dressing: fishing boats and beach obstacles beyond the docks, sentry boxes and sandbags at
+// the gate, the coast road's poles, a bowser at the depot, stores along the quay, the mole's guns.
+function dressing() {
+  const poles = [-280, -320, -360, -400, -440].map(x => ['pole', x, roadZ(x) + 6]);
+  return [
+    ...poles, ['signpost', -256, 49, 0.3],
+    ['fishingBoat', -290, shoreZ(-290) + 9, 0.3], ['fishingBoat', -312, shoreZ(-312) + 10, -0.2], ['fishingBoat', 300, shoreZ(300) + 9, 2.8],
+    ['hedgehog', -340, shoreZ(-340) + 3, 0.5], ['hedgehog', -370, shoreZ(-370) + 2, 1.2], ['hedgehog', 330, shoreZ(330) + 3, 0.2], ['hedgehog', 360, shoreZ(360) + 2, 2],
+    ['sentryBox', -244, 31, Math.PI / 2], ['sentryBox', -244, 50, Math.PI / 2], ['sandbags', -232, 30, 0], ['sandbags', -232, 50, 0],
+    ['bowser', 140, -0.5, 0], ['truck', -60, 47, Math.PI / 2], ['car', -12, 38, 0], ['motorcycle', 14, 36, 0.4], ['kitchen', -120, 50, 0],
+    ['supplies', 60, -26], ['supplies', -80, -26, 0.4], ['supplies', 180, -27], ['drums', -20, -27], ['barrels', -150, 50, Math.PI / 2],
+    ['tobruk', 225, -190], ['searchlight', 222, -205], ['mgNest', 225, -215],
+  ];
 }
 
 // ---- what's to be found ----
@@ -463,4 +483,4 @@ const briefing = `
   <p class="brief">The road comes in at the west gate. The south fence has been cut in two places. You can't swim with your kit:
     the water stops you at the quay. A truck of reinforcements comes down the coast road if the siren sounds.</p>`;
 
-export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
+export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };

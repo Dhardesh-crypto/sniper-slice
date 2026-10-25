@@ -478,3 +478,17 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       striped sentry boxes at the checkpoints, the MG nest, the east watchtower's legs, the generator.
       Verified: the bridge, the column, the camp; both piers blown with the Tiger on the deck (it and a truck fall,
       the rest stop); save/load after the collapse.
+
+## Embellishment: textures, reused models, set dressing, light (2026-10-25)
+- [x] Photo textures: plaster (two), stone, roof tiles, wood, dark wood and ground from Higgsfield pictures in
+      `public/textures/`, swapped in by `usePhotoTextures()` with normal maps built from their brightness.
+- [x] 13 new set-dressing models (sandbags, barbed wire, telegraph pole, signpost, barrels, cart, haystack, well,
+      motorcycle, Pak 40, field kitchen, supplies, fishing boat), placed with the earlier models (tents, sentry
+      boxes, MG nest, searchlight, drums, hedgehogs, Tobruk, bowser, halftrack, Tiger, trucks, cars) by
+      `dressProps()` from a `dressing()` list in every mission. Each sits on a hidden block (wire stops
+      the player, not bullets); a prop whose block would overlap the site is left out.
+- [x] Light per mission (`light` in each map): late morning (vineyard), late afternoon (town), evening
+      (harbour), misty morning (forest), overcast (railway), midday (bridge), dawn (airfield), dusk with haze (coast).
+- [x] Verified: all eight missions load with no errors and no props left out; patrols still walk in all eight
+      (the officers wait at their first post as before); looked at the vineyard, town, harbour, railway,
+      airfield and coast. Forest and bridge were checked by script only.

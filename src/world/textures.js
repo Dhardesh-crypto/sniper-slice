@@ -1,5 +1,7 @@
-// Procedural textures drawn on canvases at load time (no image files): plaster, stone
-// blocks, roof tiles, wood planks and ground detail, each with a matching normal map.
+// Textures for plaster, stone blocks, roof tiles, wood planks and ground detail, each with a
+// matching normal map. They're drawn on canvases at load time, then replaced by photographs
+// (public/textures, generated with Higgsfield: seamless) once those have loaded; the drawn ones
+// stay if a photo is missing.
 // Also `worldUVs`, which re-maps box/roof UVs so textures tile at a fixed real-world size.
 import * as THREE from 'three';
 import { makeRng } from './noise.js';
@@ -212,4 +214,27 @@ export function worldUVs(geometry, metres = 2) {
   geometry.setAttribute('uv', uv);
   uv.needsUpdate = true;
   return geometry;
+}
+
+// Swap the drawn textures for the photographs, with normal maps built from the photos' light and
+// dark. Copies of a texture (the terrain's ground, the trees' bark) share its image and are
+// refreshed too.
+const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0 };
+export async function usePhotoTextures(scene) {
+  const T = textures(), loader = new THREE.ImageLoader(), sources = new Set();
+  await Promise.all(Object.keys(T).map(async (key) => {
+    const img = await loader.loadAsync(`${import.meta.env.BASE_URL}textures/${key}.jpg`).catch(() => null);
+    if (!img) return;
+    const height = canvas(SIZE);
+    const hg = height.getContext('2d');
+    hg.filter = 'grayscale(1)';
+    hg.drawImage(img, 0, 0, SIZE, SIZE);
+    const { map, normalMap } = T[key];
+    map.image = img;
+    normalMap.image = normalFromHeight(height, PHOTO_NORMALS[key] ?? 1.5);
+    for (const t of [map, normalMap]) { t.needsUpdate = true; sources.add(t.source); }
+  }));
+  scene.traverse((o) => {
+    for (const m of [o.material].flat()) for (const k of ['map', 'normalMap']) if (m?.[k] && sources.has(m[k].source)) m[k].needsUpdate = true;
+  });
 }

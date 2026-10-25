@@ -53,6 +53,19 @@ export const PROPS = {
   lighthouse: { file: 'prop_lighthouse', turn: 0 },
   hedgehog: { file: 'prop_hedgehog', turn: 0 },
   tobruk: { file: 'prop_tobruk', turn: 0 },
+  sandbags: { file: 'prop_sandbags', turn: 1 },
+  wire: { file: 'prop_wire', turn: 0 },
+  pole: { file: 'prop_pole', turn: 0 },
+  signpost: { file: 'prop_signpost', turn: 0 },
+  barrels: { file: 'prop_barrels', turn: 1 },
+  cart: { file: 'prop_cart', turn: 1 },
+  haystack: { file: 'prop_haystack', turn: 0 },
+  well: { file: 'prop_well', turn: 0 },
+  motorcycle: { file: 'prop_motorcycle', turn: 1 },
+  pak40: { file: 'prop_pak40', turn: 2 },
+  kitchen: { file: 'prop_kitchen', turn: 1 },
+  supplies: { file: 'prop_supplies', turn: 0 },
+  fishingBoat: { file: 'prop_fishing_boat', turn: 0 },
 };
 
 export async function loadProps(keys, onProgress = () => {}) {
@@ -178,4 +191,73 @@ export function splitProp(model, classify) {
     out[key] = mesh;
   }
   return out;
+}
+
+// ---- set dressing ----
+// Size (metres; one axis = uniform scale) and collision block for the props used as scenery.
+// block: [w, h, d] of the block that stops you and bullets (or null: you walk through it, like a
+// pole's base is too thin to matter); wire stops you but not bullets.
+const DRESS = {
+  sandbags: { size: { x: 4, y: 1.2, z: 0.9 }, block: [4, 1.1, 0.9] },
+  wire: { size: { x: 5, y: 1.2, z: 1.2 }, block: [5, 1.2, 1.2], bullets: false },
+  pole: { size: { y: 8 }, block: [0.3, 8, 0.3] },
+  signpost: { size: { y: 3.2 }, block: null },
+  barrels: { size: { x: 3.2, y: 1.8, z: 2.0 }, block: [3, 1.6, 1.8] },
+  cart: { size: { x: 4.4, y: 1.7, z: 1.7 }, block: [2.2, 1.3, 1.6] },
+  haystack: { size: { y: 4.2 }, block: [3.2, 3.6, 3.2] },
+  well: { size: { y: 3 }, block: [1.8, 0.9, 1.8] },
+  motorcycle: { size: { x: 2.4, y: 1.15, z: 1.7 }, block: [2.2, 1.0, 1.6] },
+  pak40: { size: { x: 6, y: 1.9, z: 2.2 }, block: [2.2, 1.4, 2.1] },
+  kitchen: { size: { x: 4.2, y: 2.3, z: 1.9 }, block: [3, 1.8, 1.8] },
+  supplies: { size: { x: 1.5, y: 1.3, z: 1.2 }, block: [1.4, 1.2, 1.1] },
+  fishingBoat: { size: { x: 6, y: 1.5, z: 2.2 }, block: [5.5, 1.0, 2.0] },
+  tent: { size: { x: 3.6, y: 2.4, z: 4.6 }, block: [3.4, 1.0, 4.4] },
+  sentryBox: { size: { x: 1.8, y: 2.9, z: 1.8 }, block: [1.7, 2.6, 1.7] },
+  mgNest: { size: { x: 5, y: 1.2, z: 5 }, block: null },
+  searchlight: { size: { y: 2.6 }, block: [1.6, 1.4, 1.6] },
+  drums: { size: { x: 2.1, y: 1.85, z: 1.45 }, block: [2.0, 1.8, 1.4], bright: 1.9 },
+  crates: { size: { x: 1.7, y: 1.64, z: 0.95 }, block: [1.6, 1.6, 0.9] },
+  pontoons: { size: { x: 6, y: 1.5, z: 2.2 }, block: [6, 1.4, 2.2] },
+  hedgehog: { size: { x: 2.2, y: 1.6, z: 2.2 }, block: null },
+  tobruk: { size: { x: 4.5, y: 1.6, z: 4.5 }, block: [3.2, 0.9, 3.2] },
+  logs: { size: { x: 8.4, y: 2.2, z: 3.2 }, block: [8, 2.1, 3] },
+  bowser: { size: { x: 6.6, y: 2.7, z: 2.4 }, block: [6.2, 2.4, 2.3] },
+  halftrack: { size: { x: 5.8, y: 2.0, z: 2.1 }, block: [5.6, 1.9, 2.0] },
+  tiger: { size: { x: 6.6, y: 3.0, z: 3.6 }, block: [6.4, 2.6, 3.4] },
+  truck: { vehicle: 'truck', block: [6, 2.4, 2.3] },
+  car: { vehicle: 'car', block: [3.6, 1.5, 1.6] },
+};
+export const DRESS_KEYS = Object.keys(DRESS).filter(k => !DRESS[k].vehicle);
+
+// Place set dressing: items are [key, x, z, rotY = 0]. Each stands on the ground (heightAt) with
+// its block; one whose block would overlap a building or another block (`avoid`) is left out, so
+// nothing ends up inside a wall or across a doorway. Returns the meshes for bullets and the boxes.
+export function dressProps(scene, items, heightAt, avoid = [], vehicleModel = null) {
+  const group = new THREE.Group(), solids = [], boxes = [], hidden = new THREE.MeshBasicMaterial({ visible: false });
+  scene.add(group);
+  for (const [key, x, z, rotY = 0] of items) {
+    const spec = DRESS[key];
+    if (!spec) continue;
+    const model = spec.vehicle ? vehicleModel?.(spec.vehicle) : propModel(key, spec.size, { stretch: Object.keys(spec.size).length > 1, bright: spec.bright ?? 1 });
+    if (!model) continue;
+    const y = heightAt(x, z);
+    // (blocks are axis-aligned: swap their footprint when the prop is turned across)
+    const across = Math.abs(Math.sin(rotY)) > 0.7;
+    const [w, h, d] = spec.block ?? [0.01, 0.01, 0.01];
+    const [bw, bd] = across ? [d, w] : [w, d];
+    const box = new THREE.Box3(new THREE.Vector3(x - bw / 2, y, z - bd / 2), new THREE.Vector3(x + bw / 2, y + h, z + bd / 2));
+    if (spec.block && [...avoid, ...boxes].some(b => b.intersectsBox(box))) continue;
+    model.position.set(x, y, z);
+    model.rotation.y = rotY;
+    group.add(model);
+    if (!spec.block) continue;
+    boxes.push(box);
+    if (spec.bullets === false) continue;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, h, bd), hidden);
+    m.position.set(x, y + h / 2, z);
+    group.add(m);
+    m.updateMatrixWorld(true);
+    solids.push(m);
+  }
+  return { solids, boxes, group };
 }

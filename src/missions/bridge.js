@@ -14,7 +14,7 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { panzerModel } from '../world/tank.js';
-import { hasProp, propModel, clipAbove, splitProp } from '../world/props.js';
+import { hasProp, propModel, clipAbove, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
 
 const DECK = 40.4, BW = 3.5;                    // the deck's top and half-width
@@ -61,6 +61,8 @@ const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 
 const onBridge = (x, z) => Math.abs(x) < 40 && Math.abs(z) < BW - 0.3;
 
 const map = {
+  // Bright midday in the mountains: a high sun, crisp shadows in the gorge.
+  light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3 },
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280, waterLevel: WATER,
   maxSlope: 0.9,
   heightAt,
@@ -305,6 +307,9 @@ function site(scene, world) {
   add(gx(-60) - 12, -60, 0, { name: 'Bank patrol', look: 'guardCamo' });
   add(60, 2, -Math.PI / 2, { name: 'East patrol' });
 
+  const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
+  b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
@@ -352,6 +357,19 @@ function buildColumn(scene) {
     }
   };
   return c;
+}
+
+// Set dressing: vehicles and a motorcycle at the west checkpoint, signposts at both ends, a gun
+// covering the bridge from the east, sandbags, the camp's kitchen and stores, poles along the road.
+function dressing() {
+  const poles = [-120, -160, -200, -240, -280, 120, 160, 200, 240].map(x => ['pole', x, roadZ(x) + 7]);
+  return [
+    ...poles, ['signpost', -57, -11, 0.3], ['signpost', 57, 11, -0.3],
+    ['truck', -72, 11, Math.PI / 2], ['car', -64, -12, 0], ['motorcycle', -58, 9, 0.4],
+    ['pak40', 64, 13, 0], ['searchlight', 68, -7, 2.4], ['sandbags', -46, 10, Math.PI / 2], ['sandbags', 46, -10, Math.PI / 2],
+    ['kitchen', -125, 86, 0.3], ['supplies', -128, 60], ['drums', -150, 86, 0.3], ['barrels', -110, 80, 0],
+    ['wire', 72, 40, Math.PI / 2], ['wire', -72, -40, Math.PI / 2],
+  ];
 }
 
 // ---- what's to be found ----
@@ -541,4 +559,4 @@ const briefing = `
     or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
     the mission is lost.</p>`;
 
-export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
+export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
