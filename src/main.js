@@ -29,6 +29,8 @@ import { Saves } from './core/saves.js';
 import { Profile } from './core/profile.js';
 import { Pickups } from './world/pickups.js';
 import { BeltGrenades } from './world/belt-grenades.js';
+import { Rockets } from './weapons/rockets.js';
+import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
 
 const FIXED_DT = 1 / 60;
@@ -89,6 +91,8 @@ tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
 const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
 explosions.chainers.push(items);
+const rockets = new Rockets({ scene, world, explosions, hotspots, items, fx });
+arsenal.rockets = rockets;
 items.onAction = (kind) => avatar.perform(kind === 'throw' && player.stance === 'crouch' ? 'throwCrouch' : kind);
 arsenal.items = items;
 search.items = items;
@@ -100,6 +104,12 @@ const applyLoadout = (lo) => { arsenal.equip(lo); avatar.setWeapons(lo, arsenal)
 applyLoadout(profile.loadout);
 const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
 pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
+// Heavy weapons: you can take ammunition for the ones you have; a found one goes into the slot.
+arsenal.heavyOwned = (id) => profile.ownsWeapon(id);
+pickups.onHeavy = (id) => { profile.setWeapon('heavy', id); applyLoadout(profile.loadout); };
+// The test armoury fills the heavy ammunition too.
+const fillHeavyForTest = () => { if (profile.testAll) for (const [id, a] of Object.entries(HEAVY_AMMO)) arsenal.heavyAmmo[id] = Math.max(arsenal.heavyAmmo[id], a.max); };
+fillHeavyForTest();
 search.pickups = pickups;
 pickups.arsenal = arsenal; pickups.items = items; pickups.explosions = explosions;
 explosions.chainers.push(pickups);
@@ -134,7 +144,7 @@ const renderMenuLoadout = () => loadoutUI.render(document.getElementById('loadou
 // Settings → Testing: the test armoury, and a sound check for every weapon sample.
 const testAll = document.getElementById('set-testall');
 testAll.checked = profile.testAll;
-testAll.addEventListener('input', () => { profile.setTestAll(testAll.checked); applyLoadout(profile.loadout); renderMenuLoadout(); });
+testAll.addEventListener('input', () => { profile.setTestAll(testAll.checked); fillHeavyForTest(); applyLoadout(profile.loadout); renderMenuLoadout(); });
 document.getElementById('sound-check').append(...SOUND_CHECK.map(([label, name, gain]) => {
   const b = document.createElement('button');
   b.textContent = label;
@@ -503,7 +513,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets,
+  beltGrenades, assets, rockets,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

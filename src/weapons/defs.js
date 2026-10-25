@@ -42,6 +42,15 @@ export const WEAPONS = {
   },
 };
 
+// The heavy slot (key 3): one of a shotgun, a machine gun or an anti-tank weapon, aimed over
+// the shoulder like the pistol. Each catalog entry below fills in the rest.
+WEAPONS.heavy = {
+  id: 'heavy', name: 'Heavy weapon', muzzleVelocity: 400, drag: 2e-3, magazine: 1, reserve: 0,
+  cycleTime: 0.8, reloadTime: 3, hipSpread: 0.012, recoil: 0.06, noiseRadius: 300,
+  zeros: [50], defaultZero: 0, scope: false, zoomFovs: [40], zoomNames: ['Over the shoulder'],
+  damage: { head: 999, torso: 100, pelvis: 80, arm: 40, leg: 45 },
+};
+
 // Rifle ammunition (X switches; a switch reloads the magazine with the new type).
 //   subsonic: quiet (heard at 40 m, not 400 m) but slow, so it drops a lot more and hits softer
 //   ap: armour-piercing: blows an engine in one hit and is the round that hurts the Panzer
@@ -78,6 +87,32 @@ export const CATALOG = {
     blurb: 'The officer\'s pistol: steadier and quicker than the P38, just as loud unless suppressed.',
     muzzleVelocity: 370, magazine: 8, cycleTime: 0.22, noiseRadius: 125, hipSpread: 0.0045,
     damage: { head: 999, torso: 95, pelvis: 80, arm: 40, leg: 45 } },
+  // Heavy weapons, all found in crates around the map. pellets: a shotgun's shot (each pellet
+  // its own bullet in a cone of `pelletSpread`); auto: fires while the trigger is held;
+  // rocket: an anti-tank round (speed m/s, its own gravity, blast radius, and how many hits a
+  // direct strike counts as on a vehicle: two wreck the Panzer, one any other vehicle).
+  trenchgun: { ...WEAPONS.heavy, id: 'trenchgun', slot: 'heavy', name: 'M1897 Trench Gun', model: 'trenchgun', rare: true, ammoName: 'shells',
+    foundOn: 'in a crate in the yard, near the barn', blurb: 'Pump-action shotgun: nine pellets, devastating up close, useless far off. Loud.',
+    pellets: 9, pelletSpread: 0.025, muzzleVelocity: 400, drag: 3e-3, magazine: 5, cycleTime: 0.8, reloadTime: 3.0, recoil: 0.12, noiseRadius: 320, hipSpread: 0.006, aimSpread: 0.004,
+    damage: { head: 110, torso: 34, pelvis: 28, arm: 18, leg: 18 } },
+  mg42: { ...WEAPONS.heavy, id: 'mg42', slot: 'heavy', name: 'MG42', model: 'mg42', rare: true, ammoName: 'rounds',
+    foundOn: 'in a crate by the north wall', blurb: 'Belt-fed machine gun: hold the trigger. 1,200 rounds a minute, wild from the hip, heard by everyone.',
+    auto: true, muzzleVelocity: 740, drag: 6e-4, magazine: 50, cycleTime: 0.05, reloadTime: 3.5, recoil: 0.014, noiseRadius: 450, hipSpread: 0.022, aimSpread: 0.009,
+    damage: { head: 999, torso: 70, pelvis: 55, arm: 30, leg: 35 } },
+  panzerschreck: { ...WEAPONS.heavy, id: 'panzerschreck', slot: 'heavy', name: 'Panzerschreck', model: 'panzerschreck', rare: true, ammoName: 'rockets',
+    foundOn: 'in a crate outside the south wall', blurb: 'Reusable rocket launcher: one rocket wrecks a vehicle, two the Panzer. Reload after every shot.',
+    rocket: { speed: 105, gravity: 3.5, radius: 4.5, hits: 1 }, magazine: 1, cycleTime: 0.5, reloadTime: 3.2, recoil: 0.1, noiseRadius: 380, hipSpread: 0.006, aimSpread: 0.003 },
+  panzerfaust: { ...WEAPONS.heavy, id: 'panzerfaust', slot: 'heavy', name: 'Panzerfaust', model: 'panzerfaust', rare: true, ammoName: 'Panzerfausts',
+    foundOn: 'in a crate by the road west of the compound', blurb: 'Single-shot launcher: short range, but one hit kills even the Panzer. Each one you find is one shot.',
+    rocket: { speed: 48, gravity: 6, radius: 5, hits: 2 }, magazine: 1, cycleTime: 0.5, reloadTime: 1.6, recoil: 0.1, noiseRadius: 350, hipSpread: 0.006, aimSpread: 0.003 },
+  piat: { ...WEAPONS.heavy, id: 'piat', slot: 'heavy', name: 'PIAT', model: 'piat', rare: true, ammoName: 'PIAT bombs',
+    foundOn: 'in a crate on the start hill', blurb: 'Spring-fired projector: much quieter than a rocket, a slow bomb on a high arc. One hit wrecks a vehicle, two the Panzer.',
+    rocket: { speed: 68, gravity: 9.8, radius: 4, hits: 1 }, magazine: 1, cycleTime: 0.5, reloadTime: 3.5, recoil: 0.12, noiseRadius: 150, hipSpread: 0.006, aimSpread: 0.003 },
+};
+// Heavy ammunition: what you start with when you find the weapon, and the most you can carry.
+export const HEAVY_AMMO = {
+  trenchgun: { start: 15, max: 30 }, mg42: { start: 100, max: 250 }, panzerschreck: { start: 2, max: 5 },
+  panzerfaust: { start: 1, max: 3 }, piat: { start: 2, max: 5 },
 };
 export const STARTING_WEAPONS = ['springfield', 'enfield', 'welrod', 'p38'];   // the rare ones (G43, M1 Carbine, De Lisle, Luger) have to be found
 
@@ -123,6 +158,7 @@ export const PARTS = {
       { id: 'pmag_extended', name: 'Extended magazine', info: '+50% rounds', mag: 1.5, reload: 1.1 },
     ],
   },
+  heavy: {},         // nothing to fit to the heavy weapons
 };
 export const SLOT_NAMES = { scope: 'Scope', barrel: 'Barrel', muzzle: 'Muzzle', magazine: 'Magazine', stock: 'Stock' };
 export const allParts = () => Object.values(PARTS).flatMap(slots => Object.values(slots).flat());

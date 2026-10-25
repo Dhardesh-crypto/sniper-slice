@@ -11,7 +11,7 @@ function fresh() {
     version: VERSION,
     weapons: Object.fromEntries(STARTING_WEAPONS.map(id => [id, true])),
     parts: {},
-    loadout: { rifle: 'springfield', pistol: 'welrod', fit: {} },   // fit: weaponId → { slot: partId }
+    loadout: { rifle: 'springfield', pistol: 'welrod', heavy: null, fit: {} },   // fit: weaponId → { slot: partId }; heavy: none until you find one
   };
 }
 
@@ -35,7 +35,7 @@ export class Profile {
     this.data.testAll = on;
     if (!on) {
       const lo = this.data.loadout;
-      for (const slot of ['rifle', 'pistol']) if (!this.ownsWeapon(lo[slot])) lo[slot] = fresh().loadout[slot];
+      for (const slot of ['rifle', 'pistol', 'heavy']) if (lo[slot] && !this.ownsWeapon(lo[slot])) lo[slot] = fresh().loadout[slot];
       for (const [weaponId, fit] of Object.entries(lo.fit)) {
         for (const [slot, partId] of Object.entries(fit)) {
           const part = PARTS[CATALOG[weaponId]?.slot]?.[slot]?.find(p => p.id === partId);

@@ -8,6 +8,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
   enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
   // More Germans: a soldier in a camouflage smock, a sergeant, the colonel (the Oberst), a lieutenant.
+  trenchgun: 'trenchgun', mg42: 'mg42', panzerschreck: 'panzerschreck', panzerfaust: 'panzerfaust', piat: 'piat',
   guardCamo: 'guard_camo', guardSergeant: 'guard_sergeant', officerColonel: 'officer_colonel', officerLieutenant: 'officer_lieutenant' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
@@ -29,6 +30,12 @@ const RIFLES = {
   g43: { key: 'g43', axis: 'x', muzzleSign: 1, length: 1.12 },
   m1carbine: { key: 'm1carbine', axis: 'z', muzzleSign: 1, length: 0.90 },  // butt 14 cm tall at -z, muzzle 5 cm at +z
   delisle: { key: 'delisle', axis: 'z', muzzleSign: 1, length: 0.96 },
+  // Heavy weapons (measured the same way: the stock or shoulder end is the tall one at -z).
+  trenchgun: { key: 'trenchgun', axis: 'z', muzzleSign: 1, length: 1.0 },
+  mg42: { key: 'mg42', axis: 'z', muzzleSign: 1, length: 1.22 },
+  panzerschreck: { key: 'panzerschreck', axis: 'z', muzzleSign: 1, length: 1.64, grip: 0.16 },   // held near the back: the shield well out in front
+  panzerfaust: { key: 'panzerfaust', axis: 'z', muzzleSign: 1, length: 1.04 },     // the warhead in front
+  piat: { key: 'piat', axis: 'z', muzzleSign: 1, length: 0.99 },                   // the shoulder pad at the back
 };
 const GRIP_FROM_BUTT = 0.29;     // fraction of the length from the butt plate to the grip
 
@@ -125,7 +132,8 @@ export function rifleModel(kind = 'springfield') {
   const butt = spec.muzzleSign > 0 ? box.min[a] : box.max[a];
   const c = box.getCenter(new THREE.Vector3());
   m.position.copy(c).negate();
-  m.position[a] = -(butt + spec.muzzleSign * GRIP_FROM_BUTT * len);
+  const grip = spec.grip ?? GRIP_FROM_BUTT;
+  m.position[a] = -(butt + spec.muzzleSign * grip * len);
   m.position.y = -(box.min.y + box.max.y) / 2 * 0.6;
   const inner = new THREE.Group();
   inner.add(m);
@@ -135,8 +143,8 @@ export function rifleModel(kind = 'springfield') {
   outer.add(inner);
   outer.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   // Muzzle in the outer group's frame.
-  outer.userData.muzzle = new THREE.Vector3(0, 0.04, spec.length * (1 - GRIP_FROM_BUTT));
-  outer.userData.buttToGrip = GRIP_FROM_BUTT * spec.length; // metres from butt plate to grip
+  outer.userData.muzzle = new THREE.Vector3(0, 0.04, spec.length * (1 - grip));
+  outer.userData.buttToGrip = grip * spec.length; // metres from butt plate to grip
   outer.userData.kind = kind;
   return outer;
 }

@@ -11,9 +11,10 @@ function stats(def) {
     ['Reach', clamp((def.muzzleVelocity - 240) / (1050 - 240)), `${Math.round(def.muzzleVelocity)} m/s`],
     ['Stability', clamp(1.25 - def.swayScale * (def.recoil / 0.085) ** 0.3 * 0.75), `${Math.round(100 / def.swayScale)}%`],
     ['Quiet', clamp(1 - Math.log10(Math.max(10, def.noiseRadius)) / Math.log10(500) + 0.37), `heard at ${Math.round(def.noiseRadius)} m`],
-    ['Damage', clamp(def.damage.torso / 180), `${Math.round(def.damage.torso)} chest`],
-    ['Magazine', clamp(def.magazine / 20), `${def.magazine} rounds`],
-    ['Handling', clamp(1.05 - (def.cycleTime / 1.4) * 0.5 - (def.reloadTime / 3.5) * 0.4), def.semi ? 'semi-auto' : `bolt ${def.cycleTime.toFixed(1)} s`],
+    def.rocket ? ['Damage', 1, `blast ${def.rocket.radius} m · ${def.rocket.hits > 1 ? 'kills the Panzer' : 'wrecks a vehicle'}`]
+      : ['Damage', clamp(def.damage.torso * (def.pellets ?? 1) / 180), def.pellets ? `${def.pellets} × ${Math.round(def.damage.torso)} chest` : `${Math.round(def.damage.torso)} chest`],
+    ['Magazine', clamp(def.magazine / 20), `${def.magazine} ${def.magazine === 1 ? (def.ammoName ?? 'round').replace(/s$/, '') : def.ammoName ?? 'rounds'}`],
+    ['Handling', clamp(1.05 - (def.cycleTime / 1.4) * 0.5 - (def.reloadTime / 3.5) * 0.4), def.auto ? 'automatic' : def.pellets ? 'pump-action' : def.rocket ? `reload ${def.reloadTime.toFixed(1)} s` : def.semi ? 'semi-auto' : `bolt ${def.cycleTime.toFixed(1)} s`],
   ];
 }
 
@@ -26,7 +27,9 @@ export class LoadoutUI {
 
   render(el, { editable, note = '' }) {
     this.el = el; this.editable = editable; this.note = note;
-    const prof = this.profile, lo = prof.loadout, id = lo[this.slot], def = buildWeapon(id, prof.fitOf(id));
+    const prof = this.profile, lo = prof.loadout;
+    // The heavy slot can be empty: show the first heavy weapon (as a silhouette until you have one).
+    const id = lo[this.slot] ?? prof.weaponsFor(this.slot)[0].id, def = buildWeapon(id, prof.fitOf(id));
     const weapons = prof.weaponsFor(this.slot);
     const partsHtml = Object.entries(PARTS[this.slot]).map(([slot, options]) => {
       if (slot === 'muzzle' && CATALOG[id].integralSuppressor) return `<div class="lo-row"><span class="lo-slot">${SLOT_NAMES[slot]}</span><span class="lo-fixed">Built-in silencer</span></div>`;
@@ -38,12 +41,12 @@ export class LoadoutUI {
     }).join('');
     el.innerHTML = `
       ${note ? `<p class="lo-note">${note}</p>` : ''}
-      <div class="lo-tabs">${['rifle', 'pistol'].map(s => `<button data-slot-tab="${s}" class="${s === this.slot ? 'on' : ''}">${s === 'rifle' ? 'Rifle' : 'Pistol'}</button>`).join('')}</div>
+      <div class="lo-tabs">${['rifle', 'pistol', 'heavy'].map(s => `<button data-slot-tab="${s}" class="${s === this.slot ? 'on' : ''}">${{ rifle: 'Rifle', pistol: 'Pistol', heavy: 'Heavy' }[s]}</button>`).join('')}</div>
       <div class="lo-grid">
         <div>
           <div class="lo-weapons">${weapons.map(w => {
             const own = prof.ownsWeapon(w.id);
-            return `<button class="lo-weapon${w.id === id ? ' on' : ''}" data-weapon="${w.id}" ${!own || !editable ? 'disabled' : ''}>
+            return `<button class="lo-weapon${w.id === lo[this.slot] ? ' on' : ''}" data-weapon="${w.id}" ${!own || !editable ? 'disabled' : ''}>
               <img class="lo-pic${own ? '' : ' unknown'}" src="${weaponPicture(w.id)}" alt="">
               <span><b>${own ? w.name : '? ' + w.name}</b><small>${own ? w.blurb : `Not found yet: ${w.foundOn ?? 'hidden somewhere in the mission'}`}</small></span></button>`;
           }).join('')}</div>

@@ -79,9 +79,11 @@ export class Avatar {
   // the pistol (the Welrod, or the P38 or Luger with a suppressor if fitted).
   setWeapons(loadout, arsenal) {
     const rdef = arsenal.weapons.rifle.def, pdef = arsenal.weapons.pistol.def;
-    this.char.setRifle(CATALOG[loadout.rifle].model);
-    fitMuzzle(this.char.rifle, rdef.suppressor && !rdef.integralSuppressor ? 'suppressor' : rdef.brake ? 'brake' : null, 1);
-    if (this.concealParts) this.char.rifle.traverse(o => { if (o.isMesh && !this.fadeMats.includes(o.material)) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });
+    this.rifleKind = CATALOG[loadout.rifle].model;
+    this.rifleDevice = rdef.suppressor && !rdef.integralSuppressor ? 'suppressor' : rdef.brake ? 'brake' : null;
+    this.heavyKind = loadout.heavy ? CATALOG[loadout.heavy].model : null;
+    this.char.rifle.userData.kind = null;     // refit on the next holdLongGun
+    this.holdLongGun(arsenal.current);
     const want = loadout.pistol;
     if (this.pistolKind !== want) {
       const visible = this.pistol.visible;
@@ -92,6 +94,15 @@ export class Avatar {
       this.pistolKind = want;
     }
     if (this.pistol !== this.welrod) fitMuzzle(this.pistol, pdef.suppressor ? 'suppressor' : null, -1);
+  }
+
+  // One long gun in the hands or on the back: the heavy weapon while it's the one out, else the rifle.
+  holdLongGun(weapon) {
+    const kind = weapon === 'heavy' && this.heavyKind ? this.heavyKind : this.rifleKind;
+    if (!kind || this.char.rifle.userData.kind === kind) return;
+    this.char.setRifle(kind);
+    if (kind === this.rifleKind) fitMuzzle(this.char.rifle, this.rifleDevice, 1);
+    if (this.concealParts) this.char.rifle.traverse(o => { if (o.isMesh && !this.fadeMats.includes(o.material)) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });
   }
 
   // Concealed in tall grass: the body turns translucent with a white outline. The outline is
@@ -227,11 +238,12 @@ export class Avatar {
     s.ready = damp(s.ready, Math.max(st.ready, st.aiming ? 1 : 0), 14, dt);
     this.root.updateMatrixWorld(true);
 
-    // Weapons: rifle shouldered or carried in both hands, or slung with the pistol drawn.
+    // Weapons: rifle (or heavy weapon) shouldered or carried in both hands, or slung with the pistol drawn.
+    this.holdLongGun(st.weapon);
     if (busy) {
       c.slingRifle(); // both hands for climbing, the knife, throwing, placing, bandaging, searching
       this.pistol.visible = false;
-    } else if (st.weapon === 'rifle') {
+    } else if (st.weapon === 'rifle' || st.weapon === 'heavy') {
       const shoulder = s.ready > 0.35 && !st.reloading && !st.sprinting && st.stance !== 'prone';
       if (shoulder) {
         const cp = Math.cos(st.lookPitch);

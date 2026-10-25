@@ -37,6 +37,10 @@ npm run dev    # then open the URL Vite prints
   M1 Carbine and De Lisle are hidden in weapon crates. Toolboxes hold parts (scopes, barrels,
   suppressor or muzzle brake, magazines, stock) that change reach, stability, noise and damage.
   What you find is kept across missions; fit it in the Loadout tab or at a workbench mid-mission.
+  The Oberst carries a Luger P08.
+- **Heavy weapons (key 3):** an M1897 trench gun, an MG42, and three anti-tank weapons (Panzerschreck,
+  Panzerfaust, PIAT) in crates around the map, with heavy-ammunition caches for shells, belts,
+  rockets and bombs. A direct rocket hit wrecks a vehicle; the Panzer takes two (the Panzerfaust one).
 - **Supplies:** ammo boxes, medical boxes, explosives crates and bottle crates around the compound
   and the countryside (on your map once you've been near); soldiers carry ammo and sometimes a
   grenade, a bandage or a medkit.

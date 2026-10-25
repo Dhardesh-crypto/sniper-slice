@@ -1,6 +1,7 @@
 // Things to find in the mission (SE5 style):
 //   toolboxes      hold E: a weapon part you don't have yet (kept for good, see core/profile.js)
-//   weapon crates  hold E: a rare rifle (Gewehr 43, M1 Carbine, De Lisle), kept for good
+//   weapon crates  hold E: a rare rifle (Gewehr 43, M1 Carbine, De Lisle) or a heavy weapon
+//                  (Trench Gun, MG42, Panzerschreck, Panzerfaust, PIAT), kept for good
 //   supply caches  hold E: ammo boxes, medical boxes, explosives crates, bottle crates (what you
 //                  can carry; if you're full they stay for later)
 //   workbenches    press E: change weapons and fit parts mid-mission (opens the loadout screen)
@@ -8,7 +9,7 @@
 // once you've been near them.
 import * as THREE from 'three';
 import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ } from './terrain.js';
-import { CATALOG, partById } from '../weapons/defs.js';
+import { CATALOG, HEAVY_AMMO, partById } from '../weapons/defs.js';
 import { takeSupplies } from '../player/supplies.js';
 
 // What each kind of supply cache holds (rolled when you open it).
@@ -17,6 +18,7 @@ const SUPPLY = {
   medical: { name: 'MEDICAL BOX', roll: (r) => ({ kit: { bandage: 2, medkit: r() < 0.4 ? 1 : 0 } }) },
   explosives: { name: 'EXPLOSIVES CRATE', roll: (r) => { const x = r(); return { kit: { grenade: 2, mine: x < 0.45 ? 1 : 0, tnt: x >= 0.45 && x < 0.75 ? 1 : 0, satchel: x >= 0.75 ? 1 : 0 } }; } },
   bottles: { name: 'CRATE OF BOTTLES', roll: () => ({ kit: { bottle: 3 } }) },
+  heavy: { name: 'HEAVY AMMUNITION', roll: (r, n) => ({ heavy: { trenchgun: n(6, 10), mg42: n(50, 100), panzerschreck: n(1, 2), panzerfaust: 1, piat: n(1, 2) } }) },
 };
 const SEEN_RANGE = 35;          // a cache shows on your map once you've been this close
 
@@ -65,6 +67,11 @@ function supplyModel(type) {
     add(new THREE.BoxGeometry(0.5, 0.26, 0.3), mat(0xd9d6c8), 0, 0.13, 0);
     add(new THREE.BoxGeometry(0.51, 0.06, 0.31), mat(0x3d5a3a), 0, 0.15, 0);                // green band
     lid = add(new THREE.BoxGeometry(0.5, 0.04, 0.3), mat(0xcfccbe), 0, 0.28, 0);
+  } else if (type === 'heavy') {
+    // A long olive crate with yellow stencilled bands: belts, shells, rockets.
+    add(new THREE.BoxGeometry(0.95, 0.32, 0.42), mat(0x4a5132, { metalness: 0.3 }), 0, 0.16, 0);
+    for (const x of [-0.3, 0.3]) add(new THREE.BoxGeometry(0.06, 0.33, 0.43), mat(0xb59a3a), x, 0.165, 0);
+    lid = add(new THREE.BoxGeometry(0.95, 0.04, 0.42), mat(0x434a2d, { metalness: 0.3 }), 0, 0.34, 0);
   } else if (type === 'explosives') {
     add(new THREE.BoxGeometry(0.75, 0.34, 0.45), mat(0x6f5a3a), 0, 0.17, 0);
     add(new THREE.BoxGeometry(0.76, 0.07, 0.46), mat(0x8e2a1e), 0, 0.22, 0);                // red stripe
@@ -107,6 +114,12 @@ export class Pickups {
       { kind: 'weapon', weapon: 'g43', where: 'stairs tower', at: on(neTower.x - 0.7, neTower.z + 0.9, neTower.y) },
       { kind: 'weapon', weapon: 'm1carbine', where: 'by the west wall', at: on(cx - 26, cz + 9) },
       { kind: 'weapon', weapon: 'delisle', where: 'behind the barn', at: on(cx - 10, cz - 18.7) },
+      // The heavy weapons.
+      { kind: 'weapon', weapon: 'trenchgun', where: 'yard near the barn', at: on(cx - 11, cz - 9.6) },
+      { kind: 'weapon', weapon: 'mg42', where: 'by the north wall', at: on(cx - 13.5, cz + 22.6) },
+      { kind: 'weapon', weapon: 'panzerschreck', where: 'outside the south wall', at: on(cx + 7.6, cz - 29.6) },
+      { kind: 'weapon', weapon: 'panzerfaust', where: 'by the road', at: on(cx - 97, roadCenterZ(cx - 97) + 7.6) },
+      { kind: 'weapon', weapon: 'piat', where: 'start hill', at: on(START_HILL.x + 40.5, START_HILL.z - 26) },
     ];
     // Supply caches: in the compound and out in the countryside.
     const rz = (x, dz = 0) => roadCenterZ(x) + dz, sp = world.spawn;
@@ -117,6 +130,9 @@ export class Pickups {
       ['bottles', cx - 8, cz + 45], ['ammo', sp.x + 6, sp.z + 3], ['medical', sp.x + 4, sp.z - 6],
       ['explosives', cx - 95, rz(cx - 95, 6)], ['ammo', cx - 150, rz(cx - 150, -7)], ['medical', -100, 70],
       ['bottles', START_HILL.x + 38, START_HILL.z - 28], ['ammo', -40, 25],
+      // Heavy ammunition (for whichever heavy weapons you've found).
+      ['heavy', cx - 14.5, cz - 6], ['heavy', cx + 35, cz + 5.4], ['heavy', cx - 37.2, cz - 9.4],
+      ['heavy', sp.x + 8, sp.z + 1], ['heavy', cx - 150, rz(cx - 150, -9.4)], ['heavy', cx + 9, cz - 28.4],
     ]) this.boxes.push({ kind: 'supply', type, where: SUPPLY[type].name.toLowerCase(), at: on(x, z, yy) });
     for (const b of this.boxes) {
       b.mesh = b.kind === 'supply' ? supplyModel(b.type) : b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
@@ -198,6 +214,15 @@ export class Pickups {
     this.audio.pickup();
     if (b.kind === 'weapon') {
       const w = CATALOG[b.weapon];
+      if (w.slot === 'heavy') {
+        // A heavy weapon comes with its first ammunition, and goes straight into the heavy slot (key 3).
+        const pool = this.arsenal.heavyAmmo, start = HEAVY_AMMO[b.weapon];
+        const isNew = this.profile.addWeapon(b.weapon);
+        pool[b.weapon] = Math.min(start.max, pool[b.weapon] + start.start);
+        this.onHeavy?.(b.weapon);
+        this.hud.message(`${isNew ? 'WEAPON FOUND' : 'TAKEN'} · ${w.name.toUpperCase()} · ${start.start} ${w.ammoName.toUpperCase()} · PRESS 3`, 'head');
+        return;
+      }
       if (this.profile.addWeapon(b.weapon)) this.hud.message(`WEAPON FOUND · ${w.name.toUpperCase()} · FIT IT AT A WORKBENCH`, 'head');
       else this.hud.message(`${w.name.toUpperCase()} · YOU ALREADY HAVE ONE`, '');
       return;

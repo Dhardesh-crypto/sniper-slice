@@ -82,6 +82,7 @@ export class Saves {
         current: arsenal.current,
         rifle: { mag: rifle.mag, ammo: { ...rifle.ammo }, loaded: rifle.loaded, zeroIndex: rifle.zeroIndex },
         pistol: { mag: pistol.mag, reserve: pistol.reserve, zeroIndex: pistol.zeroIndex },
+        heavy: { mag: arsenal.weapons.heavy.mag, ammo: { ...arsenal.heavyAmmo } },
       },
       items: {
         count: Object.fromEntries(Object.entries(items.count).map(([k, n]) => [k, n === Infinity ? -1 : n])),
@@ -209,8 +210,10 @@ export class Saves {
     items.selected = d.items.selected;
     for (const t of d.items.placed) items.restorePlaced(t);
     mapView.waypoint = d.waypoint;
+    if (d.arsenal.heavy) Object.assign(arsenal.heavyAmmo, d.arsenal.heavy.ammo);
     // The loadout you carried, and the boxes you'd already opened.
     if (d.loadout) this.g.applyLoadout(d.loadout);
+    if (d.arsenal.heavy && d.loadout?.heavy) arsenal.weapons.heavy.mag = d.arsenal.heavy.mag;
     (d.seen ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) b.seen = true; });
     this.g.beltGrenades?.restore(d.beltGrenades);
     (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) { b.destroyed = b.opened = true; b.mesh.visible = false; b.mesh.traverse(o => { delete o.userData.trap; }); } });

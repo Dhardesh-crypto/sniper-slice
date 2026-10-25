@@ -33,7 +33,7 @@ export function weaponPicture(id, device = null) {
   if (!renderer) setup();
   const def = CATALOG[id];
   let gun;
-  if (def.slot === 'rifle') { gun = rifleModel(def.model); fitMuzzle(gun, device, 1); }
+  if (def.slot !== 'pistol') { gun = rifleModel(def.model); fitMuzzle(gun, device, 1); }   // rifles and heavy weapons
   else {
     gun = (id !== 'welrod' && pistolModelFor(def.model)) || pistolModel();
     if (id !== 'welrod') fitMuzzle(gun, device, -1);

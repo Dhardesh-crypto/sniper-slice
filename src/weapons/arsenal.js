@@ -2,7 +2,7 @@
 // the bolt and reloads, binoculars and tagging, and the simulated bullets in flight.
 import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
-import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, buildWeapon } from './defs.js';
+import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -34,6 +34,13 @@ export class Arsenal {
     rifle.loaded = 'standard';
     rifle.pendingAmmo = null;
     Object.defineProperty(rifle, 'reserve', { get() { return this.ammo[this.loaded]; }, set(v) { this.ammo[this.loaded] = v; } });
+    // Heavy ammunition by weapon (shells, belts, rockets…): `reserve` is the pool of the one carried.
+    const heavy = this.weapons.heavy;
+    this.heavyAmmo = Object.fromEntries(Object.keys(HEAVY_AMMO).map(id => [id, 0]));
+    const pools = this.heavyAmmo;
+    heavy.mag = 0;
+    Object.defineProperty(heavy, 'reserve', { get() { return pools[this.def.id] ?? 0; }, set(v) { if (this.def.id in pools) pools[this.def.id] = v; } });
+    this.rockets = null;     // set by main: anti-tank rounds in flight
     this.current = 'rifle';
     this.aim = 0;            // 0 hip … 1 fully aimed (scoped)
     this.aiming = false;
@@ -87,10 +94,10 @@ export class Arsenal {
   // Can't aim or shoot while climbing, dragging a body, in a takedown, healing or aiming a throw.
   get handsTied() { const p = this.player; return !!(p.climb || p.carrying || p.locked || p.busyHands); }
 
-  // Put on a loadout: { rifle, pistol, fit: { weaponId: { slot: partId } } } (the loadout
+  // Put on a loadout: { rifle, pistol, heavy, fit: { weaponId: { slot: partId } } } (the loadout
   // screen, a workbench, a loaded save). Each weapon is built from its base and fitted parts.
   equip(loadout) {
-    for (const slot of ['rifle', 'pistol']) {
+    for (const slot of ['rifle', 'pistol', 'heavy']) {
       const id = loadout[slot], w = this.weapons[slot];
       if (!id) continue;
       const def = buildWeapon(id, loadout.fit?.[id] ?? {});
@@ -105,6 +112,7 @@ export class Arsenal {
       if (w.mag > def.magazine) { if (slot === 'rifle') w.ammo[w.loaded] += w.mag - def.magazine; else w.reserve += w.mag - def.magazine; w.mag = def.magazine; }
       if (newGun || w.mag === 0) { const n = Math.min(def.magazine - w.mag, w.reserve); w.mag += n; w.reserve -= n; }
     }
+    if (this.current === 'heavy' && !loadout.heavy) this.current = 'rifle';
     this.zoomIndex = Math.min(this.zoomIndex, this.def.zoomFovs.length - 1);
     this.loadout = JSON.parse(JSON.stringify(loadout));
     this.onEquip?.(this.loadout);
@@ -148,6 +156,7 @@ export class Arsenal {
     if (this.pendingSwitch === null && !this.reloadT) {
       if (inp.wasPressed('Digit1') && this.current !== 'rifle') this.beginSwitch('rifle');
       if (inp.wasPressed('Digit2') && this.current !== 'pistol') this.beginSwitch('pistol');
+      if (inp.wasPressed('Digit3') && this.current !== 'heavy' && this.loadout?.heavy) this.beginSwitch('heavy');
     }
     if (this.switchT > 0) {
       this.switchT -= dt;
@@ -207,14 +216,17 @@ export class Arsenal {
       if (this.boltT >= 1) this.boltT = -1;
     }
     // Fire: left mouse, or Space while aiming (Space climbs when you're not aiming).
-    const trigger = inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
+    const trigger = def.auto   // the machine gun fires as long as the trigger's held
+      ? inp.down('Mouse0') || (this.aiming && inp.down('Space'))
+      : inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
     if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.handsTied && this.cooldown <= 0) {
       if (w.mag > 0) this.fire();
-      else { this.audio.dryFire(); this.cooldown = 0.3; }
+      else if (inp.wasPressed('Mouse0') || inp.wasPressed('Space')) { this.audio.dryFire(); this.cooldown = 0.3; }
     }
     if (w.mag === 0 && w.reserve > 0 && !this.busy && this.cooldown <= 0 && !this.aiming) this.beginReload();
 
     this.tickBullets(dt);
+    this.rockets?.tick(dt);
     this.tickBinoculars(dt);
   }
 
@@ -260,7 +272,7 @@ export class Arsenal {
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    let origin, dir;
+    let origin, dir, aimPoint = null;
     if (this.scoped) {
       // Through the scope: from the eye, bore elevated by the zero.
       const angle = w.zeroAngles[w.zeroIndex];
@@ -272,27 +284,37 @@ export class Arsenal {
       const ahead = Math.max(0, origin.clone().sub(cam.position).dot(fwd));
       const from = cam.position.clone().addScaledVector(fwd, ahead);
       const hit = this.world.raycastRay(from, fwd, 1500);
-      const aimPoint = hit ? hit.point : from.clone().addScaledVector(fwd, 1500);
-      dir = aimPoint.sub(origin).normalize();
-      const spread = this.current === 'pistol' && this.aim > 0.75 ? 0.0025 : def.hipSpread;
+      aimPoint = hit ? hit.point.clone() : null;
+      dir = (hit ? hit.point.clone() : from.clone().addScaledVector(fwd, 1500)).sub(origin).normalize();
+      const spread = this.current !== 'rifle' && this.aim > 0.75 ? def.aimSpread ?? 0.0025 : def.hipSpread;
       const r = Math.sqrt(Math.random()) * spread, a = Math.random() * Math.PI * 2;
       dir.addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
     }
-    const bullet = {
-      def, pos: origin.clone(), vel: dir.clone().multiplyScalar(def.muzzleVelocity),
-      origin, dir: dir.clone(), time: 0, path: [origin.clone()], prev: new THREE.Vector3(),
-    };
-    // A lethal, worthy shot is handed to the kill cam, which plays it out and applies the hit.
-    const cine = this.killCamShot(bullet);
-    if (cine) this.onKillCam?.(cine);
-    else this.bullets.push(bullet);
+    const bullet = (d) => ({
+      def, pos: origin.clone(), vel: d.clone().multiplyScalar(def.muzzleVelocity),
+      origin, dir: d.clone(), time: 0, path: [origin.clone()], prev: new THREE.Vector3(),
+    });
+    if (def.rocket) {
+      this.rockets?.launch(origin, aimPoint, dir, def);              // an anti-tank round
+    } else if (def.pellets) {
+      // A shotgun: each pellet its own bullet in a cone.
+      for (let i = 0; i < def.pellets; i++) {
+        const r = Math.sqrt(Math.random()) * def.pelletSpread, a = Math.random() * Math.PI * 2;
+        this.bullets.push(bullet(dir.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize()));
+      }
+    } else {
+      // A lethal, worthy shot is handed to the kill cam, which plays it out and applies the hit.
+      const b = bullet(dir), cine = this.current === 'heavy' ? null : this.killCamShot(b);
+      if (cine) this.onKillCam?.(cine);
+      else this.bullets.push(b);
+    }
 
     w.mag--;
     this.cooldown = def.cycleTime;
     this.stats.shots++;
     this.recoilVel += def.recoil * 22 * (this.scoped ? 1 : 0.5);
     this.rollVel += (Math.random() < 0.5 ? -1 : 1) * def.recoil * 9;
-    this.shake = this.current === 'rifle' ? 1 : 0.3;
+    this.shake = this.current === 'rifle' ? 1 : this.current === 'heavy' ? (def.auto ? 0.25 : 0.8) : 0.3;
     this.viewKick = 1;
     this.readyT = 1;
     if (!this.scoped) this.fx.flash(origin, dir);
