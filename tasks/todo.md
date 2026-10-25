@@ -361,3 +361,45 @@ Upgrades change four things you can feel: **reach** (bullet speed, so less drop 
 - Explosions look better: a white-hot flash (bloom) that briefly lights the surroundings (two reused point lights, kept at zero so nothing recompiles), a glowing fireball with rolling flames and sparks, black billows, debris, a dust ring racing along the ground, a lingering smoke column and a scorch mark that fades over a minute. Particles use a cloudy puff texture with random rotation; fire is additive. Verified on captured frames at 0.04, 0.3, 1.5 and 4.5 s.
 - Shotgun redone: a new 12-gauge blast (best of 15 takes: hard transient, natural decay; low end boosted 7 dB at 85 Hz and compressed for weight) and the pump as its own sound, racked 0.3 s after each shot while rounds remain.
 - Shotgun now a real recording from Pixabay (Pixabay Content License, see `public/sounds/CREDITS.md`): "Shotgun Firing (4)" (single shot, the deepest low end and a 1.1 s outdoor echo; chosen over Universfield's thinner cinematic blast and "Shotgun Firing (3)") and one rack cut from "Pump Action Shotgun Cycle".
+
+## Phase 9: Campaign: eight missions, enterable buildings, safes and documents (planned 2026-10-25)
+The game becomes a campaign of eight missions, each its own map in a different environment.
+Built in steps, one commit per step, each playable when it lands.
+
+### 9A. Engine (everything after builds on it)
+- [ ] Mission framework: each mission is a module (`src/missions/<id>.js`) with its terrain, sky and
+      time of day, buildings, guards and routes, vehicles, pickups, objectives, spawn and extraction.
+      `terrain.js`, `compound.js`, `guards.js`, `pickups.js` and `mission.js` stop assuming the vineyard.
+- [ ] Mission select in the menu (Mission tab): the eight missions with a briefing each, progress kept in
+      the profile; loading a mission rebuilds the world from its module.
+- [ ] A building kit for walk-in buildings: rooms, doorways, doors you open with E, stairs between
+      floors, windows to shoot through, roofs; guards path through doors and patrol inside (ground floor
+      first, upper floors by stairs).
+- [ ] Safes: hold E to crack (slow, noisy), or open at once with the combination found on the officer
+      or in a document. Contents: documents, intel, rare parts, ammo.
+- [ ] Documents and intel: readable letters, orders and maps (some reveal a safe combination, a guard
+      route or an optional target); a per-mission collection kept in the profile.
+- [ ] Objective engine: kill a target, destroy a thing, retrieve an item (from a safe or a body),
+      sabotage, reach a place, plus the extraction; optional objectives.
+- [ ] The vineyard moved onto the framework as mission 1, with the villa walk-in and a safe.
+
+### 9B. The missions (one step each)
+1. [ ] **Operation Vineyard** (Tuscan countryside): the existing mission, villa now walk-in.
+2. [ ] **Hill town**: narrow streets, a piazza, a church bell tower, the town hall with the Gestapo
+       office and its safe; rooftop routes.
+3. [ ] **Harbour**: docks, cranes, warehouses, a fuel depot, a moored U-boat supply ship; sink it.
+4. [ ] **Forest**: dense woods in the hills, a logging camp turned into a fuel dump, a hunting lodge
+       HQ; mist, little open ground.
+5. [ ] **Railway station**: station building, yard with sidings, a water tower, an armoured train
+       arriving on a schedule; destroy the rail gun.
+6. [ ] **Bridge**: a river gorge, a stone road bridge with checkpoints at both ends, an engineers'
+       camp; demolish the bridge before the column crosses.
+7. [ ] **Airfield**: runway, hangars, control tower, fuel bowsers, parked planes and a radar;
+       destroy the planes, steal the flight plans.
+8. [ ] **Eighth mission** (to choose): e.g. a coastal radar station on the cliffs.
+- New models where needed (Higgsfield): locomotive and wagons, boats and a ship, cranes, planes,
+  furniture and safes; recorded sounds where needed.
+
+### Check for each step
+- [ ] Load the mission from the menu, walk its map, enter its buildings, open its safe, read its
+      documents, complete every objective and extract; saves load back into the right mission.
