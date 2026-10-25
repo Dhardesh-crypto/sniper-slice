@@ -219,8 +219,10 @@ export class Arsenal {
     const trigger = def.auto   // the machine gun fires as long as the trigger's held
       ? inp.down('Mouse0') || (this.aiming && inp.down('Space'))
       : inp.wasPressed('Mouse0') || (this.aiming && inp.wasPressed('Space'));
+    // A machine-gun burst ends with its echo rolling away.
+    if (this.bursting && (!trigger || w.mag === 0 || this.busy || this.handsTied)) { this.bursting = false; this.audio.burstTail(); }
     if (trigger && !this.binoculars && !this.player.sprinting && !this.busy && !this.handsTied && this.cooldown <= 0) {
-      if (w.mag > 0) this.fire();
+      if (w.mag > 0) { this.fire(); if (def.auto) this.bursting = true; }
       else if (inp.wasPressed('Mouse0') || inp.wasPressed('Space')) { this.audio.dryFire(); this.cooldown = 0.3; }
     }
     if (w.mag === 0 && w.reserve > 0 && !this.busy && this.cooldown <= 0 && !this.aiming) this.beginReload();

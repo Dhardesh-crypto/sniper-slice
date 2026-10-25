@@ -11,8 +11,8 @@ const SHOTS = {
   springfield: ['shot_springfield', 1.0], enfield: ['shot_enfield', 0.9], g43: ['shot_g43', 0.65],
   m1carbine: ['shot_m1carbine', 0.75], delisle: ['shot_delisle', 0.5], welrod: ['shot_welrod', 0.22],
   p38: ['shot_p38', 0.25], luger: ['shot_luger', 0.3],
-  trenchgun: ['shot_trenchgun', 0.95], mg42: ['shot_mg42', 0.55], panzerschreck: ['shot_panzerschreck', 0.5],
-  panzerfaust: ['shot_panzerfaust', 0.5], piat: ['shot_piat', 0.8],
+  trenchgun: ['shot_trenchgun', 0.7], mg42: ['shot_mg42', 0.5], panzerschreck: ['shot_panzerschreck', 0.8],
+  panzerfaust: ['shot_panzerfaust', 0.6], piat: ['shot_piat', 0.75],
 };
 const SUPPRESSED = { bolt: ['shot_rifle_suppressed', 0.1], semi: ['shot_semi_suppressed', 0.55], pistol: ['shot_pistol_suppressed', 0.2] };
 const RELOADS = {
@@ -29,10 +29,12 @@ export const SOUND_CHECK = [
   ['Reload: stripper clip', 'reload_stripper', 0.7], ['Reload: G43', 'reload_g43', 0.7], ['Reload: M1 Carbine', 'reload_m1carbine', 0.7],
   ['Reload: De Lisle', 'reload_delisle', 0.7], ['Reload: pistol', 'reload_pistol', 0.7], ['Reload: Welrod', 'reload_welrod', 0.7],
   ['Trench Gun', ...SHOTS.trenchgun], ['MG42', ...SHOTS.mg42], ['Panzerschreck', ...SHOTS.panzerschreck], ['Panzerfaust', ...SHOTS.panzerfaust],
-  ['PIAT', ...SHOTS.piat], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
+  ['PIAT', ...SHOTS.piat], ['Explosion: grenade', 'explosion_grenade', 0.9], ['Explosion: vehicle', 'explosion_large', 1.0],
+  ['Explosion: far off', 'explosion_far', 0.9], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt']))];
+const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail'];
+const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
 
 export class Audio {
   constructor() {
@@ -113,6 +115,9 @@ export class Audio {
     if (def.slot === 'pistol') def.suppressor ? this.pistolShot() : this.pistolLoud();
     else def.suppressor ? this.suppressedRifleShot() : this.rifleShot();
   }
+
+  // The echo rolling away after a machine-gun burst.
+  burstTail() { this.sample('mg42_tail', { gain: 0.8, wet: 0.2 }); }
 
   // The reload for this weapon, stretched a little to fit its reload time.
   reloadFor(def, time) {
@@ -362,8 +367,14 @@ export class Audio {
     this.thump({ freq: 45, dur: 0.6, gain: 0.4 });
   }
 
-  explosion(distance) {
+  // An explosion heard from `distance` m (big: a vehicle or a heavy charge). Recorded blasts:
+  // the close one fades into the distant rumble with range, arriving later (sound at 343 m/s).
+  explosion(distance, big = false) {
     const at = Math.min(distance / 343, 2), k = Math.max(0.2, 1 - distance / 900);
+    const far = Math.min(1, Math.max(0, (distance - 50) / 300));
+    const near = this.sample(big ? 'explosion_large' : 'explosion_grenade', { at, gain: (big ? 1.0 : 0.9) * k * (1 - far * 0.75), filter: 700 + 17000 * (1 - far) ** 2, wet: 0.15 });
+    const distant = this.sample('explosion_far', { at, gain: (0.25 + 0.75 * far) * k * (big ? 1 : 0.8), wet: 0.1 });
+    if (near || distant) return;
     this.noiseBurst({ at, dur: 1.4, type: 'lowpass', freq: 2400 * k + 300, freqEnd: 120, gain: 1.0 * k, wet: 1.5 });
     this.thump({ at, freq: 34, dur: 1.2, gain: 1.0 * k });
     this.noiseBurst({ at: at + 0.4, dur: 2.5, type: 'lowpass', freq: 500, freqEnd: 120, gain: 0.3 * k, attack: 0.3 });

@@ -14,9 +14,27 @@ function softDot() {
   return new THREE.CanvasTexture(c);
 }
 
+// A cloudy puff: overlapping soft blobs, ragged at the edge (smoke, dust, fire).
+function puff() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  for (let i = 0; i < 34; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.pow(Math.random(), 0.8) * 34;
+    const x = 64 + Math.cos(a) * r, y = 64 + Math.sin(a) * r, R = 12 + Math.random() * 22;
+    const grd = g.createRadialGradient(x, y, 0, x, y, R);
+    const k = 0.55 + Math.random() * 0.45;     // some blobs darker: texture inside the cloud
+    grd.addColorStop(0, `rgba(${255 * k | 0},${255 * k | 0},${255 * k | 0},0.42)`);
+    grd.addColorStop(1, `rgba(${255 * k | 0},${255 * k | 0},${255 * k | 0},0)`);
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 128, 128);
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 export class Particles {
   constructor(scene, size = 96) {
-    const tex = softDot();
+    const tex = puff();
     this.pool = [];
     for (let i = 0; i < size; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: true }));
@@ -28,13 +46,18 @@ export class Particles {
     this.next = 0;
   }
 
-  emit(point, normal, { color, count, speed, size, life, grow = 2, gravity = -1 }) {
+  // glow: additive (fire, flashes, sparks), otherwise ordinary see-through puffs.
+  // heat: brightness multiplier for glowing ones (above 1 the bloom picks it up).
+  emit(point, normal, { color, count, speed, size, life, grow = 2, gravity = -1, glow = false, heat = 1 }) {
     for (let i = 0; i < count; i++) {
       const s = this.pool[this.next];
       this.next = (this.next + 1) % this.pool.length;
       s.visible = true;
-      s.material.color.set(color);
+      s.material.color.set(color).multiplyScalar(heat);
       s.material.opacity = 0.9;
+      s.material.rotation = Math.random() * Math.PI * 2;
+      s.material.blending = glow ? THREE.AdditiveBlending : THREE.NormalBlending;
+      s.userData.glow = glow;
       s.position.copy(point).addScaledVector(normal, 0.05);
       const v = s.userData.vel.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.8).add(normal).normalize();
       v.multiplyScalar(speed * (0.4 + Math.random() * 0.8));
@@ -76,7 +99,8 @@ export class Particles {
       s.position.addScaledVector(u.vel, dt);
       const t = u.life / u.max;
       s.scale.setScalar(u.size * (1 + (u.grow - 1) * t));
-      s.material.opacity = 0.85 * (1 - t);
+      // Fire burns out fast; smoke and dust hang, then thin away.
+      s.material.opacity = u.glow ? 0.9 * (1 - t) ** 1.6 : 0.85 * (1 - t) ** 0.7 * Math.min(1, u.life / 0.08);
     }
   }
 }
