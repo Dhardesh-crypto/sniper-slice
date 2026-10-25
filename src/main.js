@@ -209,6 +209,18 @@ const bind = (id, key, fmt = (v) => v) => {
     saveSettings(settings);
   });
 };
+// Menu tabs (the last one you had open is remembered, on this device only).
+const tabButtons = [...document.querySelectorAll('.tabs button')];
+function showTab(name) {
+  for (const b of tabButtons) b.setAttribute('aria-selected', String(b.dataset.tab === name));
+  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t.dataset.tab === name);
+  try { localStorage.setItem('sniper-slice.menuTab', name); } catch { /* storage blocked */ }
+}
+for (const b of tabButtons) b.addEventListener('click', () => showTab(b.dataset.tab));
+let savedTab = null;
+try { savedTab = localStorage.getItem('sniper-slice.menuTab'); } catch { /* storage blocked */ }
+showTab(tabButtons.some(b => b.dataset.tab === savedTab) ? savedTab : 'mission');
+
 bind('set-sens', 'sensitivity', (v) => v.toFixed(2));
 bind('set-fov', 'fov', (v) => `${v}°`);
 bind('set-vol', 'volume', (v) => `${Math.round(v * 100)}%`);

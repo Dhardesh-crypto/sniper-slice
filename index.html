@@ -50,25 +50,32 @@
     <div class="panel">
       <h1>SNIPER SLICE</h1>
       <p class="sub">Operation Vineyard · Tuscany, 1944</p>
-      <p class="brief">Oberst Krause runs the German post at the vineyard farm and keeps his
-        routine: the villa terrace, his field radio at the truck, the yard. Kill him, then get back
-        to the hill you started from. Wreck his radio first and no help can be called; his papers
-        are worth taking. Use the planes, the artillery and the generator to cover your shots.</p>
       <div class="buttons"><button id="play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button></div>
       <div id="slots"><h2></h2><div class="list"></div><p class="why"></p></div>
-      <div class="cols">
-        <div>
-          <h2>Settings</h2>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="mission">Mission</button>
+        <button role="tab" data-tab="settings">Settings</button>
+        <button role="tab" data-tab="controls">Controls</button>
+      </div>
+      <div class="tab" data-tab="mission">
+        <p class="brief">Oberst Krause runs the German post at the vineyard farm and keeps his
+          routine: the villa terrace, his field radio at the truck, the yard. Kill him, then get back
+          to the hill you started from.</p>
+        <ul class="goals">
+          <li><b>Eliminate Oberst Krause.</b> Tag him with the binoculars to follow him.</li>
+          <li><b>Optional:</b> wreck his field radio first and no reinforcements can be called.</li>
+          <li><b>Optional:</b> take his papers from his body.</li>
+          <li><b>Optional:</b> destroy the Panzer in the yard (AP rounds or a satchel).</li>
+          <li><b>Then</b> get back to the start hill, where green smoke marks the pick-up.</li>
+        </ul>
+        <p class="brief">Planes, artillery and the generator cover the sound of your shots. Tall grass
+          hides you if you crouch or go prone. Guards who spot you run for the siren.</p>
+      </div>
+      <div class="tab" data-tab="settings">
+        <div class="settings">
           <label>Mouse sensitivity <input id="set-sens" type="range" min="0.2" max="3" step="0.05" /><output></output></label>
           <label>Field of view <input id="set-fov" type="range" min="55" max="90" step="1" /><output></output></label>
           <label>Volume <input id="set-vol" type="range" min="0" max="1" step="0.05" /><output></output></label>
-          <label class="check"><input id="set-invert" type="checkbox" /> Invert mouse Y</label>
-          <label>Bullet-landing marker
-            <select id="set-lung">
-              <option value="always">Whenever scoped</option>
-              <option value="breath">Holding breath</option>
-              <option value="off">Off</option>
-            </select><output></output></label>
           <label>Graphics
             <select id="set-quality">
               <option value="high">High</option>
@@ -80,44 +87,59 @@
               <option value="hold">Hold</option>
               <option value="toggle">Click to toggle</option>
             </select><output></output></label>
+          <label>Bullet-landing marker
+            <select id="set-lung">
+              <option value="always">Whenever scoped</option>
+              <option value="breath">Holding breath</option>
+              <option value="off">Off</option>
+            </select><output></output></label>
           <label>X-ray kill cam
             <select id="set-killcam">
               <option value="sometimes">Sometimes</option>
               <option value="always">Every kill</option>
               <option value="off">Off</option>
             </select><output></output></label>
+          <label class="check"><input id="set-invert" type="checkbox" /> Invert mouse Y</label>
         </div>
-        <div>
-          <h2>Controls</h2>
-          <dl>
-            <dt>WASD / arrows</dt><dd>Move</dd>
-            <dt>Shift</dt><dd>Sprint · hold breath while scoped</dd>
-            <dt>Space</dt><dd>Climb a wall or ledge · get on a ladder (W/S climb, Space let go)</dd>
-            <dt>C / Z</dt><dd>Crouch / prone</dd>
-            <dt>Right mouse</dt><dd>Aim / scope</dd>
-            <dt>Left mouse · Space (aiming)</dt><dd>Fire</dd>
-            <dt>Wheel · = / − · V</dt><dd>Zoom (scope and binoculars); V switches 4× / 8×</dd>
-            <dt>↑ / ↓ (aiming)</dt><dd>Zero the scope (100–500 m) · also Page Up / Down</dd>
-            <dt>B (hold)</dt><dd>Binoculars: range and tag</dd>
-            <dt>R</dt><dd>Reload</dd>
-            <dt>1 / 2</dt><dd>Rifle / suppressed pistol</dd>
-            <dt>M</dt><dd>Map (click to set a waypoint)</dd>
-            <dt>E (hold)</dt><dd>Search a body for supplies</dd>
-            <dt>F</dt><dd>Knife takedown (behind an unalerted guard, or from hiding in tall grass) · drag / drop a body</dd>
-            <dt>E (hold, at the siren)</dt><dd>Cut the alarm wire</dd>
-            <dt>Q (hold)</dt><dd>Item wheel: grenade, bottle, whistle, mine, TNT, satchel, bandage, medkit</dd>
-            <dt>G</dt><dd>Use the item (hold to aim a throw, release to throw)</dd>
-            <dt>H</dt><dd>Heal (bandage, or a medkit when badly hurt)</dd>
-            <dt>K</dt><dd>Detonate TNT and satchels</dd>
-            <dt>X</dt><dd>Switch rifle ammo: standard, subsonic (quiet), armour-piercing</dd>
-            <dt>Weak spots</dt><dd>Shoot the siren horn, the generator, or a truck's engine (2 hits: it explodes). Tag them with B</dd>
-            <dt>T</dt><dd>Show last bullet's path</dd>
-            <dt>Right mouse (pistol)</dt><dd>Aim over the shoulder</dd>
-            <dt>Click / Space</dt><dd>Skip the kill cam</dd>
-            <dt>F5 / F9</dt><dd>Quick save / quick load (on a Mac keyboard: fn + F5 / F9)</dd>
-            <dt>F3</dt><dd>Debug info</dd>
-          </dl>
-        </div>
+      </div>
+      <div class="tab controls" data-tab="controls">
+        <section><h2>Moving</h2><dl>
+          <dt>WASD / arrows</dt><dd>Move</dd>
+          <dt>Shift</dt><dd>Sprint</dd>
+          <dt>C / Z</dt><dd>Crouch / prone</dd>
+          <dt>Space</dt><dd>Climb a wall or ledge, get on a ladder (W/S climb, Space let go)</dd>
+          <dt>M</dt><dd>Map (click to set a waypoint)</dd>
+        </dl></section>
+        <section><h2>Shooting</h2><dl>
+          <dt>Right mouse</dt><dd>Aim / scope (pistol: over the shoulder)</dd>
+          <dt>Left mouse</dt><dd>Fire (or Space while aiming)</dd>
+          <dt>Shift (scoped)</dt><dd>Hold breath</dd>
+          <dt>Wheel · = / −</dt><dd>Zoom scope or binoculars (V: 4× / 8×)</dd>
+          <dt>↑ / ↓ (aiming)</dt><dd>Zero the scope 100–500 m (or Page Up / Down)</dd>
+          <dt>R</dt><dd>Reload</dd>
+          <dt>X</dt><dd>Rifle ammo: standard, subsonic (quiet), armour-piercing</dd>
+          <dt>1 / 2</dt><dd>Rifle / suppressed pistol</dd>
+          <dt>B (hold)</dt><dd>Binoculars: range and tag enemies and weak spots</dd>
+        </dl></section>
+        <section><h2>Stealth &amp; close combat</h2><dl>
+          <dt>F</dt><dd>Knife takedown (behind an unalerted guard, or from hiding in tall grass)</dd>
+          <dt>F</dt><dd>Drag / drop a body (hide it in tall grass)</dd>
+          <dt>E (hold)</dt><dd>Search a body · cut the siren wire · wreck the radio</dd>
+          <dt>Weak spots</dt><dd>Shoot the siren horn, the generator, or an engine (2 hits)</dd>
+        </dl></section>
+        <section><h2>Items &amp; explosives</h2><dl>
+          <dt>Q (hold)</dt><dd>Item wheel: grenade, bottle, whistle, mine, TNT, satchel, bandage, medkit</dd>
+          <dt>G</dt><dd>Use the item (hold to aim a throw, release to throw)</dd>
+          <dt>H</dt><dd>Heal (bandage, or a medkit when badly hurt)</dd>
+          <dt>K</dt><dd>Detonate TNT and satchels</dd>
+        </dl></section>
+        <section><h2>Other</h2><dl>
+          <dt>Esc</dt><dd>Pause (this menu)</dd>
+          <dt>F5 / F9</dt><dd>Quick save / quick load (Mac: fn + F5 / F9)</dd>
+          <dt>Click / Space</dt><dd>Skip the kill cam</dd>
+          <dt>T</dt><dd>Show the last bullet's path</dd>
+          <dt>F3</dt><dd>Debug info</dd>
+        </dl></section>
       </div>
     </div>
   </div>
