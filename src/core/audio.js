@@ -117,7 +117,7 @@ export class Audio {
   }
 
   // Racking the shotgun's pump after a shot.
-  pump() { this.sample('pump', { at: 0.3, gain: 0.6 }); }
+  pump() { this.sample('pump', { at: 0.25, gain: 0.6 }); }
 
   // The echo rolling away after a machine-gun burst.
   burstTail() { this.sample('mg42_tail', { gain: 0.8, wet: 0.2 }); }

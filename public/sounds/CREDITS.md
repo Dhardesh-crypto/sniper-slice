@@ -6,4 +6,4 @@ From Pixabay (Pixabay Content License: free to use in a game, no attribution req
 redistributed as standalone sound files):
 
 - `shot_trenchgun.mp3`: "Shotgun Firing (4)" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-shotgun-firing-4-6746/ (trimmed, levelled)
-- `pump.mp3`: one rack from "Pump Action Shotgun Cycle" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-pump-action-shotgun-cycle-81021/ (cut, levelled)
+- `pump.mp3`: the first full rack (back and forward) from "Pump Action Shotgun Cycle" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-pump-action-shotgun-cycle-81021/ (cut, levelled)
