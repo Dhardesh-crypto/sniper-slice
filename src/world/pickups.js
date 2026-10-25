@@ -185,7 +185,7 @@ export class Pickups {
       if (!got.length) { this.hud.message(`${SUPPLY[b.type].name} · YOU CAN'T CARRY ANY MORE: COME BACK LATER`, 'wound'); return; }
       b.opened = true;
       b.mesh.userData.lid.rotation.x = -1.2;
-      if (b.type === 'explosives') b.mesh.traverse(o => { delete o.userData.trap; });   // emptied: nothing left to go off
+      if (b.type === 'explosives') { b.mesh.traverse(o => { delete o.userData.trap; }); if (b.hotspot) b.hotspot.broken = true; } // emptied: nothing left to go off
       this.stealth.noise(b.at.clone(), 4, 'rustle');
       this.audio.pickup();
       this.hud.message(`${SUPPLY[b.type].name} · ${got.join(' · ').toUpperCase()}`, '');
@@ -210,11 +210,23 @@ export class Pickups {
     this.hud.message(`PART FOUND · ${part.name.toUpperCase()} · ${part.info.toUpperCase()}`, 'head');
   }
 
+  // Explosives crates are weak spots too: the binoculars can tag them (an orange triangle on
+  // screen, the compass and the map) until they're emptied or blown.
+  registerCrates(hotspots) {
+    for (const b of this.boxes) {
+      if (b.type !== 'explosives') continue;
+      const meshes = [];
+      b.mesh.traverse(o => { if (o.isMesh) meshes.push(o); });
+      b.hotspot = hotspots.add({ kind: 'crate', title: 'EXPLOSIVES CRATE', meshes });
+    }
+  }
+
   // An explosives crate blows up: a blast like a satchel charge (it can wreck a vehicle parked
   // close by, the Panzer included), and it's gone. Once you've emptied it, there's nothing to go off.
   blowCrate(b) {
     if (b.opened || b.destroyed) return;
     b.destroyed = b.opened = true;
+    if (b.hotspot) b.hotspot.broken = true;
     b.mesh.visible = false;
     b.mesh.traverse(o => { const i = this.world.raycastTargets.indexOf(o); if (i >= 0) this.world.raycastTargets.splice(i, 1); });
     this.explosions.explode(b.at.clone().add(new THREE.Vector3(0, 0.3, 0)), { radius: 6, hurt: 11, size: 1.2, noise: 260, heavy: true, chain: 5.5, label: 'EXPLOSIVES CRATE' });

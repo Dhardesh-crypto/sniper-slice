@@ -168,8 +168,10 @@ export class Saves {
     for (const [s, sd] of restored) if (sd.aware?.bodiesSeen?.length) s.aware.bodiesSeen = new Set(sd.aware.bodiesSeen.map(i => world.soldiers[i]).filter(Boolean));
 
     // Weak spots and wrecks (visuals only: their explosions already happened).
+    const seenTitle = {};
     for (const hs of d.hotspots) {
-      const h = hotspots.list.find(x => x.title === hs.title);
+      const n = seenTitle[hs.title] = (seenTitle[hs.title] ?? -1) + 1;     // several crates share a title
+      const h = hotspots.list.filter(x => x.title === hs.title)[n];
       if (!h) continue;
       h.hits = hs.hits; h.broken = hs.broken; h.tagged = hs.tagged;
       if (h.kind === 'siren' && hs.broken) { const [horn] = h.meshes; horn.rotation.x = 0.9; horn.position.y -= 0.15; }
