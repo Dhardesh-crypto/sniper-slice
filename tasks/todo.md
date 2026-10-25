@@ -435,8 +435,14 @@ combination or by slow, noisy cracking; new maps about 1 km across.
    satchels on both piers and the collapse, the column crossing (failure), collapse under the column (4 fell, the
    last stopped at the rim), save/load mid-column and after the collapse, Hahn, the bridging truck, extraction;
    the other five missions still load and patrol.
-7. [ ] **Airfield**: runway, hangars, control tower, fuel bowsers, parked planes and a radar;
-       destroy the planes, steal the flight plans.
+7. [x] **Airfield** (Operation Night Owl): runway, taxiway and three earth pens, two hangars (open to the north),
+   a two-floor control tower with a glass cab and the safe (the flight plans), a fuel park, the pilots' mess, a
+   fenced radar rise, three flak pits, a watchtower, a perimeter fence cut in two places. Modelled from the start:
+   Bf 110 and Ju 88 night fighters, the Würzburg radar, the hangars, fuel bowsers, searchlights (with the flak,
+   drums, watchtower and generator models). Objectives: four planes, the radar, the plans (all three needed);
+   Kessler and his papers optional. Engine run-ups on the apron mask shots near the hangars for 22 s every 95 s.
+   Verified by script: patrols, run-up masking, planes and radar, the safe by its combination, extraction,
+   save/load with two planes and the radar wrecked.
 8. [ ] **Coastal radar** (sea cliffs): a radar station and gun battery, bunkers and trenches, a lighthouse, steep climbs.
 - New models where needed (Higgsfield): locomotive and wagons, boats and a ship, cranes, planes,
   furniture and safes; recorded sounds where needed.

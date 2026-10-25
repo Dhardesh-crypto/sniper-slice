@@ -42,6 +42,12 @@ export const PROPS = {
   tent: { file: 'prop_tent', turn: 0 },
   pontoons: { file: 'prop_pontoons', turn: 0 },
   sentryBox: { file: 'prop_sentry_box', turn: 0 },
+  bf110: { file: 'prop_bf110', turn: 3 },               // nose was toward +z
+  ju88: { file: 'prop_ju88', turn: 3 },
+  radar: { file: 'prop_radar', turn: 0 },
+  hangar: { file: 'prop_hangar', turn: 1 },              // its doors were at +x: now at −z
+  bowser: { file: 'prop_bowser', turn: 1 },
+  searchlight: { file: 'prop_searchlight', turn: 0 },
 };
 
 export async function loadProps(keys, onProgress = () => {}) {

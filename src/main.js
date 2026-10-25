@@ -69,6 +69,7 @@ const MISSION_MODULES = {
   forest: () => import('./missions/forest.js'),
   railway: () => import('./missions/railway.js'),
   bridge: () => import('./missions/bridge.js'),
+  airfield: () => import('./missions/airfield.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;

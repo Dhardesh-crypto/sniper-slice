@@ -13,7 +13,7 @@ export const CAMPAIGN = [
     brief: 'A rail gun is being moved by train through the junction. Stop the train, destroy the gun, and take the timetables from the stationmaster.' },
   { id: 'bridge', ready: true, name: 'Operation Broken Span', place: 'A river gorge and its stone road bridge',
     brief: 'An armoured column must not cross the gorge. Plant charges on the bridge supports and blow it, and kill the engineer who could repair it.' },
-  { id: 'airfield', name: 'Operation Night Owl', place: 'A Luftwaffe airfield: runway, hangars, control tower',
+  { id: 'airfield', ready: true, name: 'Operation Night Owl', place: 'A Luftwaffe airfield: runway, hangars, control tower',
     brief: 'Destroy the night fighters on the ground, wreck the radar, and steal the flight plans from the control tower.' },
   { id: 'radar', name: 'Operation Sea Wall', place: 'A coastal radar station and gun battery on the cliffs',
     brief: 'The radar on the cliffs watches the invasion beaches. Destroy it and the battery guns, and take the codebooks from the command bunker.' },
