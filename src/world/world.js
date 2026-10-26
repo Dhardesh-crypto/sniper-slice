@@ -13,6 +13,7 @@ export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair
 // A map's own light and weather (all optional; these are the defaults): the sun's angle from the
 // zenith and its compass bearing in degrees, its colour and strength, the sky's haze, the clouds,
 // the sky-and-ground fill, and the exposure.
+const CHARGE_REACH = 0.8;   // m past whatever a shot meets first that a charge on it still takes the bullet
 const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
   hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85 };
 
@@ -191,11 +192,15 @@ export class World {
     dir.divideScalar(len);
     this.raycaster.set(a, dir);
     this.raycaster.near = 0;
-    this.raycaster.far = len;
-    const hits = this.raycaster.intersectObjects(this.raycastTargets, false);
+    this.raycaster.far = len + CHARGE_REACH;
+    const all = this.raycaster.intersectObjects(this.raycastTargets, false);
+    const hits = all.filter(h => h.distance <= len);
     let best = null;
     if (hits.length) {
-      const h = hits[0];
+      // A charge (TNT, a satchel) sits on or against something, partly inside its block: a shot at it
+      // that meets the thing first, just short of the charge, still sets the charge off.
+      const charge = !hits[0].object.userData.trap && all.find(h => h.object.userData.trap && h.distance - hits[0].distance < CHARGE_REACH);
+      const h = charge || hits[0];
       const normal = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
       best = { point: h.point, distance: h.distance, object: h.object, normal, zone: h.object.userData.zone, soldier: h.object.userData.soldier, hotspot: h.object.userData.hotspot, trap: h.object.userData.trap };
     }

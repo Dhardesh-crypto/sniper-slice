@@ -167,7 +167,7 @@ export class Hotspots {
     if (h.heavyOnly) {
       this.fx.emit(point, dir.clone().negate(), { color: 0xb8ad98, count: 6, speed: 3, size: 0.1, life: 0.6, grow: 1.5, gravity: -6 });
       this.audio.impact?.(this.player.pos.distanceTo(point));
-      if (h.active) this.hud.message(h.heavyMessage ?? `${h.title} · PLACE A SATCHEL OR TNT AT ITS FOOT`, '');
+      if (h.active) this.hud.message(h.heavyMessage ?? `${h.title} · PLACE A SATCHEL OR THROW TNT AT ITS FOOT`, '');
       return;
     }
     this.fx.emit(point, dir.clone().negate(), { color: 0xffe0a0, count: 6, speed: 4, size: 0.05, life: 0.25, grow: 1, gravity: -6 });

@@ -4,8 +4,10 @@
 //                     on the way, a wall, a tree, a vehicle or a man), release to throw; Esc or right-click cancels
 //   whistle           a sharp whistle: nearby guards come to look (a lure)
 //   mine              placed at your feet; a guard or a vehicle stepping on it sets it off
-//   TNT               placed anywhere; K detonates it (all of it), and a bullet sets it off
-//   satchel charge    placed on a vehicle in reach (or the ground); goes off 10 s later or on K;
+//   TNT               thrown like a grenade (same arc), it lies where it stops; K detonates it (all of
+//                     it), and a bullet sets it off
+//   satchel charge    placed on a vehicle in reach (or the ground); goes off when its fuse burns down
+//                     (L: short 6 s or long 20 s) or on K;
 //                     it's the one thing besides AP rounds that kills the Panzer
 //   bandage, medkit   heal (H heals without the wheel: a medkit when you're badly hurt)
 import * as THREE from 'three';
@@ -16,7 +18,7 @@ export const ITEMS = [
   { id: 'bottle', name: 'Bottle', kind: 'throw' },
   { id: 'whistle', name: 'Whistle', kind: 'use' },
   { id: 'mine', name: 'Mine', kind: 'place' },
-  { id: 'tnt', name: 'TNT', kind: 'place' },
+  { id: 'tnt', name: 'TNT', kind: 'throw' },   // thrown like a grenade; where it comes to rest it waits for K
   { id: 'satchel', name: 'Satchel charge', kind: 'place' },
   { id: 'bandage', name: 'Bandage', kind: 'heal' },
   { id: 'medkit', name: 'Medkit', kind: 'heal' },
@@ -24,7 +26,8 @@ export const ITEMS = [
 export const START_KIT = { grenade: 2, bottle: 3, whistle: Infinity, mine: 2, tnt: 1, satchel: 2, bandage: 3, medkit: 1 };
 const HEAL = { bandage: { amount: 35, time: 1.5 }, medkit: { amount: 100, time: 3 } };
 const THROW_SPEED = 15, THROW_LIFT = 4.5;
-const FUSE = { grenade: 4, satchel: 10 };
+const FUSE = { grenade: 4 };
+const SATCHEL_FUSE = { short: 6, long: 20 };   // s (L switches)
 const BLAST = {
   grenade: { radius: 5, hurt: 9, size: 0.8, noise: 200, label: 'GRENADE' },
   mine: { radius: 4.5, hurt: 8, size: 0.9, noise: 200, label: 'MINE' },
@@ -59,6 +62,7 @@ export class Items {
     this.healing = null;          // { id, t, total, from }
     this.thrown = [];             // grenades and bottles in flight or rolling
     this.placed = [];             // mines, TNT and satchels in the world
+    this.satchelFuse = 'short';   // the satchel's fuse: 'short' or 'long' (L)
     this.arc = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.35, gapSize: 0.25, transparent: true, opacity: 0.8, depthTest: false }));
     this.arc.renderOrder = 998; this.arc.frustumCulled = false; this.arc.visible = false;
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.45, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthTest: false }));
@@ -95,7 +99,7 @@ export class Items {
     }
     const it = ITEMS.find(i => i.id === (this.hover ?? this.selected));
     this.wheelEl.querySelector('.hub b').textContent = it.name;
-    this.wheelEl.querySelector('.hub span').textContent = { throw: 'G: hold to aim, release to throw', use: 'G: whistle to lure a guard', place: it.id === 'tnt' ? 'G: place · K: detonate' : it.id === 'satchel' ? 'G: place on a vehicle · 10 s or K' : 'G: place at your feet', heal: 'G or H: heal' }[it.kind];
+    this.wheelEl.querySelector('.hub span').textContent = { throw: it.id === 'tnt' ? 'G: hold to aim, release to throw · K: detonate' : 'G: hold to aim, release to throw', use: 'G: whistle to lure a guard', place: it.id === 'satchel' ? `G: place (${SATCHEL_FUSE[this.satchelFuse]} s fuse) · L: fuse · K: now` : 'G: place at your feet', heal: 'G or H: heal' }[it.kind];
   }
 
   // Mouse movement while the wheel is open picks a slot instead of turning you.
@@ -142,6 +146,11 @@ export class Items {
       }
     } else if (!inp.down('KeyG')) this.aimingThrow = false;
     if (inp.wasPressed('KeyK')) this.detonateAll();
+    if (inp.wasPressed('KeyL') && this.selected === 'satchel') {
+      this.satchelFuse = this.satchelFuse === 'short' ? 'long' : 'short';
+      this.audio.click(0, 1100, 0.15);
+      this.hud.message(`SATCHEL FUSE · ${this.satchelFuse.toUpperCase()} (${SATCHEL_FUSE[this.satchelFuse]} S)`, '');
+    }
     p.busyHands = this.aimingThrow || !!this.healing;
     this.updateArc();
     this.tickThrown(dt);
@@ -243,6 +252,13 @@ export class Items {
         this.audio.impact?.(this.player.pos.distanceTo(o.pos) + 40);
       }
       if (o.rest) { o.vel.set(0, 0, 0); o.pos.y = this.world.floorAt(o.pos.x, o.pos.z, o.pos.y + 0.3) + 0.05; }
+      if (o.rest && o.id === 'tnt') {
+        // Thrown TNT lies where it stopped, a charge like a placed one: K sets it off, a shot too.
+        o.done = true;
+        this.spawnTrap('tnt', o.pos.clone().setY(o.pos.y - 0.05), o.mesh.rotation.y);
+        this.hud.message('TNT LANDED · PRESS K TO DETONATE', '');
+        continue;
+      }
       o.mesh.position.copy(o.pos);
       if (!o.rest) { o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; }
       if (o.id === 'grenade') {
@@ -294,9 +310,10 @@ export class Items {
     }
     this.count[id]--;
     this.onAction?.('place');
-    this.spawnTrap(id, at, p.yaw, parent);
+    this.spawnTrap(id, at, p.yaw, parent, id === 'satchel' ? { fuse: SATCHEL_FUSE[this.satchelFuse] } : {});
     this.audio.rustle();
-    this.hud.message({ mine: 'MINE PLACED · IT ARMS IN A MOMENT', tnt: 'TNT PLACED · PRESS K TO DETONATE', satchel: parent ? 'SATCHEL ON THE VEHICLE · 10 SECONDS · K TO BLOW IT NOW' : 'SATCHEL PLACED · 10 SECONDS · K TO BLOW IT NOW' }[id], '');
+    const s = SATCHEL_FUSE[this.satchelFuse];
+    this.hud.message({ mine: 'MINE PLACED · IT ARMS IN A MOMENT', tnt: 'TNT PLACED · PRESS K TO DETONATE', satchel: `${parent ? 'SATCHEL ON THE VEHICLE' : 'SATCHEL PLACED'} · ${s} SECONDS · K TO BLOW IT NOW` }[id], '');
   }
 
   // Put a mine, TNT or satchel in the world (from placing it, or from a loaded save).
@@ -373,7 +390,7 @@ export class Items {
   state() {
     const it = this.item, n = this.count[it.id];
     return {
-      name: it.name, count: n === Infinity ? null : n, kind: it.kind,
+      name: it.id === 'satchel' ? `${it.name} · ${this.satchelFuse} fuse` : it.name, count: n === Infinity ? null : n, kind: it.kind,
       healing: this.healing ? { id: this.healing.id, progress: this.healing.t / this.healing.total } : null,
       charges: this.placed.filter(t => t.id !== 'mine' && !t.done).length,
     };

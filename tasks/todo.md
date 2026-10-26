@@ -590,3 +590,13 @@ model goes in through `tools/import-model.sh` (download, JPEG textures, weld + s
 - [x] Verified: Springfield head shot at 43 m killed the man in front (831 m/s) and the man 3 m behind
       (456 m/s), DOUBLE KILL shown; arc white over open ground, red at a wall 4 m off; Esc and right-click
       cancel with no grenade used.
+
+## Throwable TNT, satchel fuses, shooting satchels (2026-10-26)
+- [x] TNT is thrown like a grenade (same arc, red warning, Esc / right-click cancel); where it comes to
+      rest it lies as a charge: K sets it off, and so does a shot.
+- [x] Satchel fuse: L switches short (6 s) / long (20 s); shown in the item name and the wheel; K still
+      blows it at once.
+- [x] Shooting a satchel sets it off, also on a vehicle: a charge sits partly inside the engine's block,
+      so a shot meeting the block first now goes to a charge within 0.8 m behind it (raycastSegment).
+- [x] Verified: TNT thrown, landed, K detonated it; satchels placed with 6 s and 20 s; a shot set off one
+      on the ground and one on the staff car (the car went up with it).
