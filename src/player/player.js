@@ -147,7 +147,11 @@ export class Player {
     this.world.collideCircle(this.pos, this.radius, this.pos.y, this.pos.y + this.eye + 0.15);
     // No swimming with all that kit: the water's edge (a quay, a beach, a ship's rail) stops you.
     const wl = this.world.waterLevel;
-    if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - 0.3) { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }
+    if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - 0.3) {
+      const hop = this.grounded && this.hopAcross(ox, oz, wl);
+      if (hop) { this.pos.x = hop.x; this.pos.z = hop.z; }
+      else { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }
+    }
     // Cliffs (maps that have them): no walking up ground steeper than the map allows (stairs,
     // ladders and other boxes still work; going down a cliff is a fall).
     const ms = this.world.maxSlope, run = Math.hypot(this.pos.x - ox, this.pos.z - oz);
@@ -199,6 +203,21 @@ export class Player {
     for (const l of this.world.ladders ?? []) {
       if (Math.abs(this.pos.y - l.bottom) < 0.6 && Math.hypot(this.pos.x - l.foot.x, this.pos.z - l.foot.z) < 0.9) return { ladder: l, down: false };
       if (Math.abs(this.pos.y - l.top) < 0.3 && Math.hypot(this.pos.x - l.topSpot.x, this.pos.z - l.topSpot.z) < 0.8) return { ladder: l, down: true };
+    }
+    return null;
+  }
+
+  // Only a narrow gap of water ahead (a moored ship's rail and the quay): dry ground within a
+  // stride and a half, no higher than you, you step across to. (Climbing aboard is a mantle.)
+  hopAcross(ox, oz, wl) {
+    const dx = this.pos.x - ox, dz = this.pos.z - oz, len = Math.hypot(dx, dz);
+    if (len < 1e-5) return null;
+    for (let d = 0.5; d <= 2.5; d += 0.25) {
+      const x = ox + (dx / len) * d, z = oz + (dz / len) * d;
+      const f = this.world.floorAt(x, z, this.pos.y + 0.3);
+      if (f < wl - 0.3) continue;
+      if (f > this.pos.y + STEP) return null;
+      return { x: ox + (dx / len) * (d + this.radius), z: oz + (dz / len) * (d + this.radius) };
     }
     return null;
   }
