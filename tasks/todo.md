@@ -542,3 +542,26 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       looped (the column, the reinforcements; louder and brighter nearer); the reinforcement truck setting
       off revs and pulls away ("Truck start moving"). The airfield's engine run-up keeps its own
       synthesised engine.
+
+## Realism pass with the new Higgsfield credits (PROPOSED 2026-10-26, waiting for approval)
+Budget: 1,045 credits. A detailed 3D model costs ~18.25 (picture 0.25 + Tripo 18), a standard one ~9.25.
+- [ ] A. Uniform variety (~150): guards dressed for their post: Luftwaffe ground crew (airfield),
+      Kriegsmarine sailors (harbour), Pioniere engineers (bridge), Feldgendarmerie (checkpoints), a
+      tank crewman in black (riding in the hatches of crewed tanks). 6–8 rigged characters on the
+      existing animations.
+- [ ] B. Wrecks (~110): burnt-out versions of the Panzer IV, Tiger, Opel Blitz, Kübelwagen, halftrack
+      and planes, swapped in when one is destroyed (today they're blackened copies).
+- [ ] C. Life in the world (~120): animals (cows and a horse in the vineyard, goats on the coast,
+      deer in the forest, gulls over the harbour) with simple walk/graze loops; a horse-drawn cart.
+- [ ] D. Interiors (~160): the enterable buildings get modelled furniture: officer's desk, map
+      table, field telephone and radio set, bunks, lockers, stoves, filing cabinets, wall maps.
+- [ ] E. Signature props per mission (~280): town (market stalls, café tables, a Fiat), harbour
+      (rowboats, bollards, nets, cargo pallets), forest (felled trees, a woodcutter's cart), railway
+      (handcar, signal posts, water crane), airfield (bomb trolleys, Kettenkrad, fuel trailer), coast
+      (a Würzburg dish, AA gun pits), bridge (assault boats, a bridging pontoon section).
+- [ ] F. Vegetation (~100): proper cypress, olive, umbrella pine and oak models, rocks and bushes,
+      replacing the drawn trees (instanced; checked for frame rate).
+- [ ] G. Weather and light per mission (no credits): rain on the forest, drifting ground mist at dawn
+      on the airfield, sea spray on the coast.
+Everything is simplified on import (meshoptimizer, error 0.005), and the frame time measured against
+today's before calling it done.
