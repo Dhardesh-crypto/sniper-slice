@@ -34,7 +34,7 @@ export const SOUND_CHECK = [
   ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start'];
+const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren'];
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
 EXTRA.push(...Object.values(SHOUTS).flat());
@@ -89,6 +89,7 @@ export class Audio {
         this.samples[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
       } catch { /* missing or undecodable: the synthesised sound stays */ }
     }));
+    if (this.sirenLevel > 0) { const l = this.sirenLevel; this.sirenLevel = 0; this.setSiren(l); }   // a siren already sounding takes the recording
   }
 
   // Play a sample; false if it isn't loaded (the caller then synthesises). rate: playback
@@ -429,7 +430,23 @@ export class Audio {
   }
 
   // Air-raid style wail, pitch rising and falling (no bells).
+  // The air-raid siren: the recording (winding up, holding, winding down, again and again) once it
+  // has loaded; the synthesised wail until then. The level is kept, so a siren already sounding
+  // switches to the recording when it arrives.
   setSiren(level) {
+    const was = this.sirenLevel ?? 0;
+    this.sirenLevel = level;
+    if (this.samples?.siren) {
+      // Each time it's set off it winds up from the start, as a real one does.
+      if (level > 0 && was <= 0 && this.loops?.siren) { this.loops.siren.src.stop(); delete this.loops.siren; }
+      this.loopSample('siren', 'siren', level * 0.55);
+      if (this.sirenGain) this.sirenGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
+      return;
+    }
+    this.synthSiren(level);
+  }
+
+  synthSiren(level) {
     const g = this.drone('sirenGain', (out) => {
       const lfo = this.ctx.createOscillator();
       lfo.type = 'triangle';

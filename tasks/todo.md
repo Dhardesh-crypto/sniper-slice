@@ -565,3 +565,8 @@ Budget: 1,045 credits. A detailed 3D model costs ~18.25 (picture 0.25 + Tripo 18
       on the airfield, sea spray on the coast.
 Everything is simplified on import (meshoptimizer, error 0.005), and the frame time measured against
 today's before calling it done.
+
+## Air-raid siren recording (2026-10-26)
+- [x] The alarm siren is now "Air Raid Siren Sound Effect" (Pixabay): one wind-up, hold and wind-down,
+      looped, so it wails like a real one; each alarm winds up from the start. The synthesised wail
+      plays only until the recording has loaded, then hands over.
