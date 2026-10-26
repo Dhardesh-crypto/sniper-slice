@@ -569,3 +569,10 @@ model goes in through `tools/import-model.sh` (download, JPEG textures, weld + s
       grey sky), ground mist over the airfield at dawn, sea spray where the surf breaks on the coast.
 - [x] Verified: all eight missions load and run with no errors; no dressing left out; frame at 1512×945
       8–11 ms (was 5–8; the 380 modelled cypresses and the vine rows, 3.4M triangles in view).
+
+## X stopped switching ammunition (2026-10-26)
+- [x] Cause: the weapon-switch timer counted down by subtraction and ended at −1.7e-16, not 0; X checked
+      `!switchT`, so after the first weapon switch (pistol, heavy) X was ignored for the rest of the mission.
+      Fixed: the timer clamps at 0 and X checks `switchT <= 0`. X with no other type now says
+      "NO OTHER AMMUNITION" instead of doing nothing.
+- [x] Verified: pistol and back, then X cycles standard → subsonic → armour-piercing → standard.

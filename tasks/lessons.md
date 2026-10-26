@@ -76,3 +76,7 @@ Tripo turned an olive into bare branches, an oak into pale flakes and a bush int
 or solid crowns (cypress, umbrella pine) came out usable. Don't spend credits on broadleaf trees or
 shrubs: keep the drawn leaf-card ones. Check every model on a contact sheet / in the prop viewer before
 placing it, and note the viewer's light runs bright (judge colour in the game).
+
+## Never test a float timer for exactly zero (2026-10-26)
+`timer -= dt` lands a hair below 0 (−1.7e-16), so `!timer` stays false forever: X (ammo) died after the
+first weapon switch. Clamp countdowns with Math.max(0, …) and compare with `<= 0`.

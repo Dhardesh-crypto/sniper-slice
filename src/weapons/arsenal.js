@@ -140,7 +140,7 @@ export class Arsenal {
     for (let i = 1; i <= types.length; i++) {
       const next = types[(types.indexOf(from) + i) % types.length];
       if (next === w.loaded || w.ammo[next] > 0) {
-        if (next === w.loaded && !w.pendingAmmo) return;
+        if (next === w.loaded && !w.pendingAmmo) { this.onAmmo?.(null); return; }   // nothing else to load
         w.pendingAmmo = next === w.loaded ? null : next;
         if (w.pendingAmmo) this.beginReload();
         this.onAmmo?.(AMMO[next].name);
@@ -159,7 +159,7 @@ export class Arsenal {
       if (inp.wasPressed('Digit3') && this.current !== 'heavy' && this.loadout?.heavy) this.beginSwitch('heavy');
     }
     if (this.switchT > 0) {
-      this.switchT -= dt;
+      this.switchT = Math.max(0, this.switchT - dt);   // (left at a hair below 0 it read as "still switching")
       if (this.pendingSwitch && this.switchT < 0.3) {
         this.current = this.pendingSwitch;
         this.pendingSwitch = null;
@@ -176,7 +176,7 @@ export class Arsenal {
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
-    if (inp.wasPressed('KeyX') && this.current === 'rifle' && !this.switchT && !this.handsTied) this.switchAmmo();
+    if (inp.wasPressed('KeyX') && this.current === 'rifle' && this.switchT <= 0 && !this.handsTied) this.switchAmmo();
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) {

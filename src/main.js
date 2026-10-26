@@ -138,7 +138,7 @@ arsenal.rockets = rockets;
 items.onAction = (kind) => avatar.perform(kind === 'throw' && player.stance === 'crouch' ? 'throwCrouch' : kind);
 arsenal.items = items;
 search.items = items;
-arsenal.onAmmo = (name) => hud.message(`LOADING ${name.toUpperCase()} ROUNDS`);
+arsenal.onAmmo = (name) => hud.message(name ? `LOADING ${name.toUpperCase()} ROUNDS` : 'NO OTHER AMMUNITION');
 let started = false;   // has the mission begun (the first click into the game)?
 // Your collection and loadout (kept across missions), the things to find, and the workbenches.
 const profile = new Profile();
