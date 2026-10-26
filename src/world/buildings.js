@@ -178,22 +178,41 @@ export function stairHole(x, z, st, h) {
 }
 
 // ---- furniture (simple boxes; the solid ones block like walls) ----
+// Where its model is loaded, a piece is drawn by the model and its boxes stay, undrawn, as what
+// you bump into and what stops bullets. Which model: a mix by position, so rooms differ.
+const pick = (x, z, n) => Math.abs(Math.floor(x * 7.3 + z * 3.1)) % n;
+function furnish(b, key, size, x, y, z, rotY = 0) {
+  const model = propModel(key, size, { stretch: true });
+  if (!model) return false;
+  model.position.set(x, y, z);
+  model.rotation.y = rotY;
+  b.group.add(model);
+  return true;
+}
 export const furniture = {
   table(b, x, y, z, w = 1.6, d = 0.9) {
-    b.box(w, 0.06, d, M.darkWood, x, y + 0.72, z);
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(0.07, 0.72, 0.07, M.darkWood, x + sx * (w / 2 - 0.08), y, z + sz * (d / 2 - 0.08), { solid: false });
+    const modelled = pick(x, z, 2) ? furnish(b, 'mapTable', { x: w + 0.5, y: 1.0, z: d + 0.7 }, x, y, z) : furnish(b, 'tableSet', { x: w + 0.4, y: 1.0, z: d + 0.9 }, x, y, z);
+    const mat = modelled ? HIDDEN : M.darkWood;
+    b.box(w, 0.06, d, mat, x, y + 0.72, z);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(0.07, 0.72, 0.07, mat, x + sx * (w / 2 - 0.08), y, z + sz * (d / 2 - 0.08), { solid: false });
     const blocker = b.box(w, 0.78, d, HIDDEN, x, y, z);   // one box to bump into
     return blocker;
   },
   desk(b, x, y, z, rotY = 0) {
-    b.box(1.5, 0.75, 0.75, M.darkWood, x, y, z);
-    b.box(1.5, 0.04, 0.78, M.wood, x, y + 0.75, z, { solid: false });
+    // An officer's desk, or (one in three) the radio set on its table.
+    const modelled = pick(x, z, 3) === 0 ? furnish(b, 'radioSet', { x: 1.5, y: 1.25, z: 0.8 }, x, y, z, rotY) : furnish(b, 'desk', { x: 1.5, y: 1.05, z: 0.8 }, x, y, z, rotY);
+    b.box(1.5, 0.75, 0.75, modelled ? HIDDEN : M.darkWood, x, y, z);
+    b.box(1.5, 0.04, 0.78, modelled ? HIDDEN : M.wood, x, y + 0.75, z, { solid: false });
   },
-  cabinet(b, x, y, z, w = 1.0, d = 0.45, h = 1.9) { b.box(w, h, d, M.darkWood, x, y, z); },
+  cabinet(b, x, y, z, w = 1.0, d = 0.45, h = 1.9) {
+    const modelled = furnish(b, h > 1.6 ? 'locker' : 'filingCabinet', { x: w, y: h, z: d }, x, y, z);
+    b.box(w, h, d, modelled ? HIDDEN : M.darkWood, x, y, z);
+  },
   bed(b, x, y, z, alongX = true) {
     const [w, d] = alongX ? [2.0, 0.95] : [0.95, 2.0];
-    b.box(w, 0.45, d, M.wood, x, y, z);
-    b.box(w - 0.1, 0.12, d - 0.1, BLANKET, x, y + 0.45, z, { solid: false });
+    const modelled = furnish(b, 'bunk', { x: 2.0, y: 1.7, z: 0.95 }, x, y, z, alongX ? 0 : Math.PI / 2);
+    b.box(w, 0.45, d, modelled ? HIDDEN : M.wood, x, y, z);
+    b.box(w - 0.1, 0.12, d - 0.1, modelled ? HIDDEN : BLANKET, x, y + 0.45, z, { solid: false });
   },
   crates(b, x, y, z, n = 3) {
     // The modelled crate stack over the blocks (which stay as cover), when it's loaded.

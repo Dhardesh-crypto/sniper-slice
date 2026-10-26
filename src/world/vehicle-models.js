@@ -48,6 +48,8 @@ export function vehicleModel(kind, { front } = {}) {
   if (spec.narrow) inner.scale[axis === 'x' ? 'z' : 'x'] *= spec.narrow;
   outer.add(inner);
   outer.userData.mesh = mesh;
+  outer.userData.kind = kind;
+  outer.userData.length = spec.length;
   if (kind === 'plane') addPropellers(mesh, outer);
   return outer;
 }

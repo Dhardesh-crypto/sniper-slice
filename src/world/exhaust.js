@@ -34,7 +34,7 @@ export function tickExhaust(dt) {
       s.space.localToWorld(_p.copy(q));
       ctx.fx.emit(_p, _d, driving
         ? { color: s.heavy ? 0x55585b : 0x81868c, count: 1, speed: 1.8, size: 0.42 * k, life: 2.6, grow: 4, gravity: 0.5 }
-        : { color: s.heavy ? 0x6a6d71 : 0x8e939a, count: 1, speed: 0.9, size: 0.4 * k, life: 2.6, grow: 4.5, gravity: 0.45 });
+        : { color: s.heavy ? 0x878a8e : 0x9a9fa6, count: 1, speed: 0.9, size: 0.3 * k, life: 2.2, grow: 4, gravity: 0.45 });
     }
   }
 }

@@ -70,3 +70,9 @@ that looks as if it sits on the head: about half the "marker on the head" aims m
 moves to where the bullet passes at the distance of whatever shows under it, and it flies the bullet's own
 step (a 1/120 s step drifted a few cm by 300 m, enough to clip a parapet the real round cleared). Test a
 marker against the real shot from many aims (marker on target ⇒ hit), not one lucky aim on a range.
+
+## Image-to-3D can't make leafy trees (2026-10-26)
+Tripo turned an olive into bare branches, an oak into pale flakes and a bush into shards; only columnar
+or solid crowns (cypress, umbrella pine) came out usable. Don't spend credits on broadleaf trees or
+shrubs: keep the drawn leaf-card ones. Check every model on a contact sheet / in the prop viewer before
+placing it, and note the viewer's light runs bright (judge colour in the game).

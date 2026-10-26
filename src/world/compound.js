@@ -8,7 +8,7 @@ import { vehicleModel } from './vehicle-models.js';
 
 import { M, Builder } from './kit.js';
 import { building, furniture } from './buildings.js';
-import { propModel, clipAbove } from './props.js';
+import { propModel, propGeometry, clipAbove } from './props.js';
 
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 
@@ -244,12 +244,23 @@ export function buildCompound(scene) {
   const towerTops = towers.map(t => t.top);
   const ladders = towers.filter(t => t.ladder).map(t => t.ladder);
 
-  // Vineyard rows south of the compound
+  // Vineyard rows south of the compound: modelled vines on posts and wires where the model is
+  // loaded (two 9 m lengths to each 18 m row, drawn as instances), green hedges if not.
+  const vine = propGeometry('vineRow', { x: 9, y: 1.7, z: 1.1 }, true);
+  const rows = [];
   for (let r = 0; r < 9; r++) {
     for (let s = 0; s < 3; s++) {
       const x = cx - 30 + s * 22, z = cz + D / 2 + 22 + r * 3.2;
-      b.box(18, 1.35, 0.6, M.vine, x, heightAt(x, z) - 0.1, z, { solid: false });
+      if (!vine) { b.box(18, 1.35, 0.6, M.vine, x, heightAt(x, z) - 0.1, z, { solid: false }); continue; }
+      for (const dx of [-4.5, 4.5]) rows.push(new THREE.Vector3(x + dx, heightAt(x + dx, z) - 0.05, z + (r % 2 ? 0.08 : -0.08)));
     }
+  }
+  if (vine) {
+    const im = new THREE.InstancedMesh(vine.geometry, vine.material, rows.length), m = new THREE.Matrix4(), q = new THREE.Quaternion();
+    rows.forEach((p, i) => im.setMatrixAt(i, m.compose(p, q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), i % 2 ? Math.PI : 0), new THREE.Vector3(1, 1, 1))));
+    im.castShadow = im.receiveShadow = true;
+    im.computeBoundingSphere();
+    scene.add(im);
   }
 
   // Practice guards (static until the AI phase).

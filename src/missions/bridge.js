@@ -296,7 +296,7 @@ function site(scene, world) {
 
   // ---- the garrison ----
   add(-140, 58, Math.PI, { officer: true, name: 'Hahn', look: 'officerLieutenant' });
-  add(-46, 0, -Math.PI / 2, { name: 'Bridge patrol' });
+  add(-46, 0, -Math.PI / 2, { name: 'Bridge patrol', look: 'guardPionier' });
   add(-52, -5, -Math.PI / 2, { name: 'Checkpoint', stance: 'alert', look: 'guardSergeant' });
   add(-52, 5, -Math.PI / 2, { name: 'Checkpoint' });
   add(52, -5, Math.PI / 2, { name: 'Checkpoint', stance: 'alert' });
@@ -304,8 +304,8 @@ function site(scene, world) {
   add(nx - 1.2, nz + 0.8, Math.PI / 2, { name: 'MG crew', stance: 'alert', look: 'guardSergeant' });
   add(nx + 0.6, nz - 1, Math.PI / 2, { name: 'MG crew' });
   add(tx, tz - 0.3, Math.PI * 0.75, { y: top, name: 'Tower guard', stance: 'alert', look: 'guardCamo' });
-  add(-170, 50, Math.PI / 2, { name: 'Camp patrol' });
-  add(px - 3, pz + 3, Math.PI, { name: 'Pontoon guard', stance: 'alert' });
+  add(-170, 50, Math.PI / 2, { name: 'Camp patrol', look: 'guardPionier' });
+  add(px - 3, pz + 3, Math.PI, { name: 'Pontoon guard', stance: 'alert', look: 'guardPionier' });
   add(cx - 1, cz - 7.5, 0, { name: 'Hut guard', stance: 'alert', look: 'guardSergeant' });
   add(gx(-60) - 12, -60, 0, { name: 'Bank patrol', look: 'guardCamo' });
   add(60, 2, -Math.PI / 2, { name: 'East patrol' });
@@ -358,6 +358,18 @@ const VEHICLE_MARKS = {
   },
 };
 
+// A vehicle at the bottom of the gorge: its burnt-out model in its place (nose toward +z, like the
+// column's), or just blackened where there's none.
+const GORGE_WRECKS = { tiger: ['wreckTiger', 6.6], panzer: ['wreckPanzer', 5.9], truck: ['wreckTruck', 6.0], halftrack: ['wreckHalftrack', 5.8] };
+function wreckInGorge(v) {
+  const [key, len] = GORGE_WRECKS[v.kind] ?? [];
+  const w = key && propModel(key, { x: len }, { own: true });
+  if (!w) { v.model.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color?.multiplyScalar(0.2); } }); return; }
+  v.model.traverse(o => { if (o.isMesh) o.visible = false; });
+  w.rotation.y = Math.PI / 2;
+  v.model.add(w);
+}
+
 // A vehicle gone into the gorge: its crew is out of the fight.
 function crewDown(v) { if (v.model.userData.crew) v.model.userData.crew.dead = true; }
 
@@ -407,6 +419,7 @@ function dressing() {
     ['pak40', 64, 13, 0], ['searchlight', 68, -7, 2.4], ['sandbags', -46, 10, Math.PI / 2], ['sandbags', 46, -10, Math.PI / 2],
     ['kitchen', -125, 86, 0.3], ['supplies', -128, 60], ['drums', -150, 86, 0.3], ['barrels', -110, 80, 0],
     ['wire', 72, 40, Math.PI / 2], ['wire', -72, -40, Math.PI / 2],
+    ['pontoonSection', CAMP.x - 2, CAMP.z + 4, 0], ['assaultBoat', CAMP.x - 10, CAMP.z - 6, 0.2], ['assaultBoat', CAMP.x - 12, CAMP.z + 14, 0.4], ['rock', 120, 140, 1],
   ];
 }
 
@@ -532,7 +545,7 @@ function runColumn(m, dt) {
     v.box.min.set(1e6, -1e6, 1e6); v.box.max.copy(v.box.min);
     if (v.fallT === 1 && !v.wrecked) {
       v.wrecked = true;
-      v.model.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color?.multiplyScalar(0.2); } });
+      wreckInGorge(v);
       m.complete('column', 'A VEHICLE OF THE COLUMN WENT INTO THE GORGE');
     }
   }
@@ -597,4 +610,4 @@ const briefing = `
     or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
     the mission is lost.</p>`;
 
-export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
+export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };

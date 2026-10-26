@@ -543,30 +543,29 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       off revs and pulls away ("Truck start moving"). The airfield's engine run-up keeps its own
       synthesised engine.
 
-## Realism pass with the new Higgsfield credits (PROPOSED 2026-10-26, waiting for approval)
-Budget: 1,045 credits. A detailed 3D model costs ~18.25 (picture 0.25 + Tripo 18), a standard one ~9.25.
-- [ ] A. Uniform variety (~150): guards dressed for their post: Luftwaffe ground crew (airfield),
-      Kriegsmarine sailors (harbour), Pioniere engineers (bridge), Feldgendarmerie (checkpoints), a
-      tank crewman in black (riding in the hatches of crewed tanks). 6–8 rigged characters on the
-      existing animations.
-- [ ] B. Wrecks (~110): burnt-out versions of the Panzer IV, Tiger, Opel Blitz, Kübelwagen, halftrack
-      and planes, swapped in when one is destroyed (today they're blackened copies).
-- [ ] C. Life in the world (~120): animals (cows and a horse in the vineyard, goats on the coast,
-      deer in the forest, gulls over the harbour) with simple walk/graze loops; a horse-drawn cart.
-- [ ] D. Interiors (~160): the enterable buildings get modelled furniture: officer's desk, map
-      table, field telephone and radio set, bunks, lockers, stoves, filing cabinets, wall maps.
-- [ ] E. Signature props per mission (~280): town (market stalls, café tables, a Fiat), harbour
-      (rowboats, bollards, nets, cargo pallets), forest (felled trees, a woodcutter's cart), railway
-      (handcar, signal posts, water crane), airfield (bomb trolleys, Kettenkrad, fuel trailer), coast
-      (a Würzburg dish, AA gun pits), bridge (assault boats, a bridging pontoon section).
-- [ ] F. Vegetation (~100): proper cypress, olive, umbrella pine and oak models, rocks and bushes,
-      replacing the drawn trees (instanced; checked for frame rate).
-- [ ] G. Weather and light per mission (no credits): rain on the forest, drifting ground mist at dawn
-      on the airfield, sea spray on the coast.
-Everything is simplified on import (meshoptimizer, error 0.005), and the frame time measured against
-today's before calling it done.
-
-## Air-raid siren recording (2026-10-26)
-- [x] The alarm siren is now "Air Raid Siren Sound Effect" (Pixabay): one wind-up, hold and wind-down,
-      looped, so it wails like a real one; each alarm winds up from the start. The synthesised wail
-      plays only until the recording has loaded, then hands over.
+## Realism pass with the new Higgsfield credits (done 2026-10-26; 709 credits spent, 336 left)
+44 models: 45 reference pictures (gpt_image_2_5), 40 Tripo H3.1 models, 4 Meshy rigged characters. Every
+model goes in through `tools/import-model.sh` (download, JPEG textures, weld + simplify at error 0.005).
+- [x] F. Vineyard: the green hedge rows are now modelled vines on posts and wires (54 instances, two 9 m
+      lengths per row). Modelled Italian cypresses and umbrella pines replace the drawn ones on every map
+      (instanced in chunks, the trunk kept for bullets), boulders on the hills. The olive, oak and bush
+      models failed (image-to-3D drops leafy crowns), so those stay the drawn leaf-card trees.
+- [x] B. Wrecks: a destroyed truck, staff car, fuel bowser, halftrack, Tiger, Panzer or fighter is swapped
+      for its burnt-out model (`swapForWreck` in hotspots.js; vehicles found by a kind/key tag on their
+      model), the original meshes hidden in place so bullets still stop on them; the vineyard Panzer and
+      the column vehicles that fall into the gorge too. Saves restore wrecks the same way.
+- [x] E. Props: market stalls, café tables and a Fiat in the town; rowboats and cargo pallets in the
+      harbour; felled trees and a horse cart in the forest; a water crane and a handcar at the railway; bomb
+      trolleys, Kettenkrads, fuel trailers and a second (Würzburg) dish at the airfield; an assault boat
+      and a pontoon section at the bridge camp; boulders and rowboats elsewhere.
+- [x] D. Interiors: every desk, table, cabinet and bed is drawn by a model over its old blocks (desk or
+      radio set; map table or dining set; locker or filing cabinet; bunk), mixed by position.
+- [x] C. Animals (`src/world/animals.js`): cows and a horse (vineyard, town, railway), goats (coast), red
+      deer (forest). They wander, graze head-down, and bolt from you walking up or from shots and blasts.
+- [x] A. Uniforms: Luftwaffe ground crew at the airfield, Kriegsmarine sailors in the harbour, Pioniere at
+      the bridge camp, and a tank commander in black standing in the hatch of every crewed tank (turns with
+      the turret, gone when the tank is). The military policeman was refused by the image filter.
+- [x] G. Weather (`src/world/weather.js`): rain in the forest (streaks, hiss, it masks a little noise, a
+      grey sky), ground mist over the airfield at dawn, sea spray where the surf breaks on the coast.
+- [x] Verified: all eight missions load and run with no errors; no dressing left out; frame at 1512×945
+      8–11 ms (was 5–8; the 380 modelled cypresses and the vine rows, 3.4M triangles in view).

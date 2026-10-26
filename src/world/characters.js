@@ -9,7 +9,9 @@ const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tan
   enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
   // More Germans: a soldier in a camouflage smock, a sergeant, the colonel (the Oberst), a lieutenant.
   trenchgun: 'trenchgun', mg42: 'mg42', panzerschreck: 'panzerschreck', panzerfaust: 'panzerfaust', piat: 'piat',
-  guardCamo: 'guard_camo', guardSergeant: 'guard_sergeant', officerColonel: 'officer_colonel', officerLieutenant: 'officer_lieutenant' };
+  guardCamo: 'guard_camo', guardSergeant: 'guard_sergeant', officerColonel: 'officer_colonel', officerLieutenant: 'officer_lieutenant',
+  // Dressed for their post: Luftwaffe ground crew, Kriegsmarine sailors, Pioniere, a tank crewman.
+  guardLuftwaffe: 'guard_luftwaffe', guardSailor: 'guard_sailor', guardPionier: 'guard_pionier', guardTanker: 'guard_tanker' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',

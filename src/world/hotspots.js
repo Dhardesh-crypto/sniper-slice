@@ -11,6 +11,7 @@
 // Looking through the scope or the binoculars, every weak spot still worth shooting glows a
 // faint red (brighter under the crosshair), so you can see where a shot does damage.
 import * as THREE from 'three';
+import { hasProp, propModel } from './props.js';
 
 
 // A soft red glow filling the weak spot's bounding box, fading out toward its edges (so it reads
@@ -65,6 +66,31 @@ class Hotspot {
     if (!this.explosive || this.exploded || this.heavyOnly || (this.armored && !ap)) return false;
     return this.hits + (ap && !this.armored ? 2 : 1) >= this.toExplode;
   }
+}
+
+// Which burnt-out model stands in for which vehicle (vehicle models by kind, props by key).
+const WRECKS = { truck: 'wreckTruck', car: 'wreckCar', bowser: 'wreckTruck', halftrack: 'wreckHalftrack', tiger: 'wreckTiger', bf110: 'wreckPlane', ju88: 'wreckPlane' };
+
+// Hide the vehicle a hotspot belongs to and put its burnt-out model where it stood, the same
+// size. (Its meshes stay hidden in place: bullets still stop on them.) False if there's none.
+function swapForWreck(h) {
+  const part = (h.parts ?? h.meshes)[0];
+  let v = part;
+  while (v && !v.userData.kind && !v.userData.propKey) v = v.parent;
+  const key = v && WRECKS[v.userData.kind ?? v.userData.propKey];
+  if (!key || !hasProp(key) || !v.parent) return false;
+  const vehicle = !!v.userData.kind;                       // a vehicle model: nose toward +z
+  const length = vehicle ? v.userData.length : v.userData.dims.x;
+  const w = propModel(key, { x: length }, { own: true });
+  if (!w) return false;
+  const holder = new THREE.Group();
+  holder.position.copy(v.position); holder.quaternion.copy(v.quaternion);
+  if (vehicle) w.rotation.y = Math.PI / 2;               // (props lie front toward -x)
+  holder.add(w);
+  v.parent.add(holder);
+  v.traverse(o => { if (o.isMesh) o.visible = false; });
+  holder.updateMatrixWorld(true);
+  return true;
 }
 
 export class Hotspots {
@@ -203,9 +229,11 @@ export class Hotspots {
     h.onExplode?.(h);
   }
 
-  // The wreck goes black (also used when a save restores one).
+  // The wreck goes black (also used when a save restores one); a vehicle with a burnt-out model
+  // is swapped for it instead.
   wreck(h) {
     h.exploded = true;
+    if (swapForWreck(h)) return;
     for (const m of h.parts ?? h.meshes) {
       if (!m.material) continue;
       m.material = m.material.clone();

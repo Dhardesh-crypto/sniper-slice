@@ -47,6 +47,7 @@ function heightAt(x, z) {
 const map = {
   // An overcast noon on the plain: soft light, faint shadows.
   light: { zenith: 42, azimuth: 200, sun: 0xfff0e0, sunIntensity: 1.5, turbidity: 9, rayleigh: 1.2, clouds: 0.85, hemi: 0.8, hemiSky: 0xd0d6dc, env: 0.32, exposure: 0.92 },
+  animals: [['cow', -160, 95, 25, 5]],   // cattle on the plain north of the line
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280,
   heightAt,
   roadCenterZ: (x) => (x <= 20 ? ROAD_Z : NaN),
@@ -404,6 +405,7 @@ function dressing() {
     ['sentryBox', 70, -7, 0], ['sandbags', 86, -4, Math.PI / 2],
     ['halftrack', 100, 31, Math.PI / 2], ['pak40', 190, 16, Math.PI],
     ['wire', -100, 46, 0], ['wire', -40, 46, 0],
+    ['waterCrane', 60, -6.5], ['handcar', -30, 30, 0], ['rock', -250, 140, 1], ['rock', 230, -120],
   ];
 }
 
@@ -566,4 +568,4 @@ const briefing = `
   <p class="brief">If the train gets away with the gun, the mission is lost. A moving train is loud: it covers your shots.
     The ground round the junction is open; a lookout stands on the water tower.</p>`;
 
-export default { id: 'railway', props: ['locomotive', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
+export default { id: 'railway', props: ['locomotive', 'wreckTiger', 'wreckHalftrack', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost', 'waterCrane', 'handcar', 'rock'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };

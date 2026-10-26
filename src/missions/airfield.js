@@ -49,6 +49,7 @@ const inApron = (x, z) => x > -130 && x < 130 && z > 78 && z < 175;
 const map = {
   // Dawn after the night's flying: the sun just up in the east, cold blue shadows.
   light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95 },
+  weather: { mist: 1 },   // ground mist lying over the field at dawn
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 150 }, start: START, navHalf: 300,
   heightAt,
   roadCenterZ: (x) => (x <= 10 ? ROAD_Z : NaN),
@@ -266,21 +267,21 @@ function site(scene, world) {
   // ---- the garrison ----
   add(40, 98, Math.PI, { officer: true, name: 'Major', look: 'officerColonel' });
   add(tx, tz - 6.5, Math.PI, { name: 'Tower guard', stance: 'alert', look: 'guardSergeant' });
-  add(tx + 2, tz + 1, 0, { y: up, name: 'Flight controller' });
-  add(-130, 92, -Math.PI / 2, { name: 'Apron patrol' });
+  add(tx + 2, tz + 1, 0, { y: up, name: 'Flight controller', look: 'guardLuftwaffe' });
+  add(-130, 92, -Math.PI / 2, { name: 'Apron patrol', look: 'guardLuftwaffe' });
   add(-250, 90, -Math.PI / 2, { name: 'Pen patrol', look: 'guardCamo' });
   add(130, 90, -Math.PI / 2, { name: 'East pen patrol' });
-  add(-92, 118, Math.PI, { name: 'Mechanic' });
-  add(-62, 124, Math.PI / 2, { name: 'Mechanic', look: 'guardSergeant' });
+  add(-92, 118, Math.PI, { name: 'Mechanic', look: 'guardLuftwaffe' });
+  add(-62, 124, Math.PI / 2, { name: 'Mechanic', look: 'guardLuftwaffe' });
   add(-385, 185, Math.PI, { name: 'Perimeter patrol' });
   add(-300, 35, -Math.PI / 2, { name: 'Runway patrol', look: 'guardCamo' });
   add(-4, z1 - 3, 0, { name: 'Gate guard', stance: 'alert' });
   add(4, z1 - 3, 0, { name: 'Gate guard', look: 'guardSergeant' });
   add(RADAR.x - 18, RADAR.z - 18, 0, { name: 'Radar sentry', stance: 'alert' });
-  add(RADAR.x + 2.5, RADAR.z + 3, Math.PI, { name: 'Radar operator' });
+  add(RADAR.x + 2.5, RADAR.z + 3, Math.PI, { name: 'Radar operator', look: 'guardLuftwaffe' });
   for (const [fx, fz] of flak) add(fx + 1.5, fz + 1.5, Math.PI, { y: heightAt(fx, fz), name: 'Flak crew', look: 'guardSergeant' });
   add(wx, wz - 0.3, Math.PI * 0.75, { y: wtop, name: 'Tower lookout', stance: 'alert', look: 'guardCamo' });
-  add(-150, 162, 0, { name: 'Mess guard' });
+  add(-150, 162, 0, { name: 'Mess guard', look: 'guardLuftwaffe' });
 
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
@@ -304,6 +305,8 @@ function dressing() {
     ['tent', -200, 150], ['tent', -212, 165], ['tent', -190, 172, 0.3], ['kitchen', -133, 182, 0],
     ['halftrack', 14, 188, 0], ['sentryBox', -8, 195, 0], ['mgNest', -22, 188], ['sandbags', 54, -126, 0], ['sandbags', 66, -126, 0],
     ['supplies', -82, 162], ['supplies', -118, 160, 0.5], ['pak40', 300, 42, Math.PI], ['wire', -150, -206, 0], ['wire', 120, -206, 0],
+    ['bombTrolley', -230, 118, 0], ['bombTrolley', -175, 118, 0.2], ['bombTrolley', 160, 118, 0], ['kettenkrad', 22, 104, 0.4], ['kettenkrad', -95, 150, 1],
+    ['fuelTrailer', -60, 140, 0.3], ['fuelTrailer', 150, 125, 1.2], ['wurzburg', RADAR.x + 24, RADAR.z, 0],
   ];
 }
 
@@ -404,5 +407,5 @@ const briefing = `
   <p class="brief">The field is flat and open; the fence is cut on the north side and the east side. When the mechanics run an engine
     up on the apron, nobody near the hangars hears a shot.</p>`;
 
-export default { id: 'airfield', props: ['bf110', 'ju88', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'watchtower', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost'],
+export default { id: 'airfield', props: ['bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'watchtower', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
   subtitle: 'Operation Night Owl · Lombardy, 1944', map, site, def, intel, briefing };

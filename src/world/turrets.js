@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { propModel, splitProp } from './props.js';
 import { addExhaust } from './exhaust.js';
+import { Character } from './characters.js';
 
 const RANGE = 300;          // m, a standing man in the open (less the less visible you are)
 const SHELL_SPEED = 450;    // m/s: an HE round, slow enough to see its tracer
@@ -37,8 +38,32 @@ export function addTurret({ pivot, gun, muzzle, recoil = null, recoilScale = 1, 
     kick: 0, tracking: false, dead: false, lastSeen: null, lostT: Infinity, prevAt: null, speed: 0,
   };
   crews.push(crew);
+  crew.commander = commanderFor(crew, recoil);
   if (exhaust) addExhaust({ ...exhaust, heavy: true, running: () => !crew.dead && shown(crew.pivot), speed: () => crew.speed });
   return crew;
+}
+
+// The commander stands up in the hatch, head and shoulders out, looking about: a crewman in black
+// on the turret top, toward its back, turning with it (the turret hides him below the chest).
+function commanderFor(crew, turret) {
+  if (!turret) return null;
+  const c = new Character('guardTanker');
+  if (!c.skinned) return null;
+  c.rifle.visible = false;
+  c.setHoldWeight(0);
+  c.play('lookAround', { fade: 0 });
+  const pivot = crew.pivot, k = 1 / pivot.getWorldScale(new THREE.Vector3()).x;   // (the Panzer's turret is in model units)
+  // The cupola is the highest part of the turret: the middle of its top few centimetres.
+  turret.geometry.computeBoundingBox();
+  const top = turret.geometry.boundingBox.max.y, pos = turret.geometry.attributes.position, v = new THREE.Vector3(), at = new THREE.Vector3();
+  let n = 0;
+  for (let i = 0; i < pos.count; i++) if (v.fromBufferAttribute(pos, i).y > top - 0.12 * k) { at.add(v); n++; }
+  at.divideScalar(Math.max(1, n)).add(turret.position);
+  c.root.position.set(at.x, top + turret.position.y - 1.15 * k, at.z);
+  c.root.scale.setScalar(k);
+  c.root.rotation.y = crew.base;                   // facing along the gun
+  pivot.add(c.root);
+  return c;
 }
 
 // A modelled tank prop with its turret cut out to turn: { group, hull, pivot, turret, crew-ready
@@ -82,7 +107,9 @@ export function tickTurrets(dt) {
   const at = new THREE.Vector3(), local = new THREE.Vector3();
   let tracks = 0, trackSpeed = 0, trackDist = Infinity, turret = 0, turretDist = Infinity;
   for (const c of crews) {
+    if (c.commander) c.commander.root.visible = !c.dead;
     if (c.dead || !shown(c.pivot)) continue;
+    c.commander?.update(dt);
     const parent = c.pivot.parent;
     c.pivot.getWorldPosition(at);
     // How fast the tank is driving (smoothed): a moving one's tracks rattle.

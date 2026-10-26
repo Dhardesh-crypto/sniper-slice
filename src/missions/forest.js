@@ -74,8 +74,10 @@ const NEEDLES = new THREE.Color(0x4a3a28);
 const inFirebreak = (x, z, m = 0) => Math.abs(x - FB) < 8 + m && Math.abs(z) < 470;
 
 const map = {
-  // A misty autumn morning: a weak sun low in the east.
-  light: { zenith: 72, azimuth: 115, sun: 0xffe2c4, sunIntensity: 1.7, turbidity: 9, clouds: 0.7, hemi: 0.65, hemiSky: 0xc4ccc8, env: 0.28 },
+  // A wet autumn morning: rain under a low grey sky, the sun no more than a glow in the east.
+  light: { zenith: 72, azimuth: 115, sun: 0xdde2e6, sunIntensity: 1.1, turbidity: 10, clouds: 0.95, hemi: 0.7, hemiSky: 0xb8c0c4, env: 0.26, exposure: 0.8 },
+  weather: { rain: 1 },   // steady rain: it hides a little of your noise
+  animals: [['deer', -150, 220, 30, 3]],   // red deer, far from the lodge
   half: 500, playHalf: 470, focus: { x: LODGE.x, z: LODGE.z, r: 60 }, start: START, navHalf: 285,
   fog: { color: 0xb6bfbd, density: 0.008 },          // mist: half gone at 100 m, nearly all at 200 m
   canopyShade: true,
@@ -338,6 +340,8 @@ function dressing() {
     ['supplies', -132, 72], ['drums', -105, 45, 0.4],
     ['motorcycle', 74, -24, 0.5], ['supplies', 112, -23], ['sandbags', 78, -58, 0], ['halftrack', 30, roadZ(30) + 8, Math.PI / 2],
     ['haystack', -36, 196], ['haystack', 6, 176], ['cart', 12, 202, 0.6], ['well', -24, 178],
+    ['felledTree', -60, 30, 0.4], ['felledTree', 25, -85, 1.3], ['felledTree', -20, 125, 2.2], ['horseCart', -105, roadZ(-105) + 8, Math.PI / 2],
+    ['rock', 150, 150], ['rock', -250, -200, 1], ['rock', 210, -60, 2],
   ];
 }
 
@@ -430,4 +434,4 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

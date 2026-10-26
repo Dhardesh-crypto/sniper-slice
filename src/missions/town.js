@@ -38,6 +38,7 @@ const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Ma
 const map = {
   // Late afternoon: a low golden sun from the west, long shadows down the streets.
   light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
+  animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1]],   // in the fields below the south wall
   half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 130,
   // The hilltop is flattened inside the walls and falls away outside them.
   heightAt(x, z) { return lerp(H, base(x, z), smoothstep(0, 40, outside(x, z))); },
@@ -326,6 +327,8 @@ function dressing() {
     ['sentryBox', 6, -68, Math.PI / 2], ['sentryBox', 56, -129, 0], ['sentryBox', 127, 8, Math.PI], ['sentryBox', 161, -46, -Math.PI / 2],
     ['sandbags', 50, -119, 0], ['sandbags', 151, -45, Math.PI / 2], ['pak40', 110, 13, Math.PI / 2],
     ['haystack', 40, 18], ['haystack', 58, 24], ['haystack', -20, -100], ['wire', 90, 12, 0], ['wire', 150, 10, 0],
+    ['marketStall', 80, -48, 0], ['marketStall', 72, -51, 0.2], ['cafeSet', 96, -45], ['cafeSet', 99, -50, 1], ['fiat', 110, -52, 0.4],
+    ['horseCart', 35, -100, 1.2], ['rock', 10, 62], ['rock', 185, 30, 1], ['rock', -60, -150, 2],
   ];
 }
 
@@ -438,4 +441,4 @@ const briefing = `
   <p class="brief">The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', props: ['fountain', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', props: ['fountain', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

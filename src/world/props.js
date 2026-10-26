@@ -66,6 +66,22 @@ export const PROPS = {
   kitchen: { file: 'prop_kitchen', turn: 1 },
   supplies: { file: 'prop_supplies', turn: 0 },
   fishingBoat: { file: 'prop_fishing_boat', turn: 0 },
+  // The realism pass: vegetation (the vineyard's rows, cypresses, umbrella pines, rocks) and burnt-out wrecks.
+  // (Leafy crowns don't come out of image-to-3D: the olives and oaks stay the drawn leaf-card trees.)
+  vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 }, rock: { file: 'prop_rock', turn: 0 },
+  wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
+  wreckCar: { file: 'wreck_car', turn: 3 }, wreckHalftrack: { file: 'wreck_halftrack', turn: 3 },
+  wreckPlane: { file: 'wreck_plane', turn: 0 },
+  // Signature props per mission, furniture for the interiors, animals.
+  marketStall: { file: 'prop_market_stall', turn: 0 }, cafeSet: { file: 'prop_cafe_set', turn: 0 }, fiat: { file: 'prop_fiat', turn: 2 },
+  rowboat: { file: 'prop_rowboat', turn: 0 }, cargoPallet: { file: 'prop_cargo_pallet', turn: 0 }, felledTree: { file: 'prop_felled_tree', turn: 0 },
+  handcar: { file: 'prop_handcar', turn: 0 }, waterCrane: { file: 'prop_water_crane', turn: 0 }, bombTrolley: { file: 'prop_bomb_trolley', turn: 0 },
+  kettenkrad: { file: 'prop_kettenkrad', turn: 3 }, fuelTrailer: { file: 'prop_fuel_trailer', turn: 3 }, wurzburg: { file: 'prop_wurzburg', turn: 0 },
+  assaultBoat: { file: 'prop_assault_boat', turn: 0 }, pontoonSection: { file: 'prop_pontoon_section', turn: 0 },
+  desk: { file: 'prop_desk', turn: 0 }, mapTable: { file: 'prop_map_table', turn: 0 }, radioSet: { file: 'prop_radio_set', turn: 0 },
+  bunk: { file: 'prop_bunk', turn: 0 }, locker: { file: 'prop_locker', turn: 0 }, stove: { file: 'prop_stove', turn: 0 },
+  filingCabinet: { file: 'prop_filing_cabinet', turn: 0 }, tableSet: { file: 'prop_table_set', turn: 0 }, horseCart: { file: 'prop_horse_cart', turn: 1 },
+  cow: { file: 'animal_cow', turn: 1 }, horse: { file: 'animal_horse', turn: 3 }, goat: { file: 'animal_goat', turn: 1 }, deer: { file: 'animal_deer', turn: 1 },
 };
 
 export async function loadProps(keys, onProgress = () => {}) {
@@ -112,7 +128,19 @@ export function propModel(k, size, { stretch = false, own = false, turn = 0, bri
   place.scale.copy(s);
   outer.add(place);
   outer.userData.meshes = meshes;
+  outer.userData.propKey = k;
+  outer.userData.dims = dim.clone().multiply(s);   // its size as placed (metres, along its own axes)
   return outer;
+}
+
+// A prop as one geometry with its fitting baked in (base at the origin, sized like propModel)
+// and its material: for drawing it many times over as instances (the trees). null if not loaded.
+export function propGeometry(k, size, stretch = false) {
+  const model = propModel(k, size, { stretch });
+  if (!model) return null;
+  model.updateMatrixWorld(true);
+  const mesh = model.userData.meshes[0];
+  return { geometry: mesh.geometry.clone().applyMatrix4(mesh.matrixWorld), material: mesh.material };
 }
 
 // The pieces several maps share: the alarm siren and the generator get their models (their
@@ -224,6 +252,16 @@ const DRESS = {
   bowser: { size: { x: 6.6, y: 2.7, z: 2.4 }, block: [6.2, 2.4, 2.3] },
   halftrack: { size: { x: 5.8, y: 2.0, z: 2.1 }, block: [5.6, 1.9, 2.0] },
   tiger: { size: { x: 6.6, y: 3.0, z: 3.6 }, block: [6.4, 2.6, 3.4] },
+  // The realism pass's signature props.
+  marketStall: { size: { x: 3.2 }, block: [3.0, 2.2, 1.6] }, cafeSet: { size: { x: 1.8 }, block: null },
+  fiat: { size: { x: 3.2 }, block: [3.1, 1.4, 1.4] }, rowboat: { size: { x: 4.5 }, block: [4.3, 0.8, 1.5] },
+  cargoPallet: { size: { x: 1.8 }, block: [1.6, 1.4, 1.4] }, felledTree: { size: { x: 10 }, block: [9, 0.9, 1.0] },
+  handcar: { size: { x: 2.4 }, block: [2.2, 1.2, 1.5] }, waterCrane: { size: { y: 4.5 }, block: [0.8, 4.5, 0.8] },
+  bombTrolley: { size: { x: 3.4 }, block: [3.2, 1.2, 1.6] }, kettenkrad: { size: { x: 3 }, block: [2.8, 1.2, 1.1] },
+  fuelTrailer: { size: { x: 4 }, block: [3.6, 1.8, 1.8] }, wurzburg: { size: { y: 6 }, block: [3, 6, 3] },
+  assaultBoat: { size: { x: 6 }, block: [5.8, 0.9, 1.6] }, pontoonSection: { size: { x: 7 }, block: [6.8, 1.2, 3.4] },
+  horseCart: { size: { x: 6 }, block: [5.5, 2.2, 1.8] }, rock: { size: { x: 2.2 }, block: [2.0, 1.3, 1.8] },
+  stove: { size: { y: 2.2 }, block: [0.8, 1.0, 0.8] },
   truck: { vehicle: 'truck', block: [6, 2.4, 2.3] },
   car: { vehicle: 'car', block: [3.6, 1.5, 1.6] },
 };

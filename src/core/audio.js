@@ -510,6 +510,20 @@ export class Audio {
     if (k > 0) this.sample('truck_start', { gain: k * k * 1.1, filter: 1200 + 7800 * k, wet: 0.1 });
   }
 
+  // Rain: a steady hiss of filtered noise with a softer patter under it.
+  setRain(level) {
+    const g = this.drone('rainGain', (out) => {
+      for (const [type, freq, q, gain] of [['bandpass', 3200, 0.5, 0.6], ['lowpass', 700, 0.7, 0.35]]) {
+        const n = this.ctx.createBufferSource();
+        n.buffer = this.noise; n.loop = true;
+        const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+        const ng = this.ctx.createGain(); ng.gain.value = gain;
+        n.connect(f).connect(ng).connect(out); n.start();
+      }
+    });
+    if (g && Math.abs((this.rainSet ?? -1) - level) > 1e-3) { this.rainSet = level; g.gain.setTargetAtTime(level * 0.09, this.ctx.currentTime, 1); }
+  }
+
   // A synthesised engine drone (the run-up on the airfield; a truck until its recording loads).
   setEngine(level) {
     const g = this.drone('truckGain', (out) => {

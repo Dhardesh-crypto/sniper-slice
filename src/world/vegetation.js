@@ -5,6 +5,7 @@ import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
+import { propGeometry } from './props.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
@@ -151,14 +152,14 @@ function makeTreeTypes() {
       ], 0x34512a, 0x84a55c, { cards: 200, cardSize: 1.8, seed: 5 }),
       coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.85, 1.25],
     },
-    { // Italian cypress
-      name: 'cypress', count: 380,
+    { // Italian cypress (the modelled one where it's loaded)
+      name: 'cypress', count: 380, model: propGeometry('cypress', { y: 10 }),
       trunk: new THREE.CylinderGeometry(0.16, 0.22, 2, 10).translate(0, 1, 0), trunkR: 0.25,
       crown: canopy([[cypressCone, 0, 5.6, 0]], 0x2a4421, 0x5c7f48, { cards: 260, cardSize: 1.25, seed: 1 }),
       coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.8, 1.3],
     },
-    { // umbrella (stone) pine: a wide flat crown of overlapping clumps
-      name: 'pine', count: 160,
+    { // umbrella (stone) pine: a wide flat crown of overlapping clumps (or the model)
+      name: 'pine', count: 160, model: propGeometry('pine', { y: 9 }),
       trunk: new THREE.CylinderGeometry(0.2, 0.32, 7, 10).translate(0, 3.5, 0), trunkR: 0.32,
       crown: canopy([
         [blob(2.4, 1.3, 0.45, 1.3, 1, 0.22, 2), 0, 7.6, 0],
@@ -182,6 +183,7 @@ function makeTreeTypes() {
 }
 
 const CHUNK = 125;
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 
 export function buildTrees(scene) {
   const rng = makeRng(1944);
@@ -235,8 +237,11 @@ export function buildTrees(scene) {
       byChunk.get(k).push(t);
     }
     for (const [k, list] of byChunk) {
-      const meshes = [type.trunk, type.crown.core, type.crown.leaves].map((geo, i) => {
-        const im = new THREE.InstancedMesh(geo, [type.trunkMat, type.coreMat, type.leafMat][i], list.length);
+      // A modelled tree draws itself whole; its trunk stays, undrawn, for bullets.
+      const parts = type.model ? [[type.trunk, HIDDEN], [type.model.geometry, type.model.material]]
+        : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
+      const meshes = parts.map(([geo, mat]) => {
+        const im = new THREE.InstancedMesh(geo, mat, list.length);
         list.forEach((t, j) => im.setMatrixAt(j, t.m));
         im.castShadow = im.receiveShadow = true;
         im.computeBoundingSphere();

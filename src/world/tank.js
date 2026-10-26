@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { assets } from './characters.js';
 import { addTurret } from './turrets.js';
+import { hasProp, propModel } from './props.js';
 
 const SCALE = 7.5;               // model units → metres (hull 0.75 units ≈ a Panzer IV's 5.6 m)
 const GROUND = 0.213;            // model units from the origin down to the track bottoms
@@ -115,6 +116,17 @@ export class Tank {
   destroyed() {
     this.alive = false;
     this.crew.dead = true;
+    // The burnt-out Panzer where it stood (its meshes stay hidden in place: bullets still stop on them).
+    const w = hasProp('wreckPanzer') && propModel('wreckPanzer', { x: 5.9 }, { own: true });
+    if (w) {
+      this.model.traverse(o => { if (o.isMesh) o.visible = false; });
+      w.rotation.y = Math.PI / 2;
+      this.root.add(w);
+      this.root.updateMatrixWorld(true);
+      this.audio.setTank?.(0);
+      this.onDestroyed?.();
+      return;
+    }
     this.turretPivot.position.y += 0.06;         // the turret is blown up off its ring
     this.turretPivot.rotation.set(0.25, this.turretPivot.rotation.y + 0.4, 0.12);
     this.root.updateMatrixWorld(true);

@@ -62,6 +62,8 @@ const map = {
   // Dusk before the landings: a low sun in the west under heavy cloud, haze over the sea.
   light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95 },
   fog: { color: 0xa6adb2, near: 180, far: 1100 },
+  weather: { spray: true },   // the surf throws spray at the foot of the cliffs
+  animals: [['goat', -250, 120, 25, 5]],   // goats on the heath inland
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 160 }, start: START, navHalf: 320, waterLevel: WATER,
   maxSlope: 0.9,
   navBlocked: (x, z) => { const d = z - zc(x); return (d < 15 || (Math.abs(x - GULLY_X) < 14 && d < 95)) && slopeAt(x, z) > 0.9; },   // the cliffs and the gully's walls
@@ -255,6 +257,7 @@ function dressing() {
     ['kitchen', 40, 82, 0], ['tent', 86, 92], ['tent', 98, 96, 0.3], ['pak40', -60, 0, Math.PI / 2],
     ['mgNest', GULLY_X + 10, zc(GULLY_X) + 100], ['searchlight', -100, zc(-100) + 7, 0.4],
     ['fishingBoat', START.x + 9, START.z + 5, 0.4], ['fishingBoat', START.x - 12, START.z + 2, -0.3],
+    ['rowboat', START.x + 5, START.z - 6, 0.5], ['rock', START.x + 25, START.z + 10, 0.4], ['rock', START.x - 22, START.z + 8, 1.7], ['rock', -260, 60, 1],
   ];
 }
 
@@ -348,5 +351,5 @@ const briefing = `
   <p class="brief">The cliffs can't be climbed: go up the gully at the west end of the cove, or the iron ladder below the lighthouse,
     where a lookout stands on the gallery. Down on the beach, the surf covers your shots.</p>`;
 
-export default { id: 'radar', props: ['freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost'],
+export default { id: 'radar', props: ['freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost', 'rowboat', 'rock'],
   subtitle: 'Operation Sea Wall · Ligurian coast, 1944', map, site, def, intel, briefing };

@@ -276,19 +276,19 @@ function site(scene) {
   // The garrison.
   add(-3, 24, Math.PI, { officer: true, name: 'Kapitän', look: 'officerColonel' });
   add(1, 18, Math.PI, { name: 'Office guard', stance: 'alert', look: 'guardSergeant' });
-  add(-200, -34, Math.PI / 2, { name: 'Quay patrol' });
+  add(-200, -34, Math.PI / 2, { name: 'Quay patrol', look: 'guardSailor' });
   add(-200, 9, Math.PI / 2, { name: 'Dock patrol', look: 'guardCamo' });
   add(112, -6, 0, { name: 'Depot patrol', stance: 'alert' });
   add(140, -7, Math.PI, { name: 'Depot guard', stance: 'alert', look: 'guardSergeant' });
-  add(-210, 52, Math.PI / 2, { name: 'Back patrol' });
+  add(-210, 52, Math.PI / 2, { name: 'Back patrol', look: 'guardSailor' });
   add(-231, 37, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(-231, 43, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
-  add(SHIP.x + 10, SHIP.z + 2, Math.PI / 2, { y: SHIP.deck, name: 'Deck watch', stance: 'alert' });
+  add(SHIP.x + 10, SHIP.z + 2, Math.PI / 2, { y: SHIP.deck, name: 'Deck watch', stance: 'alert', look: 'guardSailor' });
   add(SHIP.x - 22, SHIP.z - 2, -Math.PI / 2, { y: SHIP.deck, name: 'Deck watch', look: 'guardCamo' });
   add(sniperCrane.x + 1, sniperCrane.z + 2, Math.PI * 0.8, { y: sniperCrane.y, name: 'Crane sniper', stance: 'alert', look: 'guardCamo' });
   add(fg.x - 1.5, fg.z + 1.5, 0, { name: 'Flak crew', look: 'guardSergeant' });
-  add(fg.x + 1.5, fg.z - 1, Math.PI, { name: 'Flak crew' });
-  add(225, -226, 0, { name: 'Mole sentry', stance: 'alert' });
+  add(fg.x + 1.5, fg.z - 1, Math.PI, { name: 'Flak crew', look: 'guardSailor' });
+  add(225, -226, 0, { name: 'Mole sentry', stance: 'alert', look: 'guardSailor' });
 
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
@@ -364,6 +364,8 @@ function dressing() {
     ['bowser', 140, -0.5, 0], ['truck', -60, 47, Math.PI / 2], ['car', -12, 38, 0], ['motorcycle', 14, 36, 0.4], ['kitchen', -120, 50, 0],
     ['supplies', 60, -26], ['supplies', -80, -26, 0.4], ['supplies', 180, -27], ['drums', -20, -27], ['barrels', -150, 50, Math.PI / 2],
     ['tobruk', 225, -190], ['searchlight', 222, -205], ['mgNest', 225, -215],
+    ['rowboat', -330, shoreZ(-330) + 4, 0.3], ['rowboat', -352, shoreZ(-352) + 5, -0.4], ['cargoPallet', 40, -26], ['cargoPallet', -100, -26, 0.5],
+    ['cargoPallet', 150, -27, 1], ['fiat', -30, 42, 0.3],
   ];
 }
 
@@ -483,4 +485,4 @@ const briefing = `
   <p class="brief">The road comes in at the west gate. The south fence has been cut in two places. You can't swim with your kit:
     the water stops you at the quay. A truck of reinforcements comes down the coast road if the siren sounds.</p>`;
 
-export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
+export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost', 'rowboat', 'cargoPallet', 'fiat'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };

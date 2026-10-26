@@ -67,17 +67,19 @@ function dressing() {
     ['haystack', 65, 20], ['haystack', 72, 30], ['haystack', 60, 46], ['cart', 55, 10, 0.5],
     ['barrels', -5, -33, 0], ['well', 32, -12], ['kitchen', 42, -51, 0], ['supplies', -6, -9],
     ['pak40', 58, -30, Math.PI],
+    ['horseCart', 70, 8, 0.6], ['rock', -60, 62, 0.3], ['rock', 120, -85, 1], ['rock', -150, -60, 2], ['rock', 150, 95, 0.5], ['rock', -95, 130, 1.4],
   ];
 }
 
 export default {
   id: 'vineyard',
-  props: ['generator', 'watchtower', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost'],
+  props: ['generator', 'watchtower', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
   map: {
     ...VINEYARD_MAP,
     // Late morning in Tuscany: high, warm sun through a light haze.
     light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4 },
+    animals: [['cow', 95, 40, 18, 4], ['horse', 80, -2, 8, 1]],   // a few cows in the east field, the farm's horse
   },
   // The compound and the firing range by the start hill.
   site(scene) {

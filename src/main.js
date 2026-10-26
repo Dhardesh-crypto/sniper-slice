@@ -29,6 +29,9 @@ import { Tank } from './world/tank.js';
 import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
 import { initExhaust, tickExhaust } from './world/exhaust.js';
 import { initGroundMarks, tickGroundMarks } from './world/groundmarks.js';
+import { Weather } from './world/weather.js';
+import { addAnimals, startle, tickAnimals } from './world/animals.js';
+import { activeMap } from './world/terrain.js';
 import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
 import { Profile } from './core/profile.js';
@@ -80,7 +83,7 @@ const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMiss
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
-await loadProps(['safe', 'siren', 'crates', ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+await loadProps(['safe', 'siren', 'crates', 'cypress', 'pine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 useMap(M.map);
@@ -122,6 +125,9 @@ explosions.onKills = (n) => mission.blastKills(n);
 initTurrets({ scene, world, player, stealth, audio, fx, hud, explosions });   // every tank's crew
 initExhaust({ fx, player });          // fumes from every running engine
 initGroundMarks(scene);               // tracks and tyre marks in the soft ground
+const weather = new Weather({ scene, camera, fx, audio, player, world });   // rain, mist, spray (per mission)
+for (const [kind, x, z, r, n] of activeMap().animals ?? []) addAnimals(scene, kind, x, z, r, n);   // cows, goats, deer
+{ const heard = stealth.noise.bind(stealth); stealth.noise = (pos, radius, kind) => { startle(pos, Math.min(radius, 150)); return heard(pos, radius, kind); }; }   // shots and blasts scatter them
 const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one
 if (tank) tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
@@ -235,7 +241,7 @@ mission.onComplete = (sum) => {
   menu.classList.add('hidden');
   audio.setSiren(0);
   audio.setTruck(0); audio.setEngine(0);
-  audio.setTankTracks(0); audio.setTurret(0);
+  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
   document.exitPointerLock?.();
 };
 mission.onFail = (why) => {
@@ -243,7 +249,7 @@ mission.onFail = (why) => {
   deathScreen.classList.add('on');
   menu.classList.add('hidden');
   audio.setSiren(0);
-  audio.setTankTracks(0); audio.setTurret(0);
+  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
   document.exitPointerLock?.();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
@@ -426,6 +432,8 @@ function tick(dt) {
   tickTurrets(dt);
   tickExhaust(dt);
   tickGroundMarks();
+  weather.tick(dt);
+  tickAnimals(dt, player);
   explosions.tick(dt);
   mission.tick(dt);
   hotspots.tick(dt);
@@ -438,7 +446,7 @@ function tick(dt) {
     deathScreen.classList.add('on');
     menu.classList.add('hidden');
     audio.setSiren(0);
-    audio.setTankTracks(0); audio.setTurret(0);
+    audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
     document.exitPointerLock?.();
   }
   input.consume();
