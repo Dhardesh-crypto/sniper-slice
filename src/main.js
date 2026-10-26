@@ -26,6 +26,7 @@ import { Hotspots } from './world/hotspots.js';
 import { Takedown } from './player/takedown.js';
 import { Explosions } from './fx/explosions.js';
 import { Tank } from './world/tank.js';
+import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
 import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
 import { Profile } from './core/profile.js';
@@ -116,6 +117,7 @@ ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
 explosions.hotspots = hotspots;
 explosions.onKills = (n) => mission.blastKills(n);
+initTurrets({ scene, world, player, stealth, audio, fx, hud, explosions });   // every tank's crew
 const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one
 if (tank) tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
@@ -415,7 +417,7 @@ function tick(dt) {
   masking.update(dt, camera.position);
   stealth.tick(dt);
   ai.tick(dt);
-  tank?.tick(dt);
+  tickTurrets(dt);
   explosions.tick(dt);
   mission.tick(dt);
   hotspots.tick(dt);
@@ -586,7 +588,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions,
+  beltGrenades, assets, rockets, interactions, turretCrews,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

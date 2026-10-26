@@ -517,3 +517,15 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 - [x] Verified (frozen world, Oberst at the villa, four hill spots at 300 m, 369 aims each): marker on the
       head ⇒ head hit in every case with the De Lisle; Springfield likewise, except shots on the neck line
       that hit the torso (still a kill).
+
+## Tank turrets that turn and fire (2026-10-26)
+- [x] `src/world/turrets.js`: every tank's turret is crewed. Calm, it scans its sector slowly; alerted,
+      faster and all round; when the crew sees you it lays the gun on you and fires an HE round from the
+      barrel: muzzle flash and smoke, dust round the hull, the gun recoiling, a tracer flying to the impact.
+- [x] Crews can't see through walls (line of sight from the turret), but the gun shoots through them:
+      after losing you behind cover they fire at your last spot for 8 s; the round punches through the
+      wall (dust and debris) and bursts behind it, wider than an aimed shot.
+- [x] Turrets cut out of the Tiger model (bridge column, railway yard) and the column's Panzer IV, as the
+      vineyard Panzer already was; the vineyard Panzer now uses the shared crew (saves keep its turret yaw).
+- [x] Verified: calm scan in the vineyard and railway, the column's turrets turning while it drives, an
+      aimed shot and a blind shot through the compound wall; all eight missions load and run.

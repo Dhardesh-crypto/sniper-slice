@@ -13,6 +13,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
+import { turretProp, addTurret } from '../world/turrets.js';
 import { panzerModel } from '../world/tank.js';
 import { hasProp, propModel, clipAbove, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
@@ -323,12 +324,24 @@ function site(scene, world) {
 // collision block that moves with it.
 // A modelled column vehicle laid nose toward +z, like the others (the props lie front toward −x).
 function columnProp(kind) {
-  const g = new THREE.Group(), m = propModel(kind, kind === 'tiger' ? { x: 6.6, y: 3.0, z: 3.6 } : { x: 5.8, y: 2.0, z: 2.1 }, { stretch: true, own: true });
+  const g = new THREE.Group();
+  if (kind === 'tiger') {                                  // the Tiger's turret turns, crewed
+    const t = turretProp('tiger');
+    t.group.rotation.y = Math.PI / 2;
+    g.add(t.group);
+    g.userData.mesh = t.hull;
+    g.userData.crew = addTurret({ pivot: t.pivot, gun: t.gun, muzzle: t.muzzle, recoil: t.turret, own: [t.hull, t.turret], name: 'TIGER', traverse: 0.25, reload: 12 });
+    return g;
+  }
+  const m = propModel(kind, { x: 5.8, y: 2.0, z: 2.1 }, { stretch: true, own: true });
   m.rotation.y = Math.PI / 2;
   g.add(m);
   g.userData.mesh = m.userData.meshes[0];
   return g;
 }
+
+// A vehicle gone into the gorge: its crew is out of the fight.
+function crewDown(v) { if (v.model.userData.crew) v.model.userData.crew.dead = true; }
 
 function buildColumn(scene) {
   // A Tiger leads (a Panzer IV where its model is missing), then trucks, a Panzer IV and a halftrack.
@@ -438,7 +451,7 @@ function collapse(m, instant) {
     const p = s.root.position;
     if (onBridge(p.x, p.z) && p.y > DECK - 1) { if (s.alive) s.applyHit('torso', { damage: { torso: 999 } }, new THREE.Vector3(0, -1, 0)); s.root.visible = false; }
   }
-  for (const v of site.column.vehicles) if (!v.fallen && Math.abs(v.pos.x) < 38 && v.pos.y > DECK - 1) { v.fallen = true; v.fallT = 0; }
+  for (const v of site.column.vehicles) if (!v.fallen && Math.abs(v.pos.x) < 38 && v.pos.y > DECK - 1) { v.fallen = true; v.fallT = 0; crewDown(v); }
   if (instant) site.fallK = 1;
 }
 
@@ -539,7 +552,7 @@ const def = {
     const c = m.world.site.column;
     Object.assign(c, { lead: d.lead, v: d.v, phase: d.phase, said: d.said ?? {} });
     c.visible = c.phase !== 'due';
-    c.vehicles.forEach((v, i) => { v.model.visible = c.visible; if (d.fallen?.[i]) { v.fallen = true; v.fallT = 0.999; } });
+    c.vehicles.forEach((v, i) => { v.model.visible = c.visible; if (d.fallen?.[i]) { v.fallen = true; v.fallT = 0.999; crewDown(v); } });
   },
 };
 

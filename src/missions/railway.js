@@ -18,6 +18,7 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { hasProp, propModel, dressProps } from '../world/props.js';
+import { placeTank } from '../world/turrets.js';
 
 const Y = 10;                                   // the line's level
 const START = { x: 330, z: 300 };
@@ -272,6 +273,9 @@ function site(scene, world) {
 
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
+  // A Tiger waiting in the yard, its crew watching over the tracks.
+  const tiger = placeTank(scene, 'tiger', -80, 33, Math.PI / 2, heightAt, 'TIGER');
+  b.solids.push(...tiger.solids); b.boxes.push(...tiger.boxes);
 
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, towerTops,
@@ -398,7 +402,7 @@ function dressing() {
     ['truck', -18, -30, Math.PI / 2], ['truck', 18, -30, Math.PI / 2], ['car', -25, -33, 0], ['motorcycle', 8, -26, 0.4], ['kitchen', 26, -45, 0],
     ['supplies', 32, -20], ['supplies', -40, -20, 0.5], ['barrels', 62, 23, 0],
     ['sentryBox', 70, -7, 0], ['sandbags', 86, -4, Math.PI / 2],
-    ['tiger', -80, 33, Math.PI / 2], ['halftrack', 100, 31, Math.PI / 2], ['pak40', 190, 16, Math.PI],
+    ['halftrack', 100, 31, Math.PI / 2], ['pak40', 190, 16, Math.PI],
     ['wire', -100, 46, 0], ['wire', -40, 46, 0],
   ];
 }
