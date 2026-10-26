@@ -576,3 +576,17 @@ model goes in through `tools/import-model.sh` (download, JPEG textures, weld + s
       Fixed: the timer clamps at 0 and X checks `switchT <= 0`. X with no other type now says
       "NO OTHER AMMUNITION" instead of doing nothing.
 - [x] Verified: pistol and back, then X cycles standard → subsonic → armour-piercing → standard.
+
+## Throw cancel, blocked-throw warning, bullets through bodies (2026-10-26)
+- [x] Esc while aiming a grenade or bottle puts it away (the browser frees the mouse on Esc, so the game
+      pauses; before, resuming threw it). Right-click cancels too, without pausing; G must be pressed afresh.
+- [x] The throw arc and its ring turn red when the throw will strike something on the way (a wall, a
+      tree, a vehicle, a man), white for a clean landing on ground, a floor or a roof.
+- [x] Bullets go through bodies (`passThrough` in arsenal.js): a round still above ~230 m/s after the hit
+      carries on at 55% of its speed (75% AP) and 80% damage, ignoring the man it went through, through at
+      most two; slow rounds (pistol, subsonic, De Lisle) stop in the first body. A second kill by the same
+      round shows DOUBLE KILL (three: TRIPLE KILL). Works after the kill cam too (it resolves its hit the
+      same way).
+- [x] Verified: Springfield head shot at 43 m killed the man in front (831 m/s) and the man 3 m behind
+      (456 m/s), DOUBLE KILL shown; arc white over open ground, red at a wall 4 m off; Esc and right-click
+      cancel with no grenade used.

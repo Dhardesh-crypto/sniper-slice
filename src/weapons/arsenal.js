@@ -385,6 +385,7 @@ export class Arsenal {
         integrate(b.pos, b.vel, b.def.drag, this.ballisticWind, h);
         b.time += h;
         const hit = this.world.raycastSegment(b.prev, b.pos);
+        if (hit?.soldier && hit.soldier === b.ignore) { b.path.push(b.pos.clone()); continue; }   // (the man it just went through)
         if (hit) {
           b.path.push(hit.point.clone());
           this.resolveHit(b, hit);
@@ -407,6 +408,7 @@ export class Arsenal {
       this.fx.blood(hit.point, dir.clone().negate());
       if (res.already) {
         this.fx.dust(hit.point, hit.normal, distance);
+        this.passThrough(bullet, hit, dir);
         return;
       }
       this.stats.hits++;
@@ -417,9 +419,11 @@ export class Arsenal {
       }
       this.fx.blood(hit.point, dir, true); // exit spray
       this.audio.hitConfirm(res.killed, res.zone === 'head');
-      const evt = { ...res, distance, soldier: hit.soldier, point: hit.point.clone(), speed: bullet.vel.length(), time: bullet.time };
+      if (res.killed) bullet.kills = (bullet.kills ?? 0) + 1;
+      const evt = { ...res, distance, soldier: hit.soldier, point: hit.point.clone(), speed: bullet.vel.length(), time: bullet.time, kills: bullet.kills ?? 0 };
       this.onHit?.(evt);
       if (res.killed) this.onKill?.(evt);
+      this.passThrough(bullet, hit, dir);
     } else if (hit.trap && this.items) {
       this.items.shot(hit.trap);       // TNT or a satchel: it goes off
     } else if (hit.hotspot && this.hotspots) {
@@ -436,6 +440,20 @@ export class Arsenal {
       this.onImpactNoise?.(hit.point.clone()); // the crack of a near miss carries
       this.onHit?.({ miss: true, distance, point: hit.point.clone() });
     }
+  }
+
+  // A full-power round goes on through a man (the double kill): slower and weaker, it can still
+  // wound or kill whoever stands in line behind him. A slow one (a pistol, subsonic, the De Lisle)
+  // stops in the first body; none goes through more than two.
+  passThrough(bullet, hit, dir) {
+    const speed = bullet.vel.length() * (bullet.def.ap ? 0.75 : 0.55);
+    if (speed < 230 || (bullet.through ?? 0) >= 2) return;
+    const def = { ...bullet.def, damage: Object.fromEntries(Object.entries(bullet.def.damage).map(([k, v]) => [k, v * 0.8])) };
+    const pos = hit.point.clone().addScaledVector(dir, 0.05);
+    this.bullets.push({
+      def, pos, vel: dir.clone().multiplyScalar(speed), origin: bullet.origin, dir: dir.clone(), time: bullet.time,
+      path: [pos.clone()], prev: new THREE.Vector3(), ignore: hit.soldier, through: (bullet.through ?? 0) + 1, kills: bullet.kills ?? 0,
+    });
   }
 
   tickBinoculars(dt) {

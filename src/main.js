@@ -296,7 +296,10 @@ arsenal.onTag = (s) => hud.message(`TAGGED · ${s.label ? s.label() : s.name.toU
 
 // A beat of slow motion on every kill that doesn't get the full X-ray kill cam.
 let timeScale = 1, slowmoT = 0;
-arsenal.onKill = () => { if (!killCam.active) slowmoT = 0.55; };
+arsenal.onKill = (e) => {
+  if (!killCam.active) slowmoT = 0.55;
+  if (e.kills >= 2) hud.message(e.kills >= 3 ? 'TRIPLE KILL' : 'DOUBLE KILL', 'head');   // one round through two (or three) men
+};
 
 // X-ray kill cam: the arsenal hands over lethal shots; the cam applies the hit on impact.
 const killCam = new KillCam({ scene, camera, audio, world });
@@ -378,6 +381,8 @@ document.getElementById('play').addEventListener('click', () => {
 canvas.addEventListener('click', () => { if (!input.locked) input.lock(); });
 input.onLockChange = (locked) => {
   const over = player.dead || mission.done;
+  // Esc (the browser frees the mouse) while aiming a throw: it's put away, not thrown on resume.
+  if (!locked) items.cancelThrow();
   menu.classList.toggle('hidden', locked || mapView.open || over || benchOpen);
   if (locked && !started) {
     started = true;

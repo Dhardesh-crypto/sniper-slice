@@ -1,6 +1,7 @@
 // Your kit, SE5 style. Hold Q for the item wheel (time slows while it's open), pick an item,
 // then G uses it:
-//   grenade, bottle   hold G to aim (a dotted arc shows where it lands), release to throw
+//   grenade, bottle   hold G to aim (a dotted arc shows where it lands; red when it will strike something
+//                     on the way, a wall, a tree, a vehicle or a man), release to throw; Esc or right-click cancels
 //   whistle           a sharp whistle: nearby guards come to look (a lure)
 //   mine              placed at your feet; a guard or a vehicle stepping on it sets it off
 //   TNT               placed anywhere; K detonates it (all of it), and a bullet sets it off
@@ -131,8 +132,10 @@ export class Items {
     const it = this.item;
     if (free && this.count[it.id] > 0) {
       if (it.kind === 'throw') {
-        if (inp.down('KeyG') && !this.arsenal.aiming) this.aimingThrow = true;
+        if (this.aimingThrow && inp.wasPressed('Mouse2')) { this.cancelThrow(); this.throwCancelled = true; }   // right-click: put it away
+        else if (inp.down('KeyG') && !this.arsenal.aiming && !this.throwCancelled) this.aimingThrow = true;
         else if (this.aimingThrow) this.throw(it.id);
+        if (!inp.down('KeyG')) this.throwCancelled = false;    // (a cancelled throw needs G pressed afresh)
       } else if (inp.wasPressed('KeyG')) {
         if (it.kind === 'use') this.whistle();
         if (it.kind === 'place') this.place(it.id);
@@ -176,7 +179,8 @@ export class Items {
     return out;
   }
 
-  // Where a throw would go: the arc up to its first landing.
+  // Where a throw would go: the arc up to its first landing. `blocked`: it strikes something on the way
+  // (a wall, a tree, a vehicle, a man) rather than landing on the ground, a floor or a roof.
   traceArc() {
     const { pos, vel } = this.throwStart();
     const pts = [pos.clone()], prev = new THREE.Vector3(), h = 1 / 30;
@@ -185,7 +189,7 @@ export class Items {
       vel.y -= 9.8 * h;
       pos.addScaledVector(vel, h);
       const hit = this.world.raycastSegment(prev, pos);
-      if (hit) { pts.push(hit.point.clone()); return { pts, end: hit.point.clone(), normal: hit.normal }; }
+      if (hit) { pts.push(hit.point.clone()); return { pts, end: hit.point.clone(), normal: hit.normal, blocked: !hit.terrain && (!!hit.soldier || hit.normal.y < 0.6) }; }
       pts.push(pos.clone());
     }
     return { pts, end: pos.clone(), normal: new THREE.Vector3(0, 1, 0) };
@@ -195,14 +199,20 @@ export class Items {
     const show = this.aimingThrow;
     this.arc.visible = this.ring.visible = show;
     if (!show) return;
-    const { pts, end } = this.traceArc();
+    const { pts, end, blocked } = this.traceArc();
+    const colour = blocked ? 0xff4a3d : 0xffffff;
+    this.arc.material.color.setHex(colour);
+    this.ring.material.color.setHex(colour);
     this.arc.geometry.dispose();
     this.arc.geometry = new THREE.BufferGeometry().setFromPoints(pts);
     this.arc.computeLineDistances();
     this.ring.position.copy(end).add(new THREE.Vector3(0, 0.05, 0));
   }
 
-  cancelThrow() { this.aimingThrow = false; }
+  cancelThrow() {
+    if (this.aimingThrow) this.hud.message('THROW CANCELLED', '');
+    this.aimingThrow = false;
+  }
 
   throw(id) {
     this.aimingThrow = false;
