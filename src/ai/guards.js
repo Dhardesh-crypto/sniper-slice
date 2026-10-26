@@ -272,6 +272,15 @@ export class GuardAI {
     s.kick = 1;
     this.fx.flash(muzzle, dir);
     this.audio.enemyShot(d);
+    // Something solid on his line of aim (a girder, the edge of the wall you hide behind) takes
+    // the round instead. (He aims down the sights, so it's traced from his eye, a metre out: a
+    // railing right at his elbow he shoots past.)
+    const eye = s.headPosition(new THREE.Vector3()); eye.y -= 0.25;
+    const block = this.world.raycastSegment(eye.addScaledVector(aimPoint.clone().sub(eye).normalize(), 1), aimPoint);
+    if (block && !block.soldier && block.point.distanceTo(aimPoint) > 0.5) {
+      this.fx.dust(block.point, block.normal, d);
+      return;
+    }
     // How likely this shot lands: range, your stance and movement, how much of you shows,
     // and he finds his aim on a target that doesn't move.
     let hit = 0.48 * Math.exp(-d / 85);

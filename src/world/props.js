@@ -8,6 +8,7 @@
 // can stand in for the collision blocks that are already there.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 
 // file: in public/models; turn: quarter turns (about y) that lay its length along x with the
@@ -131,6 +132,17 @@ export function propModel(k, size, { stretch = false, own = false, turn = 0, bri
   outer.userData.propKey = k;
   outer.userData.dims = dim.clone().multiply(s);   // its size as placed (metres, along its own axes)
   return outer;
+}
+
+// A model's own meshes as things sight and bullets meet (for an open structure, a lattice crane,
+// that no collision block can stand in for). Each gets a bounding-volume tree, or a ray through
+// thousands of triangles would cost a millisecond.
+export function shootableMeshes(model) {
+  for (const m of model.userData.meshes) {
+    if (!m.geometry.boundsTree) computeBoundsTree.call(m.geometry);
+    m.raycast = acceleratedRaycast;
+  }
+  return model.userData.meshes;
 }
 
 // A prop as one geometry with its fitting baked in (base at the origin, sized like propModel)

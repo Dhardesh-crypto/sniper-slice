@@ -80,3 +80,9 @@ placing it, and note the viewer's light runs bright (judge colour in the game).
 ## Never test a float timer for exactly zero (2026-10-26)
 `timer -= dt` lands a hair below 0 (−1.7e-16), so `!timer` stays false forever: X (ammo) died after the
 first weapon switch. Clamp countdowns with Math.max(0, …) and compare with `<= 0`.
+
+## A model that stands in for blocks must block what it shows (2026-10-26)
+The crane model covered far more than its hidden collision blocks (portal, deck, cab), and only those
+blocks stopped sight and bullets: guards saw and shot through the cab. Open structures need their own
+meshes as raycast targets (with a BVH, three-mesh-bvh: 1.3 ms → 0.1 ms per ray), and enemy shots are
+traced along the aim line so nothing they shouldn't reach through gets hit.

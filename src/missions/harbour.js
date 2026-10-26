@@ -12,7 +12,7 @@ import { M, Builder } from '../world/kit.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { hasProp, propModel, dressProps } from '../world/props.js';
+import { hasProp, propModel, dressProps, shootableMeshes } from '../world/props.js';
 
 const Q = 2.5;                                 // the quay's height above the water (water at 0)
 const START = { x: 330, z: 320 };              // the hill you start from
@@ -184,6 +184,7 @@ function site(scene) {
       const H = 26.5, m = propModel('crane', { y: H });          // its portal top at ~0.53 H; the legs sit 5.9/24 H toward +z
       m.position.set(cx, y, DZ0 + 6 - 5.88 * H / 24);
       b.group.add(m);
+      b.solids.push(...shootableMeshes(m));                      // its deck, cab and girders stop sight and bullets
     } else {
       b.box(0.3, 0.9, 20, steel, cx - 3.9, top + 0.4, DZ0 + 2, { solid: false });
       b.box(0.3, 0.9, 20, steel, cx + 3.9, top + 0.4, DZ0 + 2, { solid: false });
