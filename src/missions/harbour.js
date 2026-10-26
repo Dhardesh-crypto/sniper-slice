@@ -323,8 +323,10 @@ function buildShip(scene, steel, rust, hidden) {
   const band = new THREE.Mesh(hullGeo.clone(), new THREE.MeshStandardMaterial({ color: 0x7a2a22, roughness: 0.8 }));
   band.scale.set(1.002, 0.55, 1.002); band.position.set(x, -4.1, z); sb.group.add(band);
   const solidBox = (w, h, d, mat, bx, by, bz) => sb.box(w, h, d, mat, bx, by, bz);
-  solidBox(len - 12, deck + 4, beam - 0.2, hidden, x - 4, -4, z);                     // the deck you walk on
-  solidBox(9, deck + 4, beam - 4, hidden, x + L - 7.5, -4, z);                       // toward the bow
+  const decks = [
+    solidBox(len - 12, deck + 4, beam - 0.2, hidden, x - 4, -4, z),                  // the deck you walk on
+    solidBox(9, deck + 4, beam - 4, hidden, x + L - 7.5, -4, z),                    // toward the bow
+  ];
   sb.box(len - 12, 0.06, beam - 0.6, M.wood, x - 4, deck, z, { solid: false });
   // The bridge and funnel, aft of midships.
   const bridge = sb.box(10, 6, 8, new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.8 }), x - 18, deck, z);
@@ -349,6 +351,18 @@ function buildShip(scene, steel, rust, hidden) {
     model.position.set(x, -3.2, z);
     sb.group.add(model);
     parts.push(...model.userData.meshes);
+    // The blocks for the bridge, hatches, funnel and masts don't sit where the model has them (its
+    // bridge is ~9 m further forward, it has no raised hatches): a guard there stood inside an
+    // unseen wall, bullet-proof. So the model's own meshes take the shots; of the blocks only the
+    // decks and the skylight stay, and you walk into its superstructure, funnel and masts.
+    const keep = sb.solids.map((o, i) => (decks.includes(o) || o === hatch ? i : -1)).filter(i => i >= 0);
+    const boxes = keep.map(i => sb.boxes[i]);
+    sb.solids.splice(0, sb.solids.length, ...keep.map(i => sb.solids[i]), ...shootableMeshes(model));
+    const block = (x0, x1, z0, z1, h) => boxes.push(new THREE.Box3(new THREE.Vector3(x + x0, deck, z + z0), new THREE.Vector3(x + x1, deck + h, z + z1)));
+    block(-13, -3, -B + 0.5, B - 0.5, 3.5);                                         // the bridge house
+    block(-25, -23, -2, 2, 9);                                                       // the funnel
+    block(19, 21, -1.5, 1.5, 9);                                                     // the foremast
+    sb.boxes.splice(0, sb.boxes.length, ...boxes);
   }
   return { group: sb.group, solids: sb.solids, boxes: sb.boxes, hatch, parts, bridge, sinking: false, sunk: 0 };
 }

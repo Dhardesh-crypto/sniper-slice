@@ -86,3 +86,6 @@ The crane model covered far more than its hidden collision blocks (portal, deck,
 blocks stopped sight and bullets: guards saw and shot through the cab. Open structures need their own
 meshes as raycast targets (with a BVH, three-mesh-bvh: 1.3 ms → 0.1 ms per ray), and enemy shots are
 traced along the aim line so nothing they shouldn't reach through gets hit.
+Same on the ship: its bridge block sat 9 m off the model's bridge, and a deck watch stood inside it,
+seeing out (rays from inside a box miss its faces) while every bullet stopped on the block. Check that
+no spawn point lies inside a hidden block, and prefer the model's meshes (BVH) over guessed blocks.
