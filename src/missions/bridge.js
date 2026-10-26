@@ -14,6 +14,8 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { turretProp, addTurret } from '../world/turrets.js';
+import { addExhaust } from '../world/exhaust.js';
+import { addGroundMarks } from '../world/groundmarks.js';
 import { panzerModel } from '../world/tank.js';
 import { hasProp, propModel, clipAbove, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
@@ -330,7 +332,7 @@ function columnProp(kind) {
     t.group.rotation.y = Math.PI / 2;
     g.add(t.group);
     g.userData.mesh = t.hull;
-    g.userData.crew = addTurret({ pivot: t.pivot, gun: t.gun, muzzle: t.muzzle, recoil: t.turret, own: [t.hull, t.turret], name: 'TIGER', traverse: 0.25, reload: 12 });
+    g.userData.crew = addTurret({ pivot: t.pivot, gun: t.gun, muzzle: t.muzzle, recoil: t.turret, own: [t.hull, t.turret], name: 'TIGER', traverse: 0.25, reload: 12, exhaust: t.exhaust });
     return g;
   }
   const m = propModel(kind, { x: 5.8, y: 2.0, z: 2.1 }, { stretch: true, own: true });
@@ -340,21 +342,44 @@ function columnProp(kind) {
   return g;
 }
 
+// Where each column vehicle's wheels or tracks meet the ground, and its exhaust (the tanks' own
+// exhausts come with their turret crews), in its own space: nose toward +z, metres.
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const VEHICLE_MARKS = {
+  tiger: { wheels: [{ at: V3(1.45, 0, -0.85), kind: 'tread' }, { at: V3(-1.45, 0, -0.85), kind: 'tread' }] },
+  panzer: { wheels: [{ at: V3(1.3, 0, -0.5), kind: 'tread' }, { at: V3(-1.3, 0, -0.5), kind: 'tread' }] },
+  halftrack: {
+    wheels: [{ at: V3(0.8, 0, 1.9), kind: 'tyre' }, { at: V3(-0.8, 0, 1.9), kind: 'tyre' }, { at: V3(0.8, 0, -1.3), kind: 'tread' }, { at: V3(-0.8, 0, -1.3), kind: 'tread' }],
+    exhaust: { points: [V3(0.95, 0.6, 0.9)], dir: V3(1, 0.4, 0) },
+  },
+  truck: {
+    wheels: [{ at: V3(0.85, 0, -1.6), kind: 'tyre' }, { at: V3(-0.85, 0, -1.6), kind: 'tyre' }],
+    exhaust: { points: [V3(0.7, 0.4, -3.0)], dir: V3(0, 0.3, -1) },
+  },
+};
+
 // A vehicle gone into the gorge: its crew is out of the fight.
 function crewDown(v) { if (v.model.userData.crew) v.model.userData.crew.dead = true; }
 
 function buildColumn(scene) {
   // A Tiger leads (a Panzer IV where its model is missing), then trucks, a Panzer IV and a halftrack.
   const kinds = [hasProp('tiger') ? 'tiger' : 'panzer', 'truck', 'panzer', hasProp('halftrack') ? 'halftrack' : 'truck', 'truck'];
+  const c = {};
   const vehicles = kinds.map((kind, i) => {
     const model = kind === 'panzer' ? panzerModel() : kind === 'truck' ? vehicleModel('truck') : columnProp(kind);
     model.visible = false;
     scene.add(model);
     const half = { panzer: new THREE.Vector3(3.2, 1.4, 1.7), tiger: new THREE.Vector3(3.3, 1.5, 1.85), halftrack: new THREE.Vector3(2.9, 1.0, 1.1) }[kind] ?? new THREE.Vector3(3.1, 1.3, 1.2);
     const box = new THREE.Box3(new THREE.Vector3(1e6, -1e6, 1e6), new THREE.Vector3(1e6, -1e6, 1e6));
-    return { kind, i, model, half, box, solids: [model.userData.mesh].filter(Boolean), pos: new THREE.Vector3(), fallen: false, fallT: 0 };
+    const v = { kind, i, model, half, box, solids: [model.userData.mesh].filter(Boolean), pos: new THREE.Vector3(), fallen: false, fallT: 0 };
+    // On the road its engine runs and its wheels or tracks print the ground (nose toward +z, metres).
+    const onRoad = () => c.visible && !v.fallen;
+    const marks = VEHICLE_MARKS[kind];
+    addGroundMarks({ object: model, wheels: marks.wheels, active: onRoad });
+    if (marks.exhaust) addExhaust({ space: model, ...marks.exhaust, running: onRoad, speed: () => c.v });
+    return v;
   });
-  const c = { vehicles, lead: 520, v: 0, phase: 'due', visible: false, said: {} };
+  Object.assign(c, { vehicles, lead: 520, v: 0, phase: 'due', visible: false, said: {} });
   // Where each vehicle stands at lead position `lead`: on the road, or on the deck while the bridge stands.
   c.place = (collapsed) => {
     for (const v of vehicles) {

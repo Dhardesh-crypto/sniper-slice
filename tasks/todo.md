@@ -529,3 +529,12 @@ combination or by slow, noisy cracking; new maps about 1 km across.
       vineyard Panzer already was; the vineyard Panzer now uses the shared crew (saves keep its turret yaw).
 - [x] Verified: calm scan in the vineyard and railway, the column's turrets turning while it drives, an
       aimed shot and a blind shot through the compound wall; all eight missions load and run.
+- [x] Sounds: the tracks of a moving tank rattle ("Tank Track Ratteling", Pixabay; louder and brighter
+      nearer, up to 350 m), a traversing turret whirs ("Tank Turret Rotate", Pixabay; up to 90 m). Both
+      cut into seamless loops; silenced on death and the end screen.
+- [x] Exhaust fumes (`src/world/exhaust.js`) from every vehicle with a crew and its engine running:
+      the tanks, the bridge column's trucks and halftrack, the reinforcement truck. Thin idling,
+      thicker driving; none from parked props or wrecks.
+- [x] Ground marks (`src/world/groundmarks.js`): tread prints from tanks and the halftrack's tracks,
+      tyre prints from trucks and the halftrack's front wheels, laid on the slope of the ground, not on
+      the bridge deck; the newest 3,000 of each kind stay.

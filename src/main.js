@@ -27,6 +27,8 @@ import { Takedown } from './player/takedown.js';
 import { Explosions } from './fx/explosions.js';
 import { Tank } from './world/tank.js';
 import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
+import { initExhaust, tickExhaust } from './world/exhaust.js';
+import { initGroundMarks, tickGroundMarks } from './world/groundmarks.js';
 import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
 import { Profile } from './core/profile.js';
@@ -94,7 +96,7 @@ await usePhotoTextures(scene);                   // the photographs over the dra
 const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);
-const fx = new Particles(scene, 420);
+const fx = new Particles(scene, 600);   // (tank exhausts keep a few dozen in the air)
 const arsenal = new Arsenal({ world, player, input, audio, fx, settings });
 arsenal.camera = camera;
 arsenal.avatar = avatar;
@@ -118,6 +120,8 @@ arsenal.hotspots = hotspots;
 explosions.hotspots = hotspots;
 explosions.onKills = (n) => mission.blastKills(n);
 initTurrets({ scene, world, player, stealth, audio, fx, hud, explosions });   // every tank's crew
+initExhaust({ fx, player });          // fumes from every running engine
+initGroundMarks(scene);               // tracks and tyre marks in the soft ground
 const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one
 if (tank) tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
@@ -231,6 +235,7 @@ mission.onComplete = (sum) => {
   menu.classList.add('hidden');
   audio.setSiren(0);
   audio.setTruck(0);
+  audio.setTankTracks(0); audio.setTurret(0);
   document.exitPointerLock?.();
 };
 mission.onFail = (why) => {
@@ -238,6 +243,7 @@ mission.onFail = (why) => {
   deathScreen.classList.add('on');
   menu.classList.add('hidden');
   audio.setSiren(0);
+  audio.setTankTracks(0); audio.setTurret(0);
   document.exitPointerLock?.();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
@@ -418,6 +424,8 @@ function tick(dt) {
   stealth.tick(dt);
   ai.tick(dt);
   tickTurrets(dt);
+  tickExhaust(dt);
+  tickGroundMarks();
   explosions.tick(dt);
   mission.tick(dt);
   hotspots.tick(dt);
@@ -430,6 +438,7 @@ function tick(dt) {
     deathScreen.classList.add('on');
     menu.classList.add('hidden');
     audio.setSiren(0);
+    audio.setTankTracks(0); audio.setTurret(0);
     document.exitPointerLock?.();
   }
   input.consume();

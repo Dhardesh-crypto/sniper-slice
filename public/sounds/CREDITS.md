@@ -7,3 +7,5 @@ redistributed as standalone sound files):
 
 - `shot_trenchgun.mp3`: "Shotgun Firing (4)" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-shotgun-firing-4-6746/ (trimmed, levelled)
 - `pump.mp3`: the first full rack (back and forward) from "Pump Action Shotgun Cycle" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-pump-action-shotgun-cycle-81021/ (cut, levelled)
+- `tank_tracks.mp3`: "Tank Track Ratteling" by u_3rdmeaw7un, https://pixabay.com/sound-effects/film-special-effects-tank-track-ratteling-197409/ (cut into a seamless loop, levelled)
+- `tank_turret.mp3`: "Tank Turret Rotate" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-tank-turret-rotate-14879/ (cut into a seamless loop, levelled)

@@ -14,6 +14,8 @@ import { NavGrid } from './nav.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
+import { addExhaust } from '../world/exhaust.js';
+import { addGroundMarks } from '../world/groundmarks.js';
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -347,6 +349,10 @@ export class GuardAI {
     const t = { model: truckModel(), x: COMPOUND.x + road.from, stopX: COMPOUND.x + road.stop, speed: 13, unloaded: false, parkT: 0, stalled: false };
     this.scene.add(t.model);
     this.truck = t;
+    // Its engine runs until it's stalled, wrecked or switched off; its tyres print the ground.
+    const running = () => !t.stalled && !(t.unloaded && t.parkT > 20);
+    addExhaust({ space: t.model, points: [new THREE.Vector3(0.7, 0.4, -3.0)], dir: new THREE.Vector3(0, 0.3, -1), running, speed: () => t.v ?? 0 });
+    addGroundMarks({ object: t.model, wheels: [{ at: new THREE.Vector3(0.85, 0, -1.6), kind: 'tyre' }, { at: new THREE.Vector3(-0.85, 0, -1.6), kind: 'tyre' }] });
     // Bullets stop on it; the bonnet is a weak spot: one hit stalls it, two blow it up.
     const { proxies, bonnet, bodyMesh } = t.model.userData;
     for (const m of proxies) this.world.raycastTargets.push(m);
@@ -365,7 +371,9 @@ export class GuardAI {
       const slow = Math.min(1, (t.stopX - t.x) / 25 + 0.25);
       speed = t.speed * slow;
       t.x = Math.min(t.stopX, t.x + speed * dt);
+      t.v = speed;
     } else if (!t.unloaded) {
+      t.v = 0;
       t.parkT += dt;
       if (t.parkT > 1.5) this.unload(t);
     } else if ((t.parkT += dt) > 20) {

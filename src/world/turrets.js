@@ -4,13 +4,18 @@
 // blast, dust, the gun recoiling, a tracer flying to where it lands). A crew can't see through a
 // wall, but its gun shoots through one: duck behind cover after they've seen you and they keep
 // firing where you were for a while, the round punching through the wall to burst behind it.
+// A crewed tank's engine runs: its exhausts smoke (exhaust.js), so a live tank can be told from a
+// wreck at a glance.
 import * as THREE from 'three';
 import { propModel, splitProp } from './props.js';
+import { addExhaust } from './exhaust.js';
 
 const RANGE = 300;          // m, a standing man in the open (less the less visible you are)
 const SHELL_SPEED = 450;    // m/s: an HE round, slow enough to see its tracer
 const RECOIL = 0.3;         // m the gun runs back, in the turret's own units scaled below
 const MEMORY = 8;           // s a crew keeps firing at where it last saw you
+const TRACKS_HEARD = 350;   // m the tracks of a moving tank carry
+const TURRET_HEARD = 90;    // m a turret's traverse motor carries
 
 const crews = [];
 let ctx = null;
@@ -24,13 +29,15 @@ export function initTurrets(services) { ctx = services; }
 // barrel's direction in the pivot's parent at yaw 0 (a unit vector); muzzle: the muzzle in the
 // pivot's own space; recoil: the mesh that runs back when it fires (moved along -gun, in its
 // parent's units); own: meshes the crew's sight passes through; name for the warning.
-export function addTurret({ pivot, gun, muzzle, recoil = null, recoilScale = 1, own = [], name = 'TANK', traverse = 0.3, reload = 10, fires = true, sector = 1.0 }) {
+// exhaust: { space, points, dir }: the exhaust pipes in `space`'s own coordinates, and which way they blow.
+export function addTurret({ pivot, gun, muzzle, recoil = null, recoilScale = 1, own = [], name = 'TANK', traverse = 0.3, reload = 10, fires = true, sector = 1.0, exhaust = null }) {
   const crew = {
     pivot, gun: gun.clone().normalize(), muzzle, recoil, recoilRest: recoil?.position.clone(), recoilScale, own, name, traverse, reloadTime: reload, fires, sector,
     base: Math.atan2(gun.x, gun.z), yaw: pivot.rotation.y, want: 0, scanT: Math.random() * 4, reload: 3 + Math.random() * 4,
-    kick: 0, tracking: false, dead: false, lastSeen: null, lostT: Infinity,
+    kick: 0, tracking: false, dead: false, lastSeen: null, lostT: Infinity, prevAt: null, speed: 0,
   };
   crews.push(crew);
+  if (exhaust) addExhaust({ ...exhaust, heavy: true, running: () => !crew.dead && shown(crew.pivot), speed: () => crew.speed });
   return crew;
 }
 
@@ -43,6 +50,7 @@ export const TURRET_CUTS = {
     size: { x: 6.6, y: 3.0, z: 3.6 }, deck: 1.95, ring: [0.86, 0],
     turret: (c) => c.y > 1.97 && ((c.x > -0.45 && c.x < 2.2 && Math.abs(c.z) < 1.32) || (c.x <= -0.45 && Math.abs(c.z) < 0.4 && c.y < 2.6)),
     gun: [-1, 0, 0], muzzle: [-3.3, 2.2, 0],
+    exhaust: { points: [[3.2, 2.05, 0.5], [3.2, 2.05, -0.5]], dir: [0.5, 1, 0] },   // the two pipes on the back deck
   },
 };
 
@@ -57,7 +65,8 @@ export function turretProp(key) {
   pivot.add(parts.turret);
   group.add(parts.hull, pivot);
   const muzzle = new THREE.Vector3(cut.muzzle[0] - rx, cut.muzzle[1] - cut.deck, cut.muzzle[2] - rz);
-  return { group, hull: parts.hull, turret: parts.turret, pivot, gun: new THREE.Vector3(...cut.gun), muzzle };
+  const exhaust = cut.exhaust && { space: group, points: cut.exhaust.points.map(q => new THREE.Vector3(...q)), dir: new THREE.Vector3(...cut.exhaust.dir).normalize() };
+  return { group, hull: parts.hull, turret: parts.turret, pivot, gun: new THREE.Vector3(...cut.gun), muzzle, exhaust };
 }
 
 // Is this object and everything above it shown? (a column vehicle is hidden until it comes)
@@ -71,10 +80,20 @@ export function tickTurrets(dt) {
   const target = p.pos.clone().setY(p.pos.y + Math.max(0.3, p.eye * 0.6));
   const range = RANGE * Math.sqrt(Math.min(1, stealth.playerVisibility()));
   const at = new THREE.Vector3(), local = new THREE.Vector3();
+  let tracks = 0, trackSpeed = 0, trackDist = Infinity, turret = 0, turretDist = Infinity;
   for (const c of crews) {
     if (c.dead || !shown(c.pivot)) continue;
     const parent = c.pivot.parent;
     c.pivot.getWorldPosition(at);
+    // How fast the tank is driving (smoothed): a moving one's tracks rattle.
+    if (c.prevAt && dt > 0) c.speed += (at.distanceTo(c.prevAt) / dt - c.speed) * Math.min(1, dt * 4);
+    (c.prevAt ??= new THREE.Vector3()).copy(at);
+    const heard = at.distanceTo(p.pos);
+    if (c.speed > 0.5) {
+      const l = Math.max(0, 1 - heard / TRACKS_HEARD) * Math.min(1, c.speed / 4);
+      if (l > tracks) { tracks = l; trackSpeed = Math.min(1, c.speed / 8); trackDist = heard; }
+    }
+    const yaw0 = c.yaw;
     // The crew sees like the guards do, with better optics, only once the compound is fighting you.
     let canSee = false;
     if (fighting && !p.dead && !stealth.concealed && target.distanceTo(at) < range) {
@@ -99,6 +118,10 @@ export function tickTurrets(dt) {
     c.yaw += Math.sign(d) * Math.min(Math.abs(d), speed * dt);
     c.yaw = Math.atan2(Math.sin(c.yaw), Math.cos(c.yaw));
     c.pivot.rotation.y = c.yaw;
+    if (Math.abs(c.yaw - yaw0) > 1e-5) {
+      const l = Math.max(0, 1 - heard / TURRET_HEARD);
+      if (l > turret) { turret = l; turretDist = heard; }
+    }
     if (canSee && !c.tracking) ctx.hud.message(`THE ${c.name} HAS SEEN YOU · TAKE COVER`, 'wound');
     c.tracking = canSee;
     c.reload = Math.max(0, c.reload - dt);
@@ -111,6 +134,8 @@ export function tickTurrets(dt) {
       c.recoil.position.copy(c.recoilRest).addScaledVector(c.gun, -back);
     }
   }
+  ctx.audio.setTankTracks?.(tracks, trackSpeed, Math.min(1, trackDist / TRACKS_HEARD));
+  ctx.audio.setTurret?.(turret, Math.min(1, turretDist / TURRET_HEARD));
   tickShells(dt);
 }
 
@@ -197,7 +222,7 @@ export function placeTank(scene, key, x, z, rotY, heightAt, name) {
   t.group.rotation.y = rotY;
   scene.add(t.group);
   t.group.updateMatrixWorld(true);
-  addTurret({ pivot: t.pivot, gun: t.gun, muzzle: t.muzzle, recoil: t.turret, own: [t.hull, t.turret], name, traverse: 0.25, reload: 12 });
+  addTurret({ pivot: t.pivot, gun: t.gun, muzzle: t.muzzle, recoil: t.turret, own: [t.hull, t.turret], name, traverse: 0.25, reload: 12, exhaust: t.exhaust });
   const across = Math.abs(Math.sin(rotY)) > 0.7, [bw, bd] = across ? [d * 0.95, w * 0.95] : [w * 0.95, d * 0.95];
   const box = new THREE.Box3(new THREE.Vector3(x - bw / 2, y, z - bd / 2), new THREE.Vector3(x + bw / 2, y + 2.6, z + bd / 2));
   return { solids: [t.hull, t.turret], boxes: [box], group: t.group };

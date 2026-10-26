@@ -14,6 +14,8 @@ const TURRET_Z = -0.15;          // model z of the turret ring
 const TRAVERSE = 0.35;           // rad/s
 const RELOAD = 9;                // s between shots
 const MUZZLE = new THREE.Vector3(0, 0.14 - DECK, 0.5 - TURRET_Z);   // in the turret's own space
+const EXHAUSTS = [new THREE.Vector3(0.11, 0.02, -0.5), new THREE.Vector3(-0.11, 0.02, -0.5)];   // the muffler at the back
+const EXHAUST_DIR = new THREE.Vector3(0, 0.5, -1).normalize();
 
 // Split one mesh into hull and turret+gun by where each triangle sits.
 function splitTurret(geo) {
@@ -69,7 +71,7 @@ export function panzerModel() {
   g.add(model);
   const { hull, turret, pivot } = buildPanzer(model);
   g.userData.mesh = hull;
-  g.userData.crew = addTurret({ pivot, gun: new THREE.Vector3(0, 0, 1), muzzle: MUZZLE, recoil: turret, recoilScale: 1 / SCALE, own: [hull, turret], name: 'PANZER', traverse: TRAVERSE, reload: RELOAD });
+  g.userData.crew = addTurret({ pivot, gun: new THREE.Vector3(0, 0, 1), muzzle: MUZZLE, recoil: turret, recoilScale: 1 / SCALE, own: [hull, turret], name: 'PANZER', traverse: TRAVERSE, reload: RELOAD, exhaust: { space: model, points: EXHAUSTS, dir: EXHAUST_DIR } });
   return g;
 }
 
@@ -89,7 +91,7 @@ export class Tank {
     const { hull, turret, pivot } = buildPanzer(this.model);
     Object.assign(this, { hull, turret, turretPivot: pivot });
     this.root.updateMatrixWorld(true);
-    this.crew = addTurret({ pivot, gun: new THREE.Vector3(0, 0, 1), muzzle: MUZZLE, recoil: turret, recoilScale: 1 / SCALE, own: [hull, turret], name: 'PANZER', traverse: TRAVERSE, reload: RELOAD });
+    this.crew = addTurret({ pivot, gun: new THREE.Vector3(0, 0, 1), muzzle: MUZZLE, recoil: turret, recoilScale: 1 / SCALE, own: [hull, turret], name: 'PANZER', traverse: TRAVERSE, reload: RELOAD, exhaust: { space: this.model, points: EXHAUSTS, dir: EXHAUST_DIR } });
 
     // Bullets ping off the hull and turret; the engine grille at the back is the weak spot.
     // (it sits just proud of the deck, which is at y 0.07, so a shot at it isn't caught by the hull)

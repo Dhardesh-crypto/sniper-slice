@@ -34,7 +34,7 @@ export const SOUND_CHECK = [
   ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump'];
+const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret'];
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
 EXTRA.push(...Object.values(SHOUTS).flat());
@@ -451,6 +451,34 @@ export class Audio {
     });
     if (g) g.gain.setTargetAtTime(level * 0.2, this.ctx.currentTime, 0.6);
   }
+
+  // A looped recording (a tank's tracks, a turret traversing): started once its sample has
+  // loaded, then its level, speed and brightness follow the game (duller further off).
+  loopSample(key, name, level, { rate = 1, dull = 0 } = {}) {
+    const buf = this.samples?.[name];
+    if (!this.ctx || !buf) return;
+    this.loops ??= {};
+    let v = this.loops[key];
+    if (!v) {
+      if (level <= 0) return;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 9000;
+      const g = this.ctx.createGain(); g.gain.value = 0;
+      src.connect(lp).connect(g).connect(this.master);
+      src.start();
+      v = this.loops[key] = { src, lp, g };
+    }
+    const t = this.ctx.currentTime;
+    v.g.gain.setTargetAtTime(level, t, 0.12);
+    v.src.playbackRate.setTargetAtTime(rate, t, 0.3);
+    v.lp.frequency.setTargetAtTime(9000 - 8200 * dull, t, 0.3);
+  }
+
+  // The nearest moving tank's tracks rattling (level 0–1 by distance, speed 0–1).
+  setTankTracks(level, speed = 1, dull = 0) { this.loopSample('tracks', 'tank_tracks', level * level * 0.8, { rate: 0.85 + 0.3 * speed, dull }); }
+  // A turret traversing nearby: its motor whirring (level 0–1 by distance).
+  setTurret(level, dull = 0) { this.loopSample('turret', 'tank_turret', level * level * 0.7, { dull }); }
 
   setTruck(level) {
     const g = this.drone('truckGain', (out) => {
