@@ -234,7 +234,7 @@ mission.onComplete = (sum) => {
   endScreen.classList.add('on');
   menu.classList.add('hidden');
   audio.setSiren(0);
-  audio.setTruck(0);
+  audio.setTruck(0); audio.setEngine(0);
   audio.setTankTracks(0); audio.setTurret(0);
   document.exitPointerLock?.();
 };

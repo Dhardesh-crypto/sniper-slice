@@ -538,3 +538,7 @@ combination or by slow, noisy cracking; new maps about 1 km across.
 - [x] Ground marks (`src/world/groundmarks.js`): tread prints from tanks and the halftrack's tracks,
       tyre prints from trucks and the halftrack's front wheels, laid on the slope of the ground, not on
       the bridge deck; the newest 3,000 of each kind stay.
+- [x] Truck sounds (Pixabay): a moving truck's engine is the steady middle of "A semi-truck drives by",
+      looped (the column, the reinforcements; louder and brighter nearer); the reinforcement truck setting
+      off revs and pulls away ("Truck start moving"). The airfield's engine run-up keeps its own
+      synthesised engine.

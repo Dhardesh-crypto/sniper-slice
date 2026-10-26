@@ -360,6 +360,7 @@ export class GuardAI {
       onBreak: () => { t.stalled = true; this.hud.message('TRUCK STALLED · THEY GET OUT ON FOOT', ''); },
       onExplode: () => { t.stalled = true; if (!t.unloaded) { t.unloaded = true; t.lost = true; this.hotspots.mission?.blastKills(4); } this.audio.setTruck(0); } });
     if (!quiet) this.hud.message('ENEMY REINFORCEMENTS ON THE ROAD', 'wound');
+    this.audio.truckStart?.(new THREE.Vector3(t.x, 0, roadCenterZ(t.x)).distanceTo(this.player.pos.clone().setY(0)));
   }
 
   tickTruck(dt) {

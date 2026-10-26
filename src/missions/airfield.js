@@ -380,7 +380,7 @@ const def = {
     // The engine run-up: on for a while every so often (it's on the ground crew's roster).
     const t = m.time % RUNUP_EVERY, on = t > RUNUP_EVERY - RUNUP_FOR && hs.some(h => h.kind === 'plane' && !h.exploded);
     if (on !== site.runup.on) { site.runup.on = on; if (on && m.player.pos.distanceTo(site.runup.at) < 250) m.hud.message('AN ENGINE IS RUNNING UP ON THE APRON', ''); }
-    m.audio.setTruck(on ? Math.max(0, 1 - m.player.pos.distanceTo(site.runup.at) / 300) * 1.2 : 0);
+    m.audio.setEngine(on ? Math.max(0, 1 - m.player.pos.distanceTo(site.runup.at) / 300) * 1.2 : 0);
   },
   markers(m) {
     const out = [];

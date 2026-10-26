@@ -34,7 +34,7 @@ export const SOUND_CHECK = [
   ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret'];
+const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start'];
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
 EXTRA.push(...Object.values(SHOUTS).flat());
@@ -480,7 +480,21 @@ export class Audio {
   // A turret traversing nearby: its motor whirring (level 0–1 by distance).
   setTurret(level, dull = 0) { this.loopSample('turret', 'tank_turret', level * level * 0.7, { dull }); }
 
+  // A truck's engine on the move (the column, the reinforcements): the recording once it has
+  // loaded, the synthesised engine until then.
   setTruck(level) {
+    if (this.samples?.army_truck) { this.loopSample('truck', 'army_truck', level * level * 0.9, { dull: 1 - level }); return; }
+    this.setEngine(level);
+  }
+
+  // A truck setting off: the engine revs and it pulls away (quieter and duller further off).
+  truckStart(distance) {
+    const k = Math.max(0, 1 - distance / 450);
+    if (k > 0) this.sample('truck_start', { gain: k * k * 1.1, filter: 1200 + 7800 * k, wet: 0.1 });
+  }
+
+  // A synthesised engine drone (the run-up on the airfield; a truck until its recording loads).
+  setEngine(level) {
     const g = this.drone('truckGain', (out) => {
       const o = this.ctx.createOscillator();
       o.type = 'sawtooth';
