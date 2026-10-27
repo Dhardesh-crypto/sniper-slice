@@ -766,3 +766,12 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       and MGs reach you through a door or a plank wall too (less likely to hit). In town: a door 11 cm
       (rifle through at 89% speed, a pistol stops), a plaster partition 15 cm (41%; AP 76%), an outer
       plaster wall (AP only, 55%), stone (nothing); one rifle shot through a closed door killed a guard.
+
+## Guards with a life of their own (2026-10-27)
+- [x] Calm guards standing within 4.5 m of each other turn to each other and chat: two to four
+      lines of German small talk (12 lines, three voices: ElevenLabs Multilingual v2 on fal.ai —
+      a light, the cabbage soup, the relief, the Lieutenant asleep, the Americans in Florence…),
+      no line twice in one talk, heard within 35 m; while they talk they see you 40% less well.
+      A pair rests 40–100 s between talks. A guard alone at his post smokes now and then (12–22 s,
+      a puff rising every few seconds; he watches 15% less). Checked: a pair placed together traded
+      four lines facing each other; smoking starts on its cooldown.

@@ -18,6 +18,7 @@ import { addExhaust } from '../world/exhaust.js';
 import { addGroundMarks } from '../world/groundmarks.js';
 import { ARC, PITCH } from '../world/mgnest.js';
 import { throughCover } from '../weapons/penetration.js';
+import { CHAT } from '../core/audio.js';
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -100,6 +101,7 @@ export class GuardAI {
       s.setActivity(s.nextActivity);
     }
     this.tickNests();
+    this.tickIdle(dt);
     this.tickAlarm(dt);
     this.tickTruck(dt);
     this.tickSabotage(dt);
@@ -321,6 +323,56 @@ export class GuardAI {
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       this.world.decals?.scuff(miss);
       if (d < 250) this.audio.crack();
+    }
+  }
+
+  // ---------------------------------------------------------------- idle life
+  // Calm guards standing near each other turn to each other and chat (German small talk: a line,
+  // a reply, now and then a third), watching less while they do (stealth.js); one alone at his
+  // post smokes now and then, the puffs rising off him. Each pair rests a while between talks.
+  tickIdle(dt) {
+    const gs = this.guards(), chats = this.chats ??= [];
+    const idle = (s) => s.aware.state === 'calm' && s.brain.mode === 'post' && (s.speed ?? 0) < 0.2 && !s.manning && !s.officer && !s.kneelT;
+    for (const s of gs) { s.chatCool = (s.chatCool ?? 10 + Math.random() * 30) - dt; s.smokeCool = (s.smokeCool ?? 5 + Math.random() * 40) - dt; }
+    if ((this.idleT = (this.idleT ?? 0) - dt) <= 0) {
+      this.idleT = 1;
+      for (const s of gs) {
+        if (s.chatWith || s.chatCool > 0 || !idle(s)) continue;
+        const o = gs.find(o => o !== s && !o.chatWith && o.chatCool <= 0 && idle(o) && Math.abs(o.root.position.y - s.root.position.y) < 1
+          && o.root.position.distanceTo(s.root.position) < 4.5);
+        if (!o) continue;
+        s.chatWith = o; o.chatWith = s; s.smoking = o.smoking = 0;
+        chats.push({ a: s, b: o, t: 0.8, turn: 0, n: 2 + Math.floor(Math.random() * 3) });
+      }
+    }
+    for (const c of chats) {
+      const { a, b } = c;
+      if (!idle(a) || !idle(b) || !a.alive || !b.alive) c.over = true;
+      if (c.over) continue;
+      for (const [s, o] of [[a, b], [b, a]]) s.targetYaw = Math.atan2(o.root.position.x - s.root.position.x, o.root.position.z - s.root.position.z);
+      if ((c.t -= dt) > 0) continue;
+      if (c.turn >= c.n) { c.over = true; continue; }
+      const who = c.turn % 2 ? b : a, list = (c.turn % 2 && Math.random() < 0.5 ? CHAT.reply : CHAT.open).filter(l => !(c.said ??= []).includes(l));
+      const line = list[Math.floor(Math.random() * list.length)] ?? CHAT.reply[0];
+      c.said.push(line);                     // (nobody says the same thing twice in one talk)
+      this.audio.chatter(line, who.root.position.distanceTo(this.player.pos));
+      c.t = this.audio.duration(line) + 0.5 + Math.random() * 0.8;
+      c.turn++;
+    }
+    for (const c of chats.filter(c => c.over)) { c.a.chatWith = c.b.chatWith = null; c.a.chatCool = c.b.chatCool = 40 + Math.random() * 60; }
+    this.chats = chats.filter(c => !c.over);
+    // Smoking: a few minutes apart, a quarter of a minute at a time, a puff every few seconds.
+    for (const s of gs) {
+      if (!idle(s) || s.chatWith) { s.smoking = 0; continue; }
+      if (!(s.smoking > 0) && s.smokeCool <= 0) { s.smoking = 12 + Math.random() * 10; s.smokeCool = 60 + Math.random() * 120; s.puffT = 1; }
+      if (!(s.smoking > 0)) continue;
+      s.smoking -= dt;
+      if ((s.puffT -= dt) <= 0) {
+        s.puffT = 2.5 + Math.random() * 2;
+        const head = s.headPosition(new THREE.Vector3());
+        head.x += Math.sin(s.root.rotation.y) * 0.18; head.z += Math.cos(s.root.rotation.y) * 0.18; head.y -= 0.08;
+        this.fx.emit(head, new THREE.Vector3(0, 1, 0), { color: 0xd4d4d0, count: 2, speed: 0.3, size: 0.1, life: 3.2, grow: 5, gravity: 0.25 });
+      }
     }
   }
 

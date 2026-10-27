@@ -44,6 +44,9 @@ EXTRA.push(...BARKS);
 // Spent brass landing (Pixabay: eleven drops of .30 and mixed-size cases bouncing; CREDITS.md).
 const CASINGS = Array.from({ length: 11 }, (_, i) => `casing_${i + 1}`);
 EXTRA.push(...CASINGS);
+// Guards' small talk (German, ElevenLabs Multilingual v2 on fal.ai, three voices): openers, and replies.
+export const CHAT = { open: [1, 2, 3, 4, 5, 6, 7, 8, 9, 12].map(i => `chat_${i}`), reply: ['chat_10', 'chat_11'] };
+EXTRA.push(...CHAT.open, ...CHAT.reply);
 // The music's level under the effects at 100% on the music slider.
 const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
@@ -517,6 +520,14 @@ export class Audio {
       this.noiseBurst({ at: t - ctx.currentTime, dur: 0.07, type: 'bandpass', freq: 1400, q: 1.2, gain: 0.18 * k });
     }
   }
+
+  // A guard's line of small talk from `distance` m: a murmur, heard within 35 m.
+  chatter(name, distance) {
+    if (distance > 35) return;
+    const k = 1 - distance / 35;
+    this.sample(name, { at: distance / 343, gain: 0.6 * k ** 0.9, filter: 1800 + 12000 * k * k, wet: 0.2 });
+  }
+  duration(name) { return this.samples?.[name]?.duration ?? 2; }
 
   // A spent case landing `distance` m away (quiet: heard within 25 m or so). A burst drops them
   // faster than anyone could tell apart, so no more than one every 70 ms.

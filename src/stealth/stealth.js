@@ -211,7 +211,8 @@ export class Stealth {
     const hit = this.world.raycastSegment(start, chest);
     if (hit && !(hit.soldier === undefined && hit.point.distanceTo(chest) < 0.4)) return 0;
     const stateK = a.state === 'alerted' ? 2 : a.state === 'suspicious' ? 1.5 : 1;
-    return 1.1 * this.wariness * vis * coneK * stateK * Math.pow(Math.max(0, 1 - d / range), 1.3);
+    const idle = s.chatWith ? 0.6 : s.smoking > 0 ? 0.85 : 1;     // chatting or smoking, he watches less
+    return 1.1 * this.wariness * vis * coneK * stateK * idle * Math.pow(Math.max(0, 1 - d / range), 1.3);
   }
 
   lookForBodies(s) {
