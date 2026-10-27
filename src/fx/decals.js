@@ -1,12 +1,13 @@
 // What a fight leaves behind: bullet holes in walls, timber and the ground (a dark hole in a ring
 // of chipped surface, tinted to what it struck), blood spattered on whatever stood behind a man
-// who was hit, and a pool spreading slowly under a body. Two instanced meshes (holes, blood), each
+// who was hit, a pool spreading slowly under a body, and the trail a wounded man leaves (drops as he
+// walks, a smear as he crawls). Three instanced meshes (holes, blood, the trails), each
 // a ring of a few hundred decals: the oldest goes when a new one is made. Lit like the world, and
 // pulled toward the camera so they don't flicker on the surface. Nothing goes on hidden collision
 // blocks (a vehicle's, a nest's) or on doors, which would leave a hole hanging in the air.
 import * as THREE from 'three';
 
-const HOLES = 320, BLOOD = 140, POOLS = 16;
+const HOLES = 320, BLOOD = 140, POOLS = 16, DRIPS = 240;
 const POOL_TIME = 28;          // s for a pool to spread to its full size
 
 function holeTexture() {
@@ -71,22 +72,24 @@ function decalMesh(count, map, roughness, order) {
 }
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1), _c = new THREE.Color();
+const _d = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 
 export class Decals {
   constructor({ scene, world }) {
     this.world = world;
     this.holes = decalMesh(HOLES, holeTexture(), 0.9, 2);
     this.blood = decalMesh(BLOOD, bloodTexture(), 0.35, 3);
-    this.nextHole = 0; this.nextBlood = 0;
+    this.drips = decalMesh(DRIPS, bloodTexture(), 0.35, 3);   // the trail a wounded man leaves
+    this.nextHole = 0; this.nextBlood = 0; this.nextDrip = 0;
     this.pools = [];                                   // spreading under bodies: { i, at, normal, spin, size, t }
     this.pooled = new Set();
-    scene.add(this.holes, this.blood);
+    scene.add(this.holes, this.blood, this.drips);
   }
 
-  place(mesh, i, point, normal, size, spin, color) {
+  place(mesh, i, point, normal, size, spin, color, stretch = 1) {
     _q.setFromUnitVectors(_z, normal);
     if (spin) _q.multiply(new THREE.Quaternion().setFromAxisAngle(_z, spin));
-    _m.compose(_s.copy(point).addScaledVector(normal, 0.004), _q, new THREE.Vector3(size, size, 1));
+    _m.compose(_s.copy(point).addScaledVector(normal, 0.004), _q, new THREE.Vector3(size * stretch, size, 1));
     mesh.setMatrixAt(i, _m);
     mesh.setColorAt(i, color);
     mesh.instanceMatrix.needsUpdate = true;
@@ -144,6 +147,25 @@ export class Decals {
       const normal = Math.abs(at.y - this.world.groundAt(at.x, at.z)) < 0.05 ? this.groundNormal(at) : new THREE.Vector3(0, 1, 0);
       this.pools.push({ i: this.nextBlood, at, normal, spin: Math.random() * 6.3, size: 1.1 + Math.random() * 0.5, t: 0 });
       this.nextBlood = (this.nextBlood + 1) % BLOOD;
+    }
+    // A man bleeding leaves a trail: drops every stride or so as he walks (more, the worse he
+    // bleeds), a smear behind him as he crawls. You can follow it.
+    for (const s of this.world.soldiers) {
+      if (!s.alive || !(s.bleed > 0) || s.range) { s.dripFrom = null; continue; }
+      const at = s.downed ? (s.char?.bones?.Spine02?.getWorldPosition(_d) ?? s.bodyPosition(_d)) : _d.copy(s.root.position);
+      if (!s.dripFrom) { s.dripFrom = at.clone(); continue; }
+      const moved = Math.hypot(at.x - s.dripFrom.x, at.z - s.dripFrom.z);
+      const every = s.downed ? 0.3 : 1.6 / Math.min(3, 0.6 + s.bleed);
+      if (moved < every) continue;
+      const along = Math.atan2(at.z - s.dripFrom.z, at.x - s.dripFrom.x);
+      s.dripFrom.copy(at);
+      const p = at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.25, 0, (Math.random() - 0.5) * 0.25));
+      p.y = this.world.floorAt(p.x, p.z, at.y + 0.3);
+      const onGround = Math.abs(p.y - this.world.groundAt(p.x, p.z)) < 0.05;
+      _c.setRGB(0.7 + Math.random() * 0.2, 1, 1);
+      if (s.downed) this.place(this.drips, this.nextDrip, p, onGround ? this.groundNormal(p) : _up, 0.22 + Math.random() * 0.08, -along, _c, 2.2);   // (smeared along the way he dragged himself)
+      else this.place(this.drips, this.nextDrip, p, onGround ? this.groundNormal(p) : _up, 0.07 + Math.random() * 0.08, Math.random() * 6.3, _c);
+      this.nextDrip = (this.nextDrip + 1) % DRIPS;
     }
     for (const p of this.pools) {
       if (p.t >= POOL_TIME) continue;
