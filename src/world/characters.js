@@ -297,32 +297,60 @@ export class Character {
     this.model.updateMatrixWorld(true);
   }
 
-  // A deeper crouch on top of the animation: the hips sink and sit back, the legs re-bend
-  // (two-bone IK) so the feet stay where the clip put them, and the spine leans forward.
-  // All world-space, so it doesn't depend on the rig's bone axes. k: 0..1 blend.
-  lowerBody(k, { drop = 0.3, sitBack = 0.1, lean = 0.32, plant = false } = {}) {
+  // A crouch on top of the animation: the hips sink and sit back, the legs re-bend (two-bone
+  // IK) so the feet stay where the clip put them, and the spine leans forward. `kneel` (0..1)
+  // blends that into a rifleman's kneel, as when crouched and still: the right knee on the
+  // ground under the hip, the left foot planted out in front, the body fairly upright (`lean`
+  // forward, less when `upright`, as when aiming). The head comes up to look ahead either way.
+  // All world-space and sized from the leg bones, so it fits any rig. k: 0..1 blend.
+  lowerBody(k, { drop = 0.1, sitBack = 0.04, lean = 0.18, plant = false, kneel = 0, upright = 0 } = {}) {
     const b = this.bones;
-    if (k <= 0.001 || !b.Hips) return;
+    if ((k <= 0.001 && kneel <= 0.001) || !b.Hips) return;
     const v = this._v, fwd = v.a, up = new THREE.Vector3(0, 1, 0);
     this.modelDir(0, 0, 1, fwd).applyQuaternion(this.root.getWorldQuaternion(v.q)).setY(0).normalize();
-    this._lowered = ['Hips', 'Spine', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot']
+    const left = new THREE.Vector3().crossVectors(up, fwd).normalize();
+    this._lowered = ['Hips', 'Spine', 'neck', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot']
       .filter(n => b[n]).map(n => [b[n], b[n].position.clone(), b[n].quaternion.clone()]);
-    const feet = ['Left', 'Right'].map(side => b[side + 'Foot']?.getWorldPosition(new THREE.Vector3()));
-    if (plant) { // standing still: both feet down (the paused stride holds one foot up)
-      const floor = this.root.getWorldPosition(v.c).y + 0.15;
-      for (const f of feet) if (f) f.y = Math.min(f.y, floor);
+    const at = (n) => b[n].getWorldPosition(new THREE.Vector3());
+    const feet = ['Left', 'Right'].map(side => b[side + 'Foot'] && at(side + 'Foot'));
+    const floor = this.root.getWorldPosition(v.c).y;
+    if (plant) for (const f of feet) if (f) f.y = Math.min(f.y, floor + 0.15);   // standing still: both feet down (the paused stride holds one foot up)
+    const hips = at('Hips').addScaledVector(up, -drop * k).addScaledVector(fwd, -sitBack * k);
+    const toes = ['Left', 'Right'].map(side => b[side + 'ToeBase'] && at(side + 'ToeBase').sub(at(side + 'Foot')).normalize());
+    const poles = feet.map(f => f && f.clone().addScaledVector(fwd, 1).addScaledVector(up, 0.4));   // knees bend forward
+    if (kneel > 0.001 && b.LeftLeg && b.RightLeg) {
+      const thigh = at('LeftUpLeg').distanceTo(at('LeftLeg')), shin = at('LeftLeg').distanceTo(at('LeftFoot'));
+      const half = at('LeftUpLeg').distanceTo(at('RightUpLeg')) / 2, pelvis = at('Hips').y - at('LeftUpLeg').y;
+      const base = this.root.getWorldPosition(new THREE.Vector3()).addScaledVector(fwd, -0.05);
+      // The right knee on the ground under its hip, the shin back along the ground to a foot on its toes.
+      const knee = base.clone().addScaledVector(left, -half - 0.02).addScaledVector(fwd, 0.03).setY(floor + 0.06);
+      const rear = knee.clone().addScaledVector(fwd, -Math.sqrt(shin * shin - 0.09 * 0.09)).setY(floor + 0.15);
+      // The left foot flat, out in front, the shin about upright.
+      const front = base.clone().addScaledVector(left, half + 0.04).addScaledVector(fwd, thigh * 0.92).setY(floor + 0.34 * shin);
+      hips.lerp(base.clone().setY(knee.y + thigh * 0.98 + pelvis), kneel);
+      feet[0]?.lerp(front, kneel); feet[1]?.lerp(rear, kneel);
+      poles[0]?.lerp(front.clone().addScaledVector(fwd, 0.5).addScaledVector(up, 0.6), kneel);
+      poles[1]?.lerp(knee.clone().addScaledVector(fwd, 0.3), kneel);
+      toes[0]?.lerp(fwd.clone().addScaledVector(up, -0.55), kneel).normalize();
+      toes[1]?.lerp(fwd.clone().multiplyScalar(0.25).sub(up), kneel).normalize();
     }
-    const hips = b.Hips.getWorldPosition(v.b).addScaledVector(up, -drop * k).addScaledVector(fwd, -sitBack * k);
     b.Hips.position.copy(b.Hips.parent.worldToLocal(hips));
     b.Hips.updateMatrixWorld(true);
     ['Left', 'Right'].forEach((side, i) => {
       if (!feet[i]) return;
       const foot = b[side + 'Foot'], footQ = foot.getWorldQuaternion(new THREE.Quaternion());
-      const knee = feet[i].clone().addScaledVector(fwd, 1).addScaledVector(up, 0.4); // knees bend forward
-      solveArmIK(b[side + 'UpLeg'], b[side + 'Leg'], foot, feet[i], knee);
-      foot.quaternion.copy(foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(footQ)); // sole stays flat
+      solveArmIK(b[side + 'UpLeg'], b[side + 'Leg'], foot, feet[i], poles[i]);
+      foot.quaternion.copy(foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(footQ)); // sole as it was...
+      foot.updateMatrixWorld(true);
+      if (toes[i] && kneel > 0.001) turnBone(foot, at(side + 'ToeBase').sub(at(side + 'Foot')), toes[i]);   // ...or set for the kneel
     });
-    if (b.Spine) turnBone(b.Spine, up.clone(), up.clone().applyAxisAngle(new THREE.Vector3().crossVectors(up, fwd).normalize(), lean * k));
+    const bend = THREE.MathUtils.lerp(lean * k, lean * (1 - upright), kneel);
+    if (b.Spine) turnBone(b.Spine, up.clone(), up.clone().applyAxisAngle(left, bend));
+    // Head up: the neck takes back most of the forward tilt, so he looks where he's going.
+    if (b.neck && b.Head) {
+      const neck = at('Head').sub(at('neck')).normalize();
+      turnBone(b.neck, neck.clone(), neck.clone().lerp(up, 0.75 * Math.max(k, kneel)));
+    }
     this.model.updateMatrixWorld(true);
   }
 

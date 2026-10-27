@@ -232,7 +232,7 @@ export class Soldier {
     }
     // Ducking behind cover (the same world-space crouch as the player's).
     this.crouch += ((this.alive ? this.crouchTarget : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
-    if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand' });
+    if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand', kneel: this.gait === 'stand' ? this.crouch : 0 });   // still: down on one knee
     this.kick = Math.max(0, this.kick - dt * 4);
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();

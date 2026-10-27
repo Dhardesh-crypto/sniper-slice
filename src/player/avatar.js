@@ -69,7 +69,7 @@ export class Avatar {
     this.root.add(this.pistol);
     scene.add(this.root);
     this.yaw = 0;
-    this.s = { prone: 0, crouch: 0, aim: 0, ready: 0, pitch: 0 };
+    this.s = { prone: 0, crouch: 0, kneel: 0, upright: 0, aim: 0, ready: 0, pitch: 0 };
     this.state = '';
     this.char.play('idleLegs', { fade: 0 });
     this.buildConcealLook();
@@ -232,7 +232,9 @@ export class Avatar {
     // Crouched low behind cover; aiming raises you to look over it.
     const peek = st.aiming || st.ready > 0.35;
     s.crouch = damp(s.crouch, st.mounted ? 0.55 : st.stance === 'crouch' && !busy ? (peek ? 0.4 : 1) : 0, 8, dt);   // (the action clips crouch by themselves; stooped over a nest's gun)
-    c.lowerBody(s.crouch, { plant: !moving });
+    s.kneel = damp(s.kneel, st.stance === 'crouch' && !busy && !st.mounted && !moving ? 1 : 0, 6, dt);   // crouched and still: down on one knee
+    s.upright = damp(s.upright, peek ? 1 : 0, 8, dt);
+    c.lowerBody(s.crouch, st.mounted ? { drop: 0.3, sitBack: 0.1, lean: 0.32, plant: true } : { plant: !moving, kneel: s.kneel, upright: s.upright });
 
     // Weapon up: after a shot or while aiming, the rifle comes to the shoulder.
     s.ready = damp(s.ready, Math.max(st.ready, st.aiming ? 1 : 0), 14, dt);
