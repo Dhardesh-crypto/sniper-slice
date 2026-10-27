@@ -632,3 +632,18 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] X-ray anatomy modelled (tools/blender/anatomy.py → anatomy.glb): skull, jaw and teeth, brain,
       vertebrae, rib pairs, sternum, clavicles, scapulae, pelvis, long bones, heart, lungs, liver,
       stomach, kidneys, intestines; same frames and hit radii as before
+
+## Blender pass 3 (2026-10-27): "interiors more lively, houses not big boxes"
+- [x] Facades (tools/blender/architecture.py, now sharing tools/blender/kitparts.py): string courses
+      between storeys, panelled double doors, arched shop fronts with plank shutters, striped
+      awnings and painted signs (BAR, TABACCHI, FORNO…), geranium window boxes, wall lanterns, street
+      shrines, washing lines; each house its own plaster colour (plasterFor); roofs vary along a row:
+      hipped (Builder.hip), ridges turned to the street, or along it. Recessed parts are brought
+      forward on the painted (solid) houses.
+- [x] Interiors (tools/blender/interior.py → interior_kit.glb + cotto tiles; src/world/interior.js):
+      whitewashed ceilings on chestnut beams, skirting, a painted dado, casements opened inward with
+      see-through panes, curtains; rooms found from the interior walls and furnished as homes
+      (fireplace, credenza, shelves, pictures, clock, demijohn, sacks, wine on the table) or offices
+      (map board, notices, coat rack with greatcoat and helmet, papers, telephone, typewriter),
+      chairs, rugs and a hanging lamp; nothing over doors, stairs, stairwells or the mission's furniture
+- [x] Town: the kit is ~300k triangles in 10 merged meshes

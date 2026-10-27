@@ -9,7 +9,8 @@
 // can climb to, and the old walls with the west gate where the road comes up.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
-import { M, Builder } from '../world/kit.js';
+import { M, Builder, plasterFor } from '../world/kit.js';
+import { houseLook } from '../world/arch.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -194,7 +195,8 @@ function site(scene) {
   // Rows of terraced houses with alleys between them. Some have flat roofs (and a ladder up).
   const roofs = [];
   const house = (cx, cz, w, d, floors, flat, enter) => {
-    const hgt = floors * 3.2, mat = rng() < 0.5 ? M.plaster : M.plaster2;
+    rng();                                           // (the draw that used to pick its plaster: keeps the town's layout as it was)
+    const hgt = floors * 3.2, mat = plasterFor(cx, cz);   // each house its own colour
     if (enter) {
       const hb = building(b, { x: cx, z: cz, y, w, d, floors: 2, h: 3.2, mat, roof: flat ? 'flat' : 'gable',
         openings: [{ side: enter, at: 0, w: 1.2, door: true }, { side: enter, at: w / 2 - 1.5, w: 1.0, window: true, floor: 1 }],
@@ -204,7 +206,13 @@ function site(scene) {
     }
     b.box(w, hgt, d, mat, cx, y, cz);
     if (flat) for (const [dx, dz, ww, dd] of [[0, -d / 2, w, 0.25], [0, d / 2, w, 0.25]]) b.box(ww, 0.7, dd, mat, cx + dx, y + hgt, cz + dz);
-    else b.gable(w, 2.0, d, M.roof, cx, y + hgt, cz, 0, { wall: mat });
+    else {
+      // Roofs vary along a row: most ridges along the street, some hipped, some turned to the street.
+      const r = houseLook(cx, cz).r(55);
+      if (r < 0.25) b.hip(w, Math.min(2.2, Math.min(w, d) * 0.3), d, M.roof, cx, y + hgt, cz);
+      else if (r < 0.5) b.gable(d, Math.min(2.4, w * 0.3), w, M.roof, cx, y + hgt, cz, Math.PI / 2, { wall: mat });
+      else b.gable(w, 2.0, d, M.roof, cx, y + hgt, cz, 0, { wall: mat });
+    }
     b.windows(cx, cz, w, d, y, floors);
     return { cx, cz, top: y + hgt, flat, w, d };
   };

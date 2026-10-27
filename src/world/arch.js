@@ -19,18 +19,27 @@ const MATS = {
   frame: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: THREE.DoubleSide }),
   glass: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, envMapIntensity: 0.5 }),
   iron: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4, side: THREE.DoubleSide }),
+  // (The interior kit's: interior.js.)
+  cloth: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide }),
+  paper: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }),
+  ceramic: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, side: THREE.DoubleSide }),
+  pane: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
 };
 // Shutter paint: Tuscan greens, browns, a faded blue-grey, oxblood (linear multipliers on the
 // kit's near-white).
 const PAINT = [0x587a4e, 0x4f6b46, 0x6b4a32, 0x7d8b78, 0x6c8091, 0x76402f, 0x8a8f6a].map(h => new THREE.Color(h));
 
+// The parts of both kits by name (the architecture kit's, and the interior kit's once it's loaded).
 let kit = null;
 function parts() {
   if (kit) return kit;
-  const src = assets.models.archKit?.scene;
-  if (!src) return null;
-  src.updateMatrixWorld(true);
+  if (!assets.models.archKit?.scene) return null;
   kit = {};
+  for (const src of [assets.models.archKit.scene, assets.models.interiorKit?.scene]) if (src) addKit(src);
+  return kit;
+}
+function addKit(src) {
+  src.updateMatrixWorld(true);
   src.traverse(o => {
     if (!o.isMesh) return;
     const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
@@ -42,16 +51,15 @@ function parts() {
     }
     kit[o.name] = { g, mat: MATS[o.material.name] ?? MATS.stone };
   });
-  return kit;
 }
 export const hasArch = () => !!parts();
 
-const ROT = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
+export const ROT = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _y = new THREE.Vector3(0, 1, 0);
 
 // Bake part `name` into the scene: scaled by (sx, sy, sz) in its own axes, turned about its own
 // vertical by `spin` (a shutter on its hinge), then laid on a wall face turned `rotY`, at (x, y, z).
-function put(b, name, x, y, z, rotY, { sx = 1, sy = 1, sz = 1, spin = 0, tint = null } = {}) {
+export function put(b, name, x, y, z, rotY, { sx = 1, sy = 1, sz = 1, spin = 0, tint = null, shadow = true } = {}) {
   const p = parts()?.[name];
   if (!p) return;
   const g = p.g.clone();
@@ -65,10 +73,13 @@ function put(b, name, x, y, z, rotY, { sx = 1, sy = 1, sz = 1, spin = 0, tint = 
     for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * tint.r, c.getY(i) * tint.g, c.getZ(i) * tint.b);
   }
   const mesh = new THREE.Mesh(g, p.mat);
-  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.castShadow = shadow;                // (the small things indoors don't cast: the sun hardly reaches them)
+  mesh.receiveShadow = true;
   mesh.userData.decor = true;
   b.group.add(mesh);
+  return true;
 }
+export const hasPart = (name) => !!parts()?.[name];
 function flip(g) {
   if (g.index) { const a = g.index.array; for (let i = 0; i < a.length; i += 3) { const t = a[i + 1]; a[i + 1] = a[i + 2]; a[i + 2] = t; } return; }
   for (const k of Object.keys(g.attributes)) {
@@ -78,7 +89,7 @@ function flip(g) {
 }
 
 // A point on a wall face: `u` along it (to the face's right as you look at it), `w` out of it.
-function onFace(cx, cz, rotY, u, w) {
+export function onFace(cx, cz, rotY, u, w) {
   const c = Math.cos(rotY), s = Math.sin(rotY);
   return [cx + u * c + w * s, cz - u * s + w * c];
 }
@@ -92,7 +103,7 @@ export function houseLook(x, z) {
 // A window in the face `side` at (cx, cz) (the opening's centre on the face), bottom y0, w × h.
 // open: a real hole in the wall (no glass, the shutters folded back); otherwise the window is
 // painted on a solid block, so it gets a casement and dark glass, just proud of the face.
-export function dressWindow(b, { cx, cz, side, y0, w = 1, h = 1.4, open = false, look, k = 0 }) {
+export function dressWindow(b, { cx, cz, side, y0, w = 1, h = 1.4, open = false, look, k = 0, flowers = false }) {
   if (!parts()) return false;
   const rotY = ROT[side], at = (u, wo) => onFace(cx, cz, rotY, u, wo);
   look ??= houseLook(cx, cz);
@@ -113,6 +124,8 @@ export function dressWindow(b, { cx, cz, side, y0, w = 1, h = 1.4, open = false,
     // Left (s = −1) swings out to the left; the right one is the left mirrored.
     put(b, 'shutter', x, y0 + 0.02, z, rotY, { sx: -s * w / 2, sy: h - 0.04, spin: s * ang, tint: look.paint });
   }
+  // Geraniums on the sill, now and then (upper floors).
+  if (flowers && look.r(k + 5) < 0.3) { [x, z] = at(0, 0.03); put(b, 'planter', x, y0, z, rotY, { sx: w + 0.1 }); }
   return true;
 }
 
@@ -139,11 +152,13 @@ function along(b, name, cx, cz, rotY, u0, u1, y, opts = {}) {
 const faces = (x, z, w, d) => [['s', x, z + d / 2, w], ['n', x, z - d / 2, w], ['e', x + w / 2, z, d], ['w', x - w / 2, z, d]];
 
 // The shell of a house block: a stone base course, quoins up the corners, a downpipe.
-export function dressBlock(b, { x, z, w, d, y, height, plinth = true }) {
+export function dressBlock(b, { x, z, w, d, y, height, plinth = true, storey = 0 }) {
   if (!parts()) return false;
   const look = houseLook(x, z);
   for (const [side, cx, cz, len] of faces(x, z, w, d)) {
     if (plinth) along(b, 'plinth', cx, cz, ROT[side], -len / 2, len / 2, y - 0.25, { step: 1 });
+    // String courses between the storeys: what breaks a tall wall into floors.
+    if (storey) for (let f = 1; f * storey < height - 1; f++) along(b, 'band', cx, cz, ROT[side], -len / 2, len / 2, y + f * storey - 0.08);
   }
   // Quoins on two or four corners (the corner at the face's right end looks +z and +x locally).
   const corners = [[x + w / 2, z + d / 2, 0], [x + w / 2, z - d / 2, Math.PI / 2], [x - w / 2, z - d / 2, Math.PI], [x - w / 2, z + d / 2, -Math.PI / 2]];
@@ -183,6 +198,23 @@ export function dressGable(b, { w, d, rise, x, y, z, rotY = 0 }) {
   return true;
 }
 
+// Dressing for a hipped roof (Builder.hip): the ridge tiles along its short ridge (from −ridge to
+// +ridge, [x, z] half-lengths), the cornice right round, and now and then a chimney.
+export function dressHip(b, { w, d, rise, x, y, z, ridge }) {
+  if (!parts()) return false;
+  const [ax, az] = ridge, len = 2 * Math.max(ax, az), rotY = ax ? 0 : Math.PI / 2;
+  const n = Math.max(1, Math.round(len)), each = len / n;
+  for (let i = 0; i < n && len > 0.3; i++) {
+    const t = -len / 2 + i * each;
+    // (Turned a quarter, a piece runs toward −z from where it's put.)
+    put(b, 'ridge', ax ? x + t : x, y + rise - 0.02, ax ? z : z - t, rotY, { sx: each });
+  }
+  for (const [side, cx, cz, l] of faces(x, z, w, d)) along(b, 'eave', cx, cz, ROT[side], -l / 2 - 0.4, l / 2 + 0.4, y - 0.3);
+  const look = houseLook(x, z);
+  if (look.r(11) < 0.55) put(b, 'chimney', x + (look.r(12) - 0.5) * w * 0.4, y + rise * 0.55, z + (look.r(13) < 0.5 ? -1 : 1) * d * 0.15, 0);
+  return true;
+}
+
 // A flat roof's cornice: the eave moulding (without its rafters reading as much) under the parapet.
 export function dressFlatRoof(b, { x, z, w, d, y }) {
   if (!parts()) return false;
@@ -197,4 +229,93 @@ export function dressBalcony(b, { cx, cz, side, y }) {
   put(b, 'balcony', x, y, z, ROT[side]);
   put(b, 'railing', x, y, z, ROT[side]);
   return true;
+}
+
+// ---- the street floor of a house: a door, or a shop under an arch with its awning and sign ----
+const SHOPS = ['BAR', 'TABACCHI', 'FORNO', 'ALIMENTARI', 'FARMACIA', 'MACELLERIA', 'OSTERIA', 'BARBIERE', 'MERCERIA', 'VINI E OLII'];
+const signs = new Map();
+function signMaterial(text) {
+  if (signs.has(text)) return signs.get(text);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2f3a2c'; g.fillRect(0, 0, 512, 96);                       // a painted board
+  g.strokeStyle = '#b8a77a'; g.lineWidth = 5; g.strokeRect(8, 8, 496, 80);
+  g.fillStyle = '#e6d9b4'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `bold ${text.length > 9 ? 44 : 56}px Georgia, "Times New Roman", serif`;
+  g.fillText(text.split('').join(String.fromCharCode(8202)), 256, 52);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
+  signs.set(text, m);
+  return m;
+}
+function sign(b, x, y, z, rotY, text, w = 2.4) {
+  const geo = new THREE.PlaneGeometry(w, w * 96 / 512);
+  geo.rotateY(rotY); geo.translate(x, y, z);
+  const mesh = new THREE.Mesh(geo, signMaterial(text));
+  mesh.receiveShadow = true;
+  mesh.userData.decor = true;
+  b.group.add(mesh);
+}
+
+// The middle of a painted house's street floor (its face `side` at (cx, cz), the street at y0, the
+// wall `room` wide there): a door, or a shop with an arch, an awning and a painted sign. Returns
+// how wide a gap it took, so the windows either side keep clear of it (0: leave it a window).
+export function dressStreetFloor(b, { cx, cz, side, y0, room, look }) {
+  if (!parts()) return 0;
+  const rotY = ROT[side], r = look.r(30);
+  // (A painted house is a solid block: what's modelled set back in its opening is brought forward.)
+  let [x, z] = onFace(cx, cz, rotY, 0, 0.12);
+  if (r < 0.32 && room >= 3.3 && hasPart('shop')) {
+    put(b, 'shop', x, y0, z, rotY, { sx: 0.88, sy: 0.88, sz: 0.88 });       // (its arch tops out under the first floor's band)
+    if (look.r(31) < 0.6) { [x, z] = onFace(cx, cz, rotY, 0, 0.02); put(b, 'awning', x, y0 + 3.0, z, rotY); }
+    [x, z] = onFace(cx, cz, rotY, 0, 0.03);
+    sign(b, x, y0 + 3.55, z, rotY, SHOPS[Math.floor(look.r(32) * SHOPS.length)], 2.2);   // between the band and the windows above
+    return 2.8;
+  }
+  if (r < 0.8 && hasPart('door_leaf')) {
+    const w = 1.3, h = 2.4;
+    put(b, 'door_leaf', x, y0, z, rotY, { sx: w, sy: h, tint: look.paint.clone().multiplyScalar(0.8) });
+    dressDoor(b, { cx, cz, side, y0, w, h });
+    if (look.r(33) < 0.55) { [x, z] = onFace(cx, cz, rotY, w / 2 + 0.45, 0); put(b, 'lantern', x, y0 + 2.5, z, rotY); }
+    return 1.9;
+  }
+  return 0;
+}
+
+// A shrine on a house's corner, now and then.
+export function dressShrine(b, { cx, cz, side, y0, look }) {
+  if (!parts() || look.r(40) > 0.12) return;
+  const [x, z] = onFace(cx, cz, ROT[side], 0, 0);
+  put(b, 'shrine', x, y0 + 2.2, z, ROT[side]);
+}
+
+// Washing hung out on a line under a window: a few clothes in the sun.
+const CLOTH = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+const LAUNDRY = [0xe8e4da, 0xdcd8cc, 0x8aa0b8, 0xb8b0a0, 0x9a3a2a, 0xe0d0a8, 0x6a7a5a].map(h => new THREE.Color(h));
+export function dressLaundry(b, { cx, cz, side, y, w, look }) {
+  if (!parts() || look.r(41) > 0.22) return;
+  const rotY = ROT[side], pos = [], col = [];
+  const quad = (pts, c) => { for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(...pts[i]); col.push(c.r, c.g, c.b); } };
+  const at = (u, v, w2) => { const [x, z] = onFace(cx, cz, rotY, u, w2); return [x, v, z]; };
+  const L = w / 2;
+  quad([at(-L, y, 0.62), at(L, y, 0.62), at(L, y - 0.012, 0.62), at(-L, y - 0.012, 0.62)], new THREE.Color(0x3a3a38));   // the line
+  let u = -L + 0.15, k = 0;
+  while (u < L - 0.4) {
+    const cw = 0.35 + look.r(50 + k) * 0.45, ch = 0.4 + look.r(60 + k) * 0.5, c = LAUNDRY[Math.floor(look.r(70 + k) * LAUNDRY.length)];
+    quad([at(u, y, 0.62), at(u + cw, y, 0.62), at(u + cw, y - ch, 0.6 + 0.04 * look.r(80 + k)), at(u, y - ch, 0.6)], c);
+    u += cw + 0.1 + look.r(90 + k) * 0.3; k++;
+  }
+  for (const s of [-1, 1]) {                                                    // the brackets
+    const p0 = at(s * L, y + 0.02, 0), p1 = at(s * L, y + 0.02, 0.64);
+    quad([p0, p1, [p1[0], p1[1] - 0.03, p1[2]], [p0[0], p0[1] - 0.03, p0[2]]], new THREE.Color(0x262625));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, CLOTH);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.userData.decor = true;
+  b.group.add(mesh);
 }

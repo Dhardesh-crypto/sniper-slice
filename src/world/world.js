@@ -6,6 +6,7 @@ import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HAL
 import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
 import { buildGround, cullGround } from './ground.js';
 import { mergeDecor } from './kit.js';
+import { dressInteriors } from './interior.js';
 
 import { buildHorizon } from './horizon.js';
 
@@ -60,6 +61,7 @@ export class World {
     this.staffCar = b.staffCar ?? null;
     this.villa = b.villa ?? null;
     this.site = b;
+    dressInteriors();                     // (now the mission's own furniture is in)
     mergeDecor(scene);
     // Ground detail (Blender): stones and scrub, or ferns, needles, stumps and branches in a forest.
     // Stumps are solid: they join the trees for walking into and the solids for bullets.

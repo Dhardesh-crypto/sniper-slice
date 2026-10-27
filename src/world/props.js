@@ -70,7 +70,7 @@ export const PROPS = {
   // The realism pass: vegetation (the vineyard's rows, cypresses, umbrella pines, rocks) and burnt-out wrecks.
   // (Leafy crowns don't come out of image-to-3D: the olives and oaks stay the drawn leaf-card trees.)
   // Trees built in Blender (tools/blender/trees.py): see treeParts().
-  groundDetail: { file: 'ground_detail', turn: 0 }, archKit: { file: 'arch_kit', turn: 0 }, anatomy: { file: 'anatomy', turn: 0 },   // the houses' stone dressing (arch.js)
+  groundDetail: { file: 'ground_detail', turn: 0 }, archKit: { file: 'arch_kit', turn: 0 }, interiorKit: { file: 'interior_kit', turn: 0 }, anatomy: { file: 'anatomy', turn: 0 },   // the houses' stone dressing (arch.js)
   treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
   vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 },
   cypressLod: { file: 'tree_cypress_lod', turn: 0 }, pineLod: { file: 'tree_pine_lod', turn: 0 },   // far versions (tools/blender/lods.py) rock: { file: 'prop_rock', turn: 0 },

@@ -12,7 +12,8 @@
 //   walls: interior walls [{ axis: 'x' | 'z', at, from, to, floor, openings: [{ at, w, door }] }]
 // Sides: n is -z, s is +z, w is -x, e is +x.
 import * as THREE from 'three';
-import { M } from './kit.js';
+import { M, COTTO, plasterFor, isPlaster } from './kit.js';
+import { registerInterior } from './interior.js';
 import { worldUVs } from './textures.js';
 import { propModel } from './props.js';
 import { dressWindow, dressDoor, dressBlock, dressFlatRoof, houseLook } from './arch.js';
@@ -22,7 +23,8 @@ const RISE = 0.24, RUN = 0.3;
 const DOOR_MAT = M.darkWood;
 
 export function building(b, o) {
-  const { x, z, y, w, d, floors = 1, h = 3.2, wall = 0.25, mat = M.plaster, floorMat = M.wood, roof = 'gable', roofMat = M.roof } = o;
+  const { x, z, y, w, d, floors = 1, h = 3.2, wall = 0.25, floorMat = M.wood, roof = 'gable', roofMat = M.roof } = o;
+  const mat = isPlaster(o.mat ?? M.plaster) ? plasterFor(x, z) : o.mat;     // a plastered house gets its own colour
   const doors = [];
   const out = { doors, floorY: (f) => y + f * h, top: y + floors * h, x, z, w, d };
   const openings = o.openings ?? [];
@@ -48,8 +50,10 @@ export function building(b, o) {
     const hole = isRoof ? null : well;
     slab(b, x, z, w - 0.02, d - 0.02, sy, 0.18, isRoof && roof === 'flat' ? M.stone : floorMat, hole);
   }
-  // A plank floor inside on the ground storey (just above the ground, so it's walked on).
-  b.box(w - 2 * wall, 0.06, d - 2 * wall, floorMat, x, y, z, { solid: false });
+  // A floor inside on the ground storey (just above the ground, so it's walked on): terracotta tiles
+  // in a stone or plastered house, planks in a timber one.
+  const timber = mat === M.wood || mat === M.darkWood;
+  b.box(w - 2 * wall, 0.06, d - 2 * wall, floorMat === M.wood && !timber ? COTTO : floorMat, x, y, z, { solid: false });
   // Stairs: one flight per storey, all stacked in the same well.
   if (st) for (let f = 0; f < floors - 1; f++) stairs(b, x + st.at[0], z + st.at[1], y + f * h, h, st.dir, st.w ?? 1.0, floorMat);
   out.stairsFoot = st ? new THREE.Vector3(x + st.at[0], y, z + st.at[1]) : null;
@@ -61,7 +65,7 @@ export function building(b, o) {
   }
   // The stone dressing from the architecture kit (if it's loaded): base course and quoins (not on a
   // timber building), the cornice.
-  if (mat !== M.wood && mat !== M.darkWood) dressBlock(b, { x, z, w, d, y, height: floors * h });
+  if (!timber) dressBlock(b, { x, z, w, d, y, height: floors * h, storey: floors > 1 ? h : 0 });
   // The roof.
   if (roof === 'gable') b.gable(w, Math.min(2.8, d * 0.28), d, roofMat, x, y + floors * h, z, 0, { wall: mat });
   else {
@@ -70,6 +74,8 @@ export function building(b, o) {
       b.box(ww, 0.9, dd, mat, x + dx, y + floors * h, z + dz);          // parapet around a flat roof
     }
   }
+  // The rooms are furnished once the mission has put its own furniture in (interior.js).
+  registerInterior(b, { x, z, y, w, d, floors, h, wall, mat, timber, openings, stairs: st, well, walls: o.walls ?? [], doors });
   return out;
 }
 
