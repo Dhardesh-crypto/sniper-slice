@@ -19,7 +19,7 @@ export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair
 // zenith and its compass bearing in degrees, its colour and strength, the sky's haze, the clouds,
 // the sky-and-ground fill, and the exposure.
 const CHARGE_REACH = 0.8;   // m past whatever a shot meets first that a charge on it still takes the bullet
-const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
+export const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
   hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85 };
 
 export class World {

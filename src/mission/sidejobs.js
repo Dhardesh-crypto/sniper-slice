@@ -3,8 +3,9 @@
 // a rank, where he was last reported), a long shot, the target down before any alarm or before any
 // body is found, knife takedowns, headshots, and intel papers left on tables in the houses. Each is
 // checked against what the game already counts (Mission.stats, the alarm, the documents read).
-// The draw is seeded and the seed goes into the save, so a loaded game has the same jobs.
+// The draw is from the run's seed (core/run.js), kept in the save, so a loaded game has the same jobs.
 import * as THREE from 'three';
+import { runSeed, seeded } from '../core/run.js';
 
 const RANKS = ['Feldwebel', 'Unteroffizier', 'Obergefreiter', 'Leutnant', 'Oberfeldwebel', 'Stabsgefreiter'];
 const NAMES = ['Brandt', 'Hartmann', 'Vogel', 'Kessler', 'Lindner', 'Roth', 'Seidel', 'Winkler', 'Albrecht', 'Krüger', 'Haas', 'Engel'];
@@ -23,7 +24,6 @@ const INTEL = [
   ['Signal codes', 'This week\'s flare signals: two green, "enemy in sight"; one red, "need support"; white, "withdraw". The radio call sign changes to EMIL on Thursday.'],
 ];
 
-const rngFrom = (seed) => () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 
 // The jobs: applies(ctx) says whether this map can have it; make(ctx, rnd) returns its objective
 // text and check() → 'done' | 'failed' | null, plus markers() for the compass and the map.
@@ -130,10 +130,9 @@ export class SideJobs {
   // ctx: { world, mission, ai, interactions, hud, saves }
   constructor(ctx) {
     this.c = ctx;
-    const pending = (() => { try { return sessionStorage.getItem('sniper-slice.pendingLoad'); } catch { return null; } })();
-    this.seed = (pending && ctx.saves?.read(pending)?.mission?.stats?.jobSeed) || Math.floor(Math.random() * 2 ** 31);
-    ctx.mission.stats.jobSeed = this.seed;
-    const rnd = rngFrom(this.seed), keys = Object.keys(POOL).filter(k => POOL[k].applies(ctx));
+    this.seed = runSeed;
+    ctx.mission.stats.runSeed = runSeed;
+    const rnd = seeded(runSeed), keys = Object.keys(POOL).filter(k => POOL[k].applies(ctx));
     this.jobs = [];
     while (this.jobs.length < 2 && keys.length) {
       const k = keys.splice(Math.floor(rnd() * keys.length), 1)[0];

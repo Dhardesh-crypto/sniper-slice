@@ -200,7 +200,7 @@ export class Stealth {
     const a = s.aware;
     if (this.concealed && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
-    const range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1);
+    const range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1);   // (rain and mist hide you further off)
     if (d > range * Math.sqrt(vis) + 3) return 0;
     const to = chest.clone().sub(eye);
     const facing = new THREE.Vector3(Math.sin(s.root.rotation.y), 0, Math.cos(s.root.rotation.y));

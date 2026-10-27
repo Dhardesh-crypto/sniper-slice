@@ -20,6 +20,8 @@ import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
 import { MountedGuns } from './world/mgnest.js';
 import { SideJobs } from './mission/sidejobs.js';
+import { pickConditions } from './world/conditions.js';
+import { runSeed } from './core/run.js';
 import { Masking } from './stealth/masking.js';
 import { Stealth } from './stealth/stealth.js';
 import { GuardAI } from './ai/guards.js';
@@ -89,9 +91,10 @@ await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 M.map.id ??= missionId;                          // (its far country: textures/horizon_<id>.webp)
+const conditions = pickConditions(M.map, runSeed); // this run's weather: as briefed, or overcast, rain, mist
 useMap(M.map);
-document.querySelector('#menu .sub').textContent = M.subtitle;
-if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing;
+document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
+if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
 
 const input = new Input(canvas);
 const audio = new Audio();

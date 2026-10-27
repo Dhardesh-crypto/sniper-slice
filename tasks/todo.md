@@ -707,3 +707,12 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       is found), 2-3 knife takedowns, 3-5 headshots, or three intelligence papers left on tables in
       the buildings (eight letters, rosters and sketches to read). Failing one says so; the draw is
       seeded and saved, so a loaded game keeps its jobs. All seven turn up across 40 draws.
+
+## Conditions per run (2026-10-27)
+- [x] src/world/conditions.js: each run is as briefed (45%), overcast (20%), raining (15%) or in a
+      morning mist (20%), drawn from the run's seed (src/core/run.js: kept in saves, shared with the
+      side jobs; sessionStorage 'sniper-slice.seed' forces one for testing). Overcast and rain dim
+      the sun behind full cloud and lift the sky's fill; rain and mist bring the haze in (to 760 and
+      900 m), fade the far country, and cut how far a guard sees you (×0.75, ×0.7); rain falls and
+      covers some of your noise. Maps with their own mist or rain keep it. The menu and the briefing
+      say what today is like.

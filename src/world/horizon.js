@@ -5,6 +5,7 @@
 // far country never slides as you walk. Until it has loaded (or if a mission has none), three
 // rings of drawn ridgelines stand in: each further away, taller and more washed into the haze.
 import * as THREE from 'three';
+import { activeMap } from './terrain.js';
 import { fbm } from './noise.js';
 
 const LAT = [-3, 16];          // degrees: the panorama's band (horizon.py's LAT_MIN, LAT_MAX)
@@ -73,6 +74,7 @@ function panorama(tex, k) {
   // the horizon is many times brighter than a texture holds), and it's tone-mapped with the rest.
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
   mat.color.setScalar(k);
+  mat.opacity = 1 - (activeMap().horizonFade ?? 0);   // (under cloud, rain or mist the far country fades)
   const m = new THREE.Mesh(g, mat);
   m.frustumCulled = false;
   m.renderOrder = -5;
