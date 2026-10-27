@@ -111,6 +111,7 @@ export class GuardAI {
   decide(s) {
     const a = s.aware, b = s.brain;
     if (s.officer) return a.state === 'calm' ? 'post' : 'flee';
+    if (s.riding) return 'ride';         // in the patrol car (ai/patrol.js moves him; out when he's alarmed)
     if (b.nest) {                      // sent to a machine-gun nest: he holds it while the fight's on
       if (a.state === 'alerted' && this.player.mounted !== b.nest) return 'gunner';
       this.leaveNest(s);
@@ -184,6 +185,7 @@ export class GuardAI {
       }
       case 'combat': this.combat(s, dt); break;
       case 'gunner': this.gunner(s, dt); break;
+      case 'ride': this.stop(s); s.crouchTarget = 1; break;   // sat low in his seat
       case 'alarm': {
         if (this.goTo(s, this.siren.standAt, RUN, dt)) {
           this.stop(s);
@@ -388,7 +390,7 @@ export class GuardAI {
       let best = null, bestD = 70;
       for (const s of this.guards()) {
         const b = s.brain;
-        if (s.officer || b.fixed || b.nest || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
+        if (s.officer || b.fixed || b.nest || s.riding || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
         const d = s.root.position.distanceTo(n.seat);
         if (d < bestD) { best = s; bestD = d; }
       }

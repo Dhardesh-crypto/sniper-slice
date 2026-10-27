@@ -23,6 +23,7 @@ import { SideJobs } from './mission/sidejobs.js';
 import { Decals } from './fx/decals.js';
 import { Casings } from './fx/casings.js';
 import { Dogs } from './ai/dogs.js';
+import { CarPatrol } from './ai/patrol.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
 import { Masking } from './stealth/masking.js';
@@ -128,6 +129,7 @@ const mission = new Mission({ world, player, arsenal, stealth, ai, search, input
 mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
+const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
@@ -456,6 +458,7 @@ function tick(dt) {
   stealth.tick(dt);
   ai.tick(dt);
   dogs.tick(dt);
+  patrol.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);
   tickGroundMarks();
@@ -640,7 +643,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

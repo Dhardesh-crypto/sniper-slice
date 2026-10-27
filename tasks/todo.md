@@ -782,3 +782,13 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       smokes, the second blows it up (5.5 m, it burns), and stacks within 4 m go with it. Checked: the
       bridge camp's stack (smoking after one round, gone after two) and the airfield's three (one set
       off the other two and killed a guard standing 3.5 m off).
+
+## A car patrol on the road (2026-10-27)
+- [x] src/ai/patrol.js: in three runs of four, a Kübelwagen with a driver and a passenger drives the
+      map's road between where the reinforcements stop and 230 m back out, at ~30 km/h, slowing into
+      each end, waiting 6 s and turning round. Engine heard within 300 m (the truck loop, higher and
+      lighter), dust off the back, tyre prints. The crew are ordinary guards (seen, shot, alarmed like
+      the rest), sat low in their seats; when either is alarmed (or the alarm sounds) the car pulls up
+      and both jump out and fight on foot. Its engine is a weak spot: one hit stalls it (they get out),
+      two blow it up with anyone still in it. Checked in the vineyard: up the road, the stop, the turn,
+      back; one crewman alarmed → the car stopped and both were out, searching.
