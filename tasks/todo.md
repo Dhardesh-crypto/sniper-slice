@@ -817,3 +817,10 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] Checked: the Panzer's commander killed by a head shot (slumped, gone); the truck's five aboard
       seated (cab 0.85 m, benches 1.15 m), one shot, four got out; a blast 5.2 m from the staff car
       stalled it, one at 3 m blew it up; the motorcycle with its two men on the vineyard road.
+
+## Leaning out of cover (2026-10-27): "use the C; near corners or low walls the proper movement is done"
+- [x] Crouched (C) and aiming, standing still: over a low wall the eye rises to look over it (as
+      before); at a corner, with something within 1.6 m in front of the lens, the eye leans 0.55 m to
+      the side that's clear (right first) and sees at least 4 m on; the scope and the shot go with it.
+      No key of its own. Checked at the town hall's corner: aiming at the wall leaned the eye and the
+      camera 0.55 m right past its end; let go of aim and it comes back; nothing happens in the open.

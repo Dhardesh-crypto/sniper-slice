@@ -8,6 +8,7 @@ const GRAVITY = 22;
 const MANTLE_MAX = 2.7;      // highest ledge you can pull yourself onto (the compound wall is 2.6)
 const LADDER_SPEED = 1.8;
 const smooth = t => t * t * (3 - 2 * t);
+const LEAN = 0.55;           // m the eye leans out past a corner (crouched, aiming)
 
 export const STANCES = {
   stand: { eye: 1.65, walk: 3.2, sprint: 6.2, restHR: 74, moveHR: 96 },
@@ -110,6 +111,12 @@ export class Player {
     // Eye height eases between stances; aiming from a crouch rises to look over cover.
     const eyeTarget = aiming && st.peekEye ? st.peekEye : st.eye;
     this.eye += (eyeTarget - this.eye) * (1 - Math.exp(-9 * dt));
+    // Crouched in cover and aiming: over a low wall the eye rises (peekEye, above); at a corner, with
+    // the wall right in front of the lens, it leans out to the side that's clear.
+    if (aiming && this.stance === 'crouch' && !this.moving && !this.climb) {
+      if ((this.leanCheckT = (this.leanCheckT ?? 0) - dt) <= 0) { this.leanCheckT = 0.15; this.leanWant = this.cornerLean(); }
+    } else this.leanWant = 0;
+    this.lean = (this.lean ?? 0) + ((this.leanWant ?? 0) - (this.lean ?? 0)) * (1 - Math.exp(-8 * dt));
 
     const horiz = Math.hypot(this.vel.x, this.vel.z);
     this.moving = horiz > 0.4;
@@ -322,6 +329,23 @@ export class Player {
   eyePosition(alpha, out = new THREE.Vector3()) {
     out.lerpVectors(this.prevPos, this.pos, alpha);
     out.y += this.prevEye + (this.eye - this.prevEye) * alpha;
+    if (this.lean) { out.x += Math.cos(this.yaw) * this.lean; out.z -= Math.sin(this.yaw) * this.lean; }   // leaning out (+ right)
     return out;
+  }
+
+  // Leaning past a corner: if the view straight ahead meets something within 1.6 m, the side (right
+  // first) where the eye can go 0.55 m and see clear at least 4 m on. 0 when there's no need or no room.
+  cornerLean() {
+    const e = this.pos.clone(); e.y += this.eye;
+    const cp = Math.cos(this.pitch), f = new THREE.Vector3(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    if (!this.world.raycastSegment(e, e.clone().addScaledVector(f, 1.6))) return 0;
+    for (const s of [1, -1]) {
+      const p = e.clone().addScaledVector(right, s * (LEAN + 0.15));
+      if (this.world.raycastSegment(e, p)) continue;                 // a wall that side too
+      p.addScaledVector(right, -s * 0.15);
+      if (!this.world.raycastSegment(p, p.clone().addScaledVector(f, 4))) return s * LEAN;
+    }
+    return 0;
   }
 }
