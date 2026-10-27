@@ -144,8 +144,8 @@ export function rifleModel(kind = 'springfield') {
   inner.rotation.y = a === 'x' ? (spec.muzzleSign > 0 ? -Math.PI / 2 : Math.PI / 2) : (spec.muzzleSign > 0 ? 0 : Math.PI);
   outer.add(inner);
   outer.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  // Muzzle in the outer group's frame.
-  outer.userData.muzzle = new THREE.Vector3(0, 0.04, spec.length * (1 - grip));
+  // Muzzle in the outer group's frame: the end of the barrel, measured off the model.
+  outer.userData.muzzle = barrelEnd(outer, 1, kind);
   outer.userData.buttToGrip = grip * spec.length; // metres from butt plate to grip
   outer.userData.kind = kind;
   return outer;
@@ -175,8 +175,28 @@ export function pistolModelFor(kind) {
   inner.rotation.y = a === 'x' ? Math.PI / 2 : Math.PI;   // muzzle to -z
   const outer = new THREE.Group();
   outer.add(inner);
-  outer.userData.muzzle = new THREE.Vector3(0, 0.02, -spec.length * (1 - spec.grip));
+  outer.userData.muzzle = barrelEnd(outer, -1, `pistol:${kind}`);
   return outer;
+}
+
+// Where the barrel ends on a gun model (origin at the grip, the muzzle toward `dir` z): the middle
+// of its foremost centimetre, so a suppressor or a muzzle flash sits on the bore, not where a
+// generic rifle's would. Once per model.
+const barrelEnds = {};
+function barrelEnd(gun, dir, key) {
+  if (barrelEnds[key]) return barrelEnds[key].clone();
+  gun.updateMatrixWorld(true);
+  const pts = [], v = new THREE.Vector3();
+  gun.traverse(o => {
+    if (!o.isMesh) return;
+    const p = o.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) pts.push(v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).clone());
+  });
+  if (!pts.length) return new THREE.Vector3();
+  const tip = Math.max(...pts.map(p => dir * p.z));
+  const end = new THREE.Box3().setFromPoints(pts.filter(p => dir * p.z > tip - 0.01)).getCenter(new THREE.Vector3());
+  end.z = dir * tip;
+  return (barrelEnds[key] = end).clone();
 }
 
 // Fitted parts you can see: a suppressor or a muzzle brake on the muzzle.
@@ -189,7 +209,7 @@ export function fitMuzzle(gun, kind, forward = 1) {
   const steel = new THREE.MeshStandardMaterial({ color: 0x1e1f1c, roughness: 0.45, metalness: 0.6 });
   const len = kind === 'suppressor' ? (forward > 0 ? 0.2 : 0.12) : 0.06, r = kind === 'suppressor' ? (forward > 0 ? 0.021 : 0.016) : 0.017;
   const dev = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 14).rotateX(Math.PI / 2), steel);
-  dev.position.copy(base).add(new THREE.Vector3(0, -0.04 * (forward > 0 ? 1 : 0), forward * len / 2));
+  dev.position.copy(base).add(new THREE.Vector3(0, 0, forward * len / 2));
   dev.castShadow = true;
   gun.add(dev);
   gun.userData.device = dev;
