@@ -230,7 +230,7 @@ export class Saves {
     (d.seen ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) b.seen = true; });
     this.g.beltGrenades?.restore(d.beltGrenades);
     this.g.interactions?.restore(d.interactions);
-    (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) { b.destroyed = b.opened = true; b.mesh.visible = false; b.mesh.traverse(o => { delete o.userData.trap; }); } });
-    (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (o && b && !b.opened) { b.opened = true; b.mesh.userData.lid.rotation.x = -1.2; b.mesh.userData.lid.position.z -= 0.1; } });
+    (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) this.g.pickups.restore(b, { destroyed: true }); });
+    (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (b && o) this.g.pickups.restore(b, { opened: true }); });
   }
 }

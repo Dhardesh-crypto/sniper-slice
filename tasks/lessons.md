@@ -89,3 +89,9 @@ traced along the aim line so nothing they shouldn't reach through gets hit.
 Same on the ship: its bridge block sat 9 m off the model's bridge, and a deck watch stood inside it,
 seeing out (rays from inside a box miss its faces) while every bullet stopped on the block. Check that
 no spawn point lies inside a hidden block, and prefer the model's meshes (BVH) over guessed blocks.
+
+## Count draw calls before adding detailed props (2026-10-27)
+The rebuilt pickups (7–15 merged meshes each, ~37 of them) doubled the harbour's draw calls
+(656 → 1404): every mesh is drawn three times a frame (picture, shadow, AO pass), and the game
+went sluggish. Anything placed many times over gets instanced per (kind, material); measure
+`renderer.info.render.calls` (autoReset off) with the new things shown and hidden before shipping.

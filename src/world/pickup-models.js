@@ -3,9 +3,9 @@
 // and the workbenches. Each is built from boards, steel and fittings: planks cut from the wood
 // photo one board at a time, worn paint with chips and rust, stencilled markings, hinges, hasps
 // and rope handles, and what's inside (seen once the lid is up).
-// Each kind is built once and copied; its parts are merged per material (a few draw calls each).
-// `userData.lid` swings open about the back edge (to `userData.openAngle`); `userData.taken`, if
-// there is one, is what you take out (hidden once it's opened).
+// Each kind is built once, its parts merged per material, and drawn as instances: every toolbox
+// in the mission together costs what one does (a handful of draw calls per kind, not per box).
+// The lid swings open about the back edge; `taken`, where there is one, is what you take out.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
@@ -229,7 +229,6 @@ class Parts {
         const mesh = new THREE.Mesh(mergeGeometries(flat), mat);
         mesh.castShadow = !mat.alphaTest;
         mesh.receiveShadow = true;
-        mesh.userData.detail = !mainMaterials().has(mat);
         into.add(mesh);
       }
     };
@@ -247,14 +246,6 @@ class Parts {
     }
     return root;
   }
-}
-
-// What a model is mostly made of (boards, painted steel); the rest (fittings, lettering, the
-// contents) is detail, left out from afar.
-let MAIN = null;
-function mainMaterials() {
-  const M = materials();
-  return MAIN ??= new Set([M.pine, M.greyWood, M.oliveWood, M.oldWood, M.benchWood, M.steelOlive]);
 }
 
 // Fittings shared by the crates.
@@ -551,22 +542,84 @@ function workbench() {
 
 const BUILD = { toolbox, weapon: weaponCrate, ammo: ammoCans, medical: medicalBox, explosives: explosivesCrate, bottles: bottleCrate, heavy: heavyCrate, bench: workbench };
 const OPEN = { toolbox: -1.75, weapon: -1.9, ammo: -1.9, medical: -1.8, explosives: -1.9, heavy: -1.9, bottles: 0, bench: 0 };
-const made = {};
+const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
-// Show or leave out a model's small parts (fittings, lettering, contents): from afar they're
-// under a pixel, and a few dozen pickups' worth are hundreds of draw calls.
-export function showDetail(model, on) {
-  if (model.userData.detailOn === on) return;
-  model.userData.detailOn = on;
-  model.traverse(o => { if (o.isMesh && o.userData.detail) o.visible = on; });
-}
+// All the pickups of a mission. add() each one, then finish() makes the instanced meshes.
+// An item: { kind, pos, rotY, open (0 shut … 1 open), takenOut, hidden, size (its outside, m) }.
+export class PickupModels {
+  constructor(scene) {
+    this.scene = scene;
+    this.items = [];
+    this.kinds = {};             // kind → { template parts, instanced meshes, items }
+    this.swinging = [];
+  }
 
-// A copy of the model for `kind` (toolbox, weapon, ammo, medical, explosives, bottles, heavy, bench).
-export function pickupModel(kind) {
-  made[kind] ??= BUILD[kind]();
-  const g = made[kind].clone();
-  g.userData.lid = g.getObjectByName('lid');
-  g.userData.taken = g.getObjectByName('taken') ?? null;
-  g.userData.openAngle = OPEN[kind];
-  return g;
+  // (kind: toolbox, weapon, ammo, medical, explosives, bottles, heavy, bench)
+  add(kind, pos, rotY) {
+    const k = this.kinds[kind] ??= this.template(kind);
+    const it = { kind, pos: pos.clone(), rotY, open: 0, takenOut: false, hidden: false, size: k.size, index: k.items.length };
+    k.items.push(it);
+    this.items.push(it);
+    return it;
+  }
+
+  // One kind's parts: each merged mesh of the built model, with the part it belongs to.
+  template(kind) {
+    const root = BUILD[kind]();
+    const parts = [];
+    for (const child of root.children) {
+      if (child.isMesh) parts.push({ part: 'body', mesh: child });
+      else for (const m of child.children) parts.push({ part: child.name, mesh: m, pivot: child.position.clone() });
+    }
+    const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
+    return { parts, size, items: [], meshes: [] };
+  }
+
+  finish() {
+    for (const k of Object.values(this.kinds)) {
+      k.meshes = k.parts.map(({ part, mesh, pivot }) => {
+        const im = new THREE.InstancedMesh(mesh.geometry, mesh.material, k.items.length);
+        im.castShadow = mesh.castShadow;
+        im.receiveShadow = true;
+        im.frustumCulled = false;            // the instances are all over the map
+        im.userData.part = part;
+        im.userData.pivot = pivot;
+        this.scene.add(im);
+        return im;
+      });
+      for (const it of k.items) this.update(it);
+    }
+  }
+
+  // Write one item's place (and its lid's angle) into its kind's instances.
+  update(it) {
+    const k = this.kinds[it.kind];
+    const base = new THREE.Matrix4().makeRotationY(it.rotY).setPosition(it.pos), m = new THREE.Matrix4();
+    for (const im of k.meshes) {
+      const part = im.userData.part;
+      if (it.hidden || (part === 'taken' && it.takenOut)) m.copy(HIDDEN);
+      else if (part === 'lid') m.copy(base).multiply(new THREE.Matrix4().makeTranslation(im.userData.pivot)).multiply(new THREE.Matrix4().makeRotationX(OPEN[it.kind] * it.open));
+      else m.copy(base);
+      im.setMatrixAt(it.index, m);
+      im.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  // Open it: the lid swings up (over tick), and what you took is gone. `now` skips the swing.
+  open(it, now = false) {
+    it.takenOut = true;
+    if (now) it.open = 1; else this.swinging.push(it);
+    this.update(it);
+  }
+
+  hide(it) { it.hidden = true; this.update(it); }
+
+  tick(dt) {
+    if (!this.swinging.length) return;
+    this.swinging = this.swinging.filter(it => {
+      it.open = Math.min(1, it.open + dt * 2.8);
+      this.update(it);
+      return it.open < 1;
+    });
+  }
 }
