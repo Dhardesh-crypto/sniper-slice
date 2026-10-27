@@ -7,6 +7,8 @@ import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, build
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
+const NEAR_MISS = 1.6;            // m from his head: a round this close and he knows it
+const _nm = new THREE.Vector3(), _nh = new THREE.Vector3(), _nq = new THREE.Vector3();
 const FIXED_STEP = 1 / 60;
 const _v = new THREE.Vector3();
 
@@ -394,6 +396,7 @@ export class Arsenal {
         b.time += h;
         const hit = this.world.raycastSegment(b.prev, b.pos);
         if (hit?.soldier && hit.soldier === b.ignore) { b.path.push(b.pos.clone()); continue; }   // (the man it just went through)
+        this.nearMisses(b, b.prev, hit ? hit.point : b.pos);
         if (hit) {
           b.path.push(hit.point.clone());
           this.resolveHit(b, hit);
@@ -406,6 +409,23 @@ export class Arsenal {
       if (b.dead) this.lastTrajectory = b.path;
     }
     this.bullets = this.bullets.filter(b => !b.dead);
+  }
+
+  // A round passing close by a man (the crack past his head, the smack into the wall beside him):
+  // he knows he's being shot at. Each man once per round; onNearMiss(soldier, bullet, closest).
+  nearMisses(b, a, c) {
+    if (!this.onNearMiss) return;
+    const ab = _nm.subVectors(c, a), len2 = ab.lengthSq();
+    if (len2 < 1e-6) return;
+    for (const s of this.world.soldiers) {
+      if (!s.alive || s.range || b.passed?.has(s)) continue;
+      const p = s.root.position;
+      if (p.x < Math.min(a.x, c.x) - 2 || p.x > Math.max(a.x, c.x) + 2 || p.z < Math.min(a.z, c.z) - 2 || p.z > Math.max(a.z, c.z) + 2) continue;
+      const head = _nh.set(p.x, p.y + 1.4, p.z);
+      const k = THREE.MathUtils.clamp(_nq.subVectors(head, a).dot(ab) / len2, 0, 1);
+      const at = _nq.copy(a).addScaledVector(ab, k);
+      if (at.distanceTo(head) < NEAR_MISS) { (b.passed ??= new Set()).add(s); this.onNearMiss(s, b, at.clone()); }
+    }
   }
 
   resolveHit(bullet, hit) {

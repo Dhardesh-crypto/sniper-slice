@@ -123,6 +123,13 @@ export class Soldier {
     return { zone, killed: false, damage };
   }
 
+  // A round cracked past him: he flinches and ducks for a moment.
+  nearMiss() {
+    if (!this.alive || this.riding || this.manning) return;
+    this.staggerT = Math.max(this.staggerT ?? 0, 0.45);
+    this.duckT = 0.9 + Math.random() * 0.8;
+  }
+
   // What he's doing while standing (set by the guard AI each tick): 'lookAround', 'kneelWork' or null.
   setActivity(name) {
     if (name === this.activity) return;
@@ -340,7 +347,8 @@ export class Soldier {
     // Ducking behind cover (the same world-space crouch as the player's).
     // (down on a knee for a moment after a leg wound)
     if (this.kneelT > 0) this.kneelT -= dt;
-    this.crouch += ((this.alive ? Math.max(this.crouchTarget, this.kneelT > 0.3 ? 0.85 : 0) : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
+    if (this.duckT > 0) this.duckT -= dt;
+    this.crouch += ((this.alive ? Math.max(this.crouchTarget, this.kneelT > 0.3 ? 0.85 : 0, this.duckT > 0 ? 1 : 0) : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand', kneel: this.gait === 'stand' ? this.crouch : 0 });   // still: down on one knee
     this.kick = Math.max(0, this.kick - dt * 4);
     // Bleeding from a body wound (applyHit).

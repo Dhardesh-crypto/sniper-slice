@@ -315,6 +315,15 @@ const deathScreen = document.getElementById('death');
 deathScreen.addEventListener('click', () => location.reload());
 post.setQuality(settings.quality);
 arsenal.onHit = (e) => { hud.onHit(e); mission.onHit(e); };
+// A near miss: he ducks, and knows roughly where it came from (a supersonic crack: shot at, alerted;
+// a subsonic round's hiss and smack: suspicious).
+arsenal.onNearMiss = (s, b) => {
+  s.nearMiss();
+  if (!s.aware) return;
+  const from = b.origin.clone(), err = s.root.position.distanceTo(from) * 0.15;
+  from.x += (Math.random() - 0.5) * 2 * err; from.z += (Math.random() - 0.5) * 2 * err;
+  stealth.raise(s, b.vel.length() > 340 ? 'alerted' : 'suspicious', from, 'heard');
+};
 arsenal.onTag = (s) => hud.message(`TAGGED · ${s.label ? s.label() : s.name.toUpperCase()}`);
 
 // A beat of slow motion on every kill that doesn't get the full X-ray kill cam.

@@ -245,7 +245,8 @@ export class GuardAI {
     const aimPoint = target.clone(); aimPoint.y += a.headOnly ? p.eye + 0.05 : Math.max(0.3, p.eye * 0.75);
     s.targetYaw = Math.atan2(aimPoint.x - s.root.position.x, aimPoint.z - s.root.position.z);
     b.fireT -= dt;
-    if (s.shakenT > 0) { s.shakenT -= dt; b.fireT = Math.max(b.fireT, s.shakenT); }   // an arm wound: a moment to bring the rifle up again
+    if (s.shakenT > 0) { s.shakenT -= dt; b.fireT = Math.max(b.fireT, s.shakenT); }
+    if (s.duckT > 0) b.fireT = Math.max(b.fireT, s.duckT + 0.3);   // ducking from a near miss: he comes up before he fires   // an arm wound: a moment to bring the rifle up again
     // Too close to a wall to bring his rifle to bear (soldier.js keepRifleClear): step back first.
     if (s.rifleBlocked && !b.fixed) {
       const pos = s.root.position, back = this.v.set(pos.x - aimPoint.x, 0, pos.z - aimPoint.z).normalize();
