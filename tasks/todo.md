@@ -742,3 +742,7 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       nothing like a dog and was dropped.
 - [x] Barks: 11 recorded barks cut from three Pixabay recordings the user picked (a German shepherd
       among them), fainter, duller and later with distance; the synthesised bark is the fallback.
+- [x] The MG42's round and echo (yours, the nests', the guards' on them) from the Pixabay recording the
+      user picked: its last round (75 ms, levelled to the old one) and the echo after it.
+- [x] Deployed main 3e31a66 to sniper-slice.netlify.app (verified live: dogs, side jobs, model and
+      barks load, no console errors).
