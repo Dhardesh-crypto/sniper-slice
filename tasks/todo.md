@@ -699,3 +699,11 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       up the flight, across. Guards stationed upstairs move about now (only towers hold). Guards fall
       at a pace instead of snapping down (they stride over the gap at the top of a flight). Checked in
       town: outside → the commander's office in 11.6 s and back; alerted to you upstairs, 5 came up.
+
+## Side jobs (2026-10-27): "more variations, sub-missions"
+- [x] src/mission/sidejobs.js: two optional side jobs drawn at random for every run, on top of each
+      mission's own: a marked man (a rank, a name and a crime, last reported where he stands; tag him
+      to follow him), a kill from 150/200/250 m, the target down before any alarm (or before any body
+      is found), 2-3 knife takedowns, 3-5 headshots, or three intelligence papers left on tables in
+      the buildings (eight letters, rosters and sketches to read). Failing one says so; the draw is
+      seeded and saved, so a loaded game keeps its jobs. All seven turn up across 40 draws.

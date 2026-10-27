@@ -19,6 +19,7 @@ import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
 import { MountedGuns } from './world/mgnest.js';
+import { SideJobs } from './mission/sidejobs.js';
 import { Masking } from './stealth/masking.js';
 import { Stealth } from './stealth/stealth.js';
 import { GuardAI } from './ai/guards.js';
@@ -222,6 +223,7 @@ document.getElementById('sound-check').append(...SOUND_CHECK.map(([label, name, 
   return b;
 }));
 const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, interactions, missionId, applyLoadout });
+const jobs = new SideJobs({ world, mission, ai, interactions, hud, saves });   // two side jobs drawn for this run
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);
 mission.complete = (id, message) => {
@@ -451,6 +453,7 @@ function tick(dt) {
   tickAnimals(dt, player);
   explosions.tick(dt);
   mission.tick(dt);
+  jobs.tick();
   hotspots.tick(dt);
   // Birdsong in the quiet; a gunshot or the siren silences it for a while.
   birdT -= dt;

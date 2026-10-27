@@ -178,7 +178,7 @@ export class Hud {
   // Objectives in the top-left corner (rebuilt only when they change).
   drawObjectives(mission) {
     const el = this.el.objectives ?? (this.el.objectives = document.getElementById('objectives'));
-    const key = mission.objectives.map(o => `${o.id}${o.done}${o.hidden}`).join();
+    const key = mission.objectives.map(o => `${o.id}${o.done}${o.hidden}${o.failed}`).join();
     if (key === this.objKey) return;
     const fresh = this.objKey ? mission.objectives.filter(o => !o.hidden && !this.objKey.includes(`${o.id}${o.done}false`)) : [];
     this.objKey = key;
