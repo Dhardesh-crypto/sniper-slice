@@ -209,7 +209,8 @@ function site(scene, world) {
   // ---- the east side: an MG nest over the bridge, a watchtower ----
   const [nx, nz] = [60, -16], ny = heightAt(nx, nz);
   const nest = propModel('mgNest', { x: 7.0, y: 1.3, z: 7.0 }, { stretch: true });
-  for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 2) continue; b.box(1.6, 0.9, 0.6, nest ? hidden : M.sandbag, nx + Math.cos(ang) * 3, ny, nz + Math.sin(ang) * 3, { rotY: -ang }); }
+  // (the modelled nest's sandbags are made solid with the others, mgnest.js; drawn ones otherwise)
+  if (!nest) for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 2) continue; b.box(1.6, 0.9, 0.6, M.sandbag, nx + Math.cos(ang) * 3, ny, nz + Math.sin(ang) * 3, { rotY: -ang }); }
   if (nest) { nest.position.set(nx, ny, nz); nest.rotation.y = Math.PI / 2; b.group.add(nest); }
   else {
     b.box(0.3, 0.9, 0.3, steel, nx - 2.2, ny, nz);

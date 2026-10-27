@@ -2,7 +2,7 @@
 // animated by stance and speed (idle, walk, rifle sprint, crouch walk, crawl), with the
 // arms holding the rifle on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
-import { Character, pistolModelFor, fitMuzzle } from '../world/characters.js';
+import { Character, pistolModelFor, fitMuzzle, solveArmIK } from '../world/characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
@@ -222,7 +222,7 @@ export class Avatar {
       this.state = clip;
     }
     if (c.base) c.base.timeScale = rate;
-    const busy = !!(climb || st.takedown || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
+    const busy = !!(climb || st.takedown || st.mounted || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
 
     // Arms hold the rifle except while sprinting (the sprint clip carries it) or crawling.
     s.prone = damp(s.prone, st.stance === 'prone' ? 1 : 0, 6, dt);
@@ -231,7 +231,7 @@ export class Avatar {
     c.update(dt);
     // Crouched low behind cover; aiming raises you to look over it.
     const peek = st.aiming || st.ready > 0.35;
-    s.crouch = damp(s.crouch, st.stance === 'crouch' && !busy ? (peek ? 0.4 : 1) : 0, 8, dt);   // (the action clips crouch by themselves)
+    s.crouch = damp(s.crouch, st.mounted ? 0.55 : st.stance === 'crouch' && !busy ? (peek ? 0.4 : 1) : 0, 8, dt);   // (the action clips crouch by themselves; stooped over a nest's gun)
     c.lowerBody(s.crouch, { plant: !moving });
 
     // Weapon up: after a shot or while aiming, the rifle comes to the shoulder.
@@ -264,6 +264,12 @@ export class Avatar {
         // Point along the body's facing, tilted with the look pitch when aimed.
         this.pistol.rotation.set(st.lookPitch * s.ready, 0, 0); // muzzle is -z, the body's forward
       }
+    }
+    // On a nest's machine gun: the right hand on its grip, the left on top of the receiver.
+    if (st.mounted) {
+      const [right, left] = st.mounted.grips(), b = c.bones, out = (x, y, z) => c.modelDir(x, y, z).applyQuaternion(this.root.quaternion).add(b.Hips.getWorldPosition(new THREE.Vector3()));
+      solveArmIK(b.RightArm, b.RightForeArm, b.RightHand, right, out(-0.8, -1, -0.3));
+      solveArmIK(b.LeftArm, b.LeftForeArm, b.LeftHand, left, out(0.8, -1, -0.3));
     }
   }
 }

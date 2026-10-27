@@ -18,6 +18,7 @@ import { usePhotoTextures } from './world/textures.js';
 import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
+import { MountedGuns } from './world/mgnest.js';
 import { Masking } from './stealth/masking.js';
 import { Stealth } from './stealth/stealth.js';
 import { GuardAI } from './ai/guards.js';
@@ -164,6 +165,7 @@ search.beltGrenades = beltGrenades;
 mapView.pickups = pickups;
 // Doors, documents and safes; the mission places its own.
 const interactions = new Interactions({ scene, world, player, input, hud, audio, stealth, profile, missionId });
+const guns = new MountedGuns({ world, player, input, arsenal, audio });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
 M.intel?.(interactions, world, { pickups, items, arsenal, mission });
@@ -436,6 +438,7 @@ function tick(dt) {
   search.tick(dt);
   pickups.tick(dt);
   interactions.tick(dt);
+  guns.tick(dt, !!(pickups.state() || interactions.state() || search.state()?.label));
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
@@ -540,11 +543,12 @@ function step(realDt, draw = true) {
   const zoomScale = Math.tan(THREE.MathUtils.degToRad(arsenal.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(settings.fov) / 2);
   if (items.wheelOpen) items.wheelMouse(m);   // the mouse picks from the wheel instead of turning you
   else player.look(m.x, m.y, settings.sensitivity * zoomScale, settings.invertY);
+  guns.frame();          // on a nest's gun: the view held to its arc, the gun laid on it
   items.drawWheel();
   arsenal.frame(dt);
 
   // Third person while moving; the rifle scope and binoculars go to the eye.
-  const fpBlend = Math.max(arsenal.current === 'rifle' ? arsenal.aim : 0, arsenal.binocT ?? 0);
+  const fpBlend = Math.max(arsenal.current === 'rifle' && !arsenal.mount ? arsenal.aim : 0, arsenal.binocT ?? 0);
   rig.update(realDt, camera, player, {
     yaw: player.yaw + arsenal.sway.yaw,
     pitch: player.pitch + arsenal.sway.pitch + arsenal.recoil,
@@ -565,7 +569,7 @@ function step(realDt, draw = true) {
     stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
-    throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0,
+    throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0, mounted: player.mounted,
     visible: fpBlend < 0.5 && rig.armLen > 0.9, // hide the body when a wall pushes the camera into it
   });
   takedown.placeKnife();
@@ -596,8 +600,8 @@ function step(realDt, draw = true) {
   const td = takedown.state();
   const its = items.state();
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
-  const pk = pickups.state(), ia = interactions.state();
-  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : [td, cut, rad, pk, ia, ss, td ? null : cs, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const pk = pickups.state(), ia = interactions.state(), mg = guns.state();
+  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
@@ -621,7 +625,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

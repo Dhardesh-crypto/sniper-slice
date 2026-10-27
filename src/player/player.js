@@ -46,6 +46,7 @@ export class Player {
     this.hitFrom = null;       // where the last hit came from
     this.dead = false;
     this.locked = false;       // true during a takedown
+    this.mounted = null;       // a machine-gun nest you're on (mgnest.js): you stay behind the gun
   }
 
   // A guard's bullet found you.
@@ -82,6 +83,13 @@ export class Player {
     if (this.hurtT > 8 && this.health < cap && !this.dead) this.health = Math.min(cap, this.health + 5 * dt);
     if (this.locked) return; // a takedown moves you itself
     if (this.dead) { this.prevPos.copy(this.pos); this.prevEye = this.eye; this.eye += (0.3 - this.eye) * (1 - Math.exp(-3 * dt)); return; }
+    if (this.mounted) {        // behind the gun: no walking, the eye over its sights
+      this.prevPos.copy(this.pos); this.prevEye = this.eye;
+      this.vel.set(0, 0, 0); this.moving = this.sprinting = false; this.speed = 0;
+      this.eye += (this.mounted.eye - this.eye) * (1 - Math.exp(-9 * dt));
+      this.heartRate += (STANCES.stand.restHR - this.heartRate) * (1 - Math.exp(-0.25 * dt));
+      return;
+    }
     if (inp.wasPressed('KeyC') && !this.climb) this.setStance(this.stance === 'crouch' ? 'stand' : 'crouch');
     if (inp.wasPressed('KeyZ') && !this.climb && this.grounded) this.setStance(this.stance === 'prone' ? 'crouch' : 'prone');
 
@@ -191,7 +199,7 @@ export class Player {
   // ---- climbing ----
   // What Space would do here, for the HUD prompt (null = nothing).
   climbOption() {
-    if (this.climb || this.locked || this.carrying || !this.grounded || this.stance === 'prone') return null;
+    if (this.climb || this.locked || this.mounted || this.carrying || !this.grounded || this.stance === 'prone') return null;
     const lad = this.nearLadder();
     if (lad) return { kind: 'ladder', ladder: lad.ladder, down: lad.down, label: lad.down ? 'SPACE · CLIMB DOWN' : 'SPACE · CLIMB LADDER' };
     const ledge = this.findLedge();

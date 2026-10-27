@@ -671,3 +671,15 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] Guards walk with a 0.36 m radius (was 0.3), so shoulders and elbows stay out of the walls
 - [x] A guard who's shot falls the way there's room (forward if the wall's behind him) and the
       bullet's shove doesn't push him into a wall
+
+## Machine-gun nests you can man (2026-10-27): "not a real contribution to the game logic"
+- [x] src/world/mgnest.js: every `mgNest` prop is armed when the world's built: the gun modelled
+      into the prop is cut from its mesh (its grey texels, inside the ring or over the parapet) and
+      a real MG42 goes on the front sandbags on its bipod; the sandbags are solid (you, guards and
+      bullets stop at them; the gap at the back lets you in); two spare belts in boxes by the seat
+- [x] E behind the gun mans it (Arsenal.mount: its own 250-round belt, steady on its bipod, R for
+      a new belt); the view is held to ±66° and the gun follows it; the avatar stoops with both hands
+      on it; E, a takedown or death leaves it. Your head and shoulders show over the bags.
+- [x] Checked in town, vineyard, bridge, harbour, airfield and radar: manned, fired, rounds clear
+      of the nest's own bags; in town the front bags stop you, the back lets you in, a chest-high
+      shot stops in the bags, and the gun killed a guard at 8 m

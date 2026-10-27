@@ -41,6 +41,7 @@ export class Arsenal {
     heavy.mag = 0;
     Object.defineProperty(heavy, 'reserve', { get() { return pools[this.def.id] ?? 0; }, set(v) { if (this.def.id in pools) pools[this.def.id] = v; } });
     this.rockets = null;     // set by main: anti-tank rounds in flight
+    this.mount = null;       // a nest's machine gun you're on (mgnest.js): its weapon fires instead
     this.current = 'rifle';
     this.aim = 0;            // 0 hip … 1 fully aimed (scoped)
     this.aiming = false;
@@ -86,9 +87,9 @@ export class Arsenal {
     this.onTag = null;
   }
 
-  get weapon() { return this.weapons[this.current]; }
+  get weapon() { return this.mount ? this.mount.weapon : this.weapons[this.current]; }
   get def() { return this.weapon.def; }
-  get scoped() { return this.current === 'rifle' && this.aim > 0.9; }
+  get scoped() { return this.current === 'rifle' && !this.mount && this.aim > 0.9; }
   get zero() { return this.def.zeros[this.weapon.zeroIndex]; }
   get busy() { return this.reloadT > 0 || this.switchT > 0; }
   // Can't aim or shoot while climbing, dragging a body, in a takedown, healing or aiming a throw.
@@ -121,7 +122,7 @@ export class Arsenal {
   // What the next shot is: the weapon, adjusted for the rifle's loaded ammunition.
   shotDef() {
     const def = this.def;
-    if (this.current !== 'rifle') return def;
+    if (this.current !== 'rifle' || this.mount) return def;
     const a = AMMO[this.weapon.loaded];
     if (!a.velocityScale && !a.ap) return def;
     const out = { ...def, ammo: this.weapon.loaded, ap: !!a.ap };
@@ -153,7 +154,7 @@ export class Arsenal {
   tick(dt) {
     const inp = this.input, w = this.weapon, def = this.def;
 
-    if (this.pendingSwitch === null && !this.reloadT) {
+    if (this.pendingSwitch === null && !this.reloadT && !this.mount) {
       if (inp.wasPressed('Digit1') && this.current !== 'rifle') this.beginSwitch('rifle');
       if (inp.wasPressed('Digit2') && this.current !== 'pistol') this.beginSwitch('pistol');
       if (inp.wasPressed('Digit3') && this.current !== 'heavy' && this.loadout?.heavy) this.beginSwitch('heavy');
@@ -176,7 +177,7 @@ export class Arsenal {
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
-    if (inp.wasPressed('KeyX') && this.current === 'rifle' && this.switchT <= 0 && !this.handsTied) this.switchAmmo();
+    if (inp.wasPressed('KeyX') && this.current === 'rifle' && !this.mount && this.switchT <= 0 && !this.handsTied) this.switchAmmo();
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) {
@@ -282,13 +283,13 @@ export class Arsenal {
       origin = cam.position.clone().addScaledVector(up, -SIGHT_HEIGHT);
     } else {
       // Third person: from the muzzle toward whatever is under the crosshair.
-      origin = this.avatar.muzzle(this.current);
+      origin = this.mount ? this.mount.muzzle() : this.avatar.muzzle(this.current);
       const ahead = Math.max(0, origin.clone().sub(cam.position).dot(fwd));
       const from = cam.position.clone().addScaledVector(fwd, ahead);
       const hit = this.world.raycastRay(from, fwd, 1500);
       aimPoint = hit ? hit.point.clone() : null;
       dir = (hit ? hit.point.clone() : from.clone().addScaledVector(fwd, 1500)).sub(origin).normalize();
-      const spread = this.current !== 'rifle' && this.aim > 0.75 ? def.aimSpread ?? 0.0025 : def.hipSpread;
+      const spread = (this.current !== 'rifle' || this.mount) && this.aim > 0.75 ? def.aimSpread ?? 0.0025 : def.hipSpread;
       const r = Math.sqrt(Math.random()) * spread, a = Math.random() * Math.PI * 2;
       dir.addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
     }
@@ -306,7 +307,7 @@ export class Arsenal {
       }
     } else {
       // A lethal, worthy shot is handed to the kill cam, which plays it out and applies the hit.
-      const b = bullet(dir), cine = this.current === 'heavy' ? null : this.killCamShot(b);
+      const b = bullet(dir), cine = this.current === 'heavy' || this.mount ? null : this.killCamShot(b);
       if (cine) this.onKillCam?.(cine);
       else this.bullets.push(b);
     }
@@ -316,13 +317,13 @@ export class Arsenal {
     this.stats.shots++;
     this.recoilVel += def.recoil * 22 * (this.scoped ? 1 : 0.5);
     this.rollVel += (Math.random() < 0.5 ? -1 : 1) * def.recoil * 9;
-    this.shake = this.current === 'rifle' ? 1 : this.current === 'heavy' ? (def.auto ? 0.25 : 0.8) : 0.3;
+    this.shake = this.mount ? 0.2 : this.current === 'rifle' ? 1 : this.current === 'heavy' ? (def.auto ? 0.25 : 0.8) : 0.3;
     this.viewKick = 1;
     this.readyT = 1;
     if (!this.scoped) this.fx.flash(origin, dir);
-    this.player.heartRate = Math.min(180, this.player.heartRate + 3);
+    if (!this.mount) this.player.heartRate = Math.min(180, this.player.heartRate + 3);   // (braced on a mounted gun: no)
     this.audio.weaponShot(def);           // each gun its own report; suppressed if one's fitted
-    if (this.current === 'rifle' && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
+    if (this.current === 'rifle' && !this.mount && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
     if (def.pellets && w.mag > 0) this.audio.pump();                                                      // and the shotgun's pump
     this.lastShot = { noiseRadius: def.noiseRadius, position: origin.clone(), time: this.world.time };
     this.onShot?.(origin.clone(), def);
@@ -658,7 +659,7 @@ export class Arsenal {
   hudState() {
     const w = this.weapon;
     return {
-      weapon: this.current, name: this.def.name + (w.loaded ? ` · ${AMMO[w.pendingAmmo ?? w.loaded].name}` : ''), mag: w.mag, reserve: w.reserve,
+      weapon: this.mount ? 'heavy' : this.current, name: this.def.name + (w.loaded ? ` · ${AMMO[w.pendingAmmo ?? w.loaded].name}` : ''), mag: w.mag, reserve: w.reserve,
       zero: this.def.zeros.length > 1 ? this.zero : null,
       zoomName: this.def.zoomNames[this.zoomIndex], zoomFov: this.def.zoomFovs[this.zoomIndex],
       binocFov: BINOCULARS.zoomFovs[this.binocZoomIndex], binocZoomName: BINOCULARS.zoomNames[this.binocZoomIndex],
