@@ -13,6 +13,7 @@
 // Sides: n is -z, s is +z, w is -x, e is +x.
 import * as THREE from 'three';
 import { M, COTTO, plasterFor, isPlaster } from './kit.js';
+import { heightAt } from './terrain.js';
 import { registerInterior } from './interior.js';
 import { worldUVs } from './textures.js';
 import { propModel } from './props.js';
@@ -57,7 +58,13 @@ export function building(b, o) {
   // A floor inside on the ground storey (just above the ground, so it's walked on): terracotta tiles
   // in a stone or plastered house, planks in a timber one.
   const timber = mat === M.wood || mat === M.darkWood;
-  b.box(w - 2 * wall, 0.06, d - 2 * wall, floorMat === M.wood && !timber ? COTTO : floorMat, x, y, z, { solid: false });
+  // On a slope the ground falls away under part of it: there it stands on a solid plinth down to the
+  // lowest ground inside, so nobody walks below the boards.
+  const fm = floorMat === M.wood && !timber ? COTTO : floorMat, fw = w - 2 * wall, fd = d - 2 * wall;
+  let lo = y;
+  for (let i = 0; i <= 5; i++) for (let j = 0; j <= 5; j++) lo = Math.min(lo, heightAt(x - fw / 2 + fw * i / 5, z - fd / 2 + fd * j / 5));
+  if (lo < y - 0.02) b.box(fw, y + 0.06 - lo, fd, fm, x, lo, z);
+  else b.box(fw, 0.06, fd, fm, x, y, z, { solid: false });
   // Stairs: one flight per storey, all stacked in the same well.
   if (st) for (let f = 0; f < floors - 1; f++) stairs(b, x + st.at[0], z + st.at[1], y + f * h, h, st.dir, st.w ?? 1.0, floorMat);
   out.stairsFoot = st ? new THREE.Vector3(x + st.at[0], y, z + st.at[1]) : null;

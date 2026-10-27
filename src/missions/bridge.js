@@ -51,7 +51,16 @@ function roadH(x) {
   }
   return v;
 }
+// The engineers' hut stands on a levelled pad (the ground slopes half a metre across it otherwise).
+const HUT = { x: CAMP.x, z: CAMP.z - 12, hw: 5.6, hd: 3.6 };
+let hutY = null;
 function heightAt(x, z) {
+  const e = Math.max(Math.abs(x - HUT.x) - HUT.hw, Math.abs(z - HUT.z) - HUT.hd);
+  if (e >= 4) return ground(x, z);
+  hutY ??= ground(HUT.x, HUT.z);
+  return lerp(hutY, ground(x, z), smoothstep(0, 4, e));
+}
+function ground(x, z) {
   const d = Math.abs(x - gx(z));
   if (d < 14) return 4 + 4 * smoothstep(8.5, 10.5, d);                 // the river bed, then the bank
   let top = plateau(x, z, d);
