@@ -854,3 +854,13 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] Dusk torches sweep about what a wary guard is looking for; a downed man's goes out.
 - [x] The bridge engineers' hut on a levelled pad; a ground floor over falling ground gets a solid
       plinth (every mission measured: the hut was the only one).
+- [x] Blood trails (decals.js): drops as a bleeding man walks, smears as a downed one crawls.
+- [x] Birds (fx/birds.js): a shot or a blast puts them up out of the nearest trees; each tree once.
+- [x] Vehicles really blow up (fx/wreckage.js): heaved and dropped askew, 10–24 charred panels and
+      chunks (wheels off wheeled ones) flung out, some burning; a tank's turret blown off its ring
+      (the charred hull kept, saved and restored); a second fuel fireball. Wrecks charred to a set
+      colour (some models' colours run past white under the texture).
+- [x] Guards at the edge of a blast (out to 2.5× its kill radius, in the open) shoved back, reeling,
+      ducked and slow to fire.
+- [x] Bench (tools/bench.js, vineyard, this Mac): about 7–8 ms a frame at the start and in the
+      middle; three vehicles blown at once (48 pieces, 23 birds) added about 0.5 ms.
