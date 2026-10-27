@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { inTallGrass } from '../world/vegetation.js';
 import { activeMap } from '../world/terrain.js';
+import { inBeam } from '../world/flashlights.js';
 
 const STEP_NOISE = { stand: 8, crouch: 3.5, prone: 1.2 };      // metres, walking
 const SPRINT_NOISE = 20;
@@ -198,7 +199,8 @@ export class Stealth {
   // Detection rate (meter per second) of `s` seeing a target at `chest`, or 0.
   canSee(s, chest, vis, d) {
     const a = s.aware;
-    if (this.concealed && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
+    const lit = inBeam(s.torch, chest);                         // in his torch beam, at dusk
+    if (this.concealed && !lit && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
     const range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1);   // (rain and mist hide you further off)
     if (d > range * Math.sqrt(vis) + 3) return 0;
@@ -212,7 +214,7 @@ export class Stealth {
     if (hit && !(hit.soldier === undefined && hit.point.distanceTo(chest) < 0.4)) return 0;
     const stateK = a.state === 'alerted' ? 2 : a.state === 'suspicious' ? 1.5 : 1;
     const idle = s.chatWith ? 0.6 : s.smoking > 0 ? 0.85 : 1;     // chatting or smoking, he watches less
-    return 1.1 * this.wariness * vis * coneK * stateK * idle * Math.pow(Math.max(0, 1 - d / range), 1.3);
+    return 1.1 * this.wariness * Math.max(vis, lit ? 0.6 : 0) * coneK * stateK * idle * (lit ? 2 : 1) * Math.pow(Math.max(0, 1 - d / range), 1.3);
   }
 
   lookForBodies(s) {

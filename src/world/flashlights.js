@@ -2,7 +2,8 @@
 // his tunic, as the Wehrmacht did, lit and pointing where he faces, a little down at the ground in
 // front of him: a bright point you see from far off and a faint cone in the haze. The nearest few
 // light the ground for real (a small pool of spotlights handed round, so the shaders never change);
-// the rest show only the lamp and the cone. A dead man's torch goes out; so does a gunner's (both
+// the rest show only the lamp and the cone. Caught in a guard's beam you are lit up: he makes you out
+// fast, and tall grass doesn't hide you from him (stealth.js asks `inBeam`). A dead man's torch goes out; so does a gunner's (both
 // hands on the gun) and a man riding in a vehicle (the vehicle's lamps are blacked out).
 import * as THREE from 'three';
 import { activeMap } from './terrain.js';
@@ -52,7 +53,9 @@ export class Flashlights {
     const lamp = new THREE.Mesh(this.glass, this.bulb);
     lamp.userData.noAO = true;
     this.scene.add(beam, lamp);
-    this.torches.push({ s, beam, lamp, at: new THREE.Vector3(), dir: new THREE.Vector3(0, 0, 1), on: true, light: null });
+    const torch = { s, beam, lamp, at: new THREE.Vector3(), dir: new THREE.Vector3(0, 0, 1), on: true, light: null };
+    this.torches.push(torch);
+    s.torch = torch;
   }
 
   tick(dt) {
@@ -96,4 +99,13 @@ export class Flashlights {
       t.light.target.updateMatrixWorld();
     }
   }
+}
+
+// Is `p` in this torch's beam (lit, near enough, inside the cone)? The line of sight is the caller's.
+const _to = new THREE.Vector3();
+export function inBeam(torch, p) {
+  if (!torch?.on) return false;
+  _to.copy(p).sub(torch.at);
+  const d = _to.length();
+  return d < REACH * 1.1 && d > 0.1 && _to.angleTo(torch.dir) < ANGLE * 1.2;
 }

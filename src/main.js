@@ -100,7 +100,7 @@ M.map.id ??= missionId;                          // (its far country: textures/h
 const conditions = pickConditions(M.map, runSeed); // this run's weather: as briefed, or overcast, rain, mist
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
-if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on. Keep out of their beams, or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
 
 const input = new Input(canvas);
 const audio = new Audio();
