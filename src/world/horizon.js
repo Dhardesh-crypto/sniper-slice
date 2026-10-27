@@ -1,8 +1,14 @@
-// Distant hills beyond the playable valley: three rings of ridgelines, each further
-// away, taller and more washed into the sky haze (aerial perspective), so the world
-// reads as a landscape that goes on rather than a walled box.
+// The country beyond the playable valley. Each mission has its own panorama, rendered in Blender
+// (tools/blender/horizon.py): its region's hills, fields, woods, villages, sea or Alps out to 20 km,
+// under the mission's sun and washed into its haze, as a 360° strip over latitudes LAT; the sky is
+// left clear. It's wrapped round a cylinder that keeps centred on the camera, like the sky, so the
+// far country never slides as you walk. Until it has loaded (or if a mission has none), three
+// rings of drawn ridgelines stand in: each further away, taller and more washed into the haze.
 import * as THREE from 'three';
 import { fbm } from './noise.js';
+
+const LAT = [-3, 16];          // degrees: the panorama's band (horizon.py's LAT_MIN, LAT_MAX)
+const R = 2600;                // inside the camera's far plane (3000)
 
 const LAYERS = [
   { radius: 900, base: 10, height: 110, color: 0x6f8361, top: 0x86977a, seed: 1 },
@@ -41,8 +47,52 @@ function ring({ radius, base, height, color, top, seed }) {
   return m;
 }
 
-export function buildHorizon(scene) {
+// The panorama's cylinder: u runs clockwise from south through north (u = 0.5) as horizon.py renders
+// it; rows are spaced by latitude so the strip isn't stretched.
+function panorama(tex, k) {
+  const SEG = 256, ROWS = 19, pos = [], uv = [], index = [];
+  for (let r = 0; r <= ROWS; r++) {
+    const lat = THREE.MathUtils.degToRad(LAT[0] + (LAT[1] - LAT[0]) * r / ROWS), y = R * Math.tan(lat);
+    for (let i = 0; i <= SEG; i++) {
+      const bearing = (i / SEG - 0.5) * Math.PI * 2;        // clockwise from north (−z)
+      pos.push(R * Math.sin(bearing), y, -R * Math.cos(bearing));
+      uv.push(i / SEG, r / ROWS);
+    }
+  }
+  for (let r = 0; r < ROWS; r++) for (let i = 0; i < SEG; i++) {
+    const a = r * (SEG + 1) + i, b = a + SEG + 1;
+    index.push(a, a + 1, b, a + 1, b + 1, b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(index);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  // Unlit: the render already has the mission's light and haze in it, as radiance / k (the sky near
+  // the horizon is many times brighter than a texture holds), and it's tone-mapped with the rest.
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  mat.color.setScalar(k);
+  const m = new THREE.Mesh(g, mat);
+  m.frustumCulled = false;
+  m.renderOrder = -5;
+  m.userData.noAO = true;
+  // Centred on whichever camera draws it (the player's, the kill cam's).
+  m.onBeforeRender = (renderer, scene, camera) => { m.position.copy(camera.position); m.updateMatrixWorld(); };
+  return m;
+}
+
+export function buildHorizon(scene, id = null) {
   const group = new THREE.Group();
+  if (id) (async () => {
+    try {
+      const k = (await (await fetch(`${import.meta.env.BASE_URL}textures/horizons.json`)).json())[id];
+      if (!k) return;                    // no panorama for this mission: the ridgelines stay
+      const tex = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/horizon_${id}.webp`);
+      group.clear();                     // the drawn ridgelines give way
+      group.add(panorama(tex, k));
+    } catch { /* missing: the ridgelines stay */ }
+  })();
   // Farthest first, so nearer ridges are drawn over them.
   for (const L of [...LAYERS].reverse()) {
     const m = ring(L);

@@ -6,6 +6,7 @@ import { Soldier } from './soldier.js';
 import { textures, worldUVs } from './textures.js';
 import { vehicleModel } from './vehicle-models.js';
 
+import { dressBlock } from './arch.js';
 import { M, Builder } from './kit.js';
 import { building, furniture } from './buildings.js';
 import { propModel, propGeometry, clipAbove } from './props.js';
@@ -168,7 +169,8 @@ export function buildCompound(scene) {
 
   // Barn
   b.box(14, 5.2, 9, M.plaster2, cx - 15, y, cz - 13);
-  b.gable(14, 2.2, 9, M.roof, cx - 15, y + 5.2, cz - 13);
+  b.gable(14, 2.2, 9, M.roof, cx - 15, y + 5.2, cz - 13, 0, { wall: M.plaster2 });
+  dressBlock(b, { x: cx - 15, z: cz - 13, w: 14, d: 9, y, height: 5.2 });
   b.box(4, 3.6, 0.08, M.darkWood, cx - 15, y, cz - 8.46, { solid: false });
 
   // Generator shed (open front) with the generator inside: the sound-masking source.

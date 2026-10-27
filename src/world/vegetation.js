@@ -153,13 +153,13 @@ function makeTreeTypes() {
       coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.85, 1.25],
     },
     { // Italian cypress (the modelled one where it's loaded)
-      name: 'cypress', count: 380, model: propGeometry('cypress', { y: 10 }),
+      name: 'cypress', count: 380, model: propGeometry('cypress', { y: 10 }), lod: propGeometry('cypressLod', { y: 10 }),
       trunk: new THREE.CylinderGeometry(0.16, 0.22, 2, 10).translate(0, 1, 0), trunkR: 0.25,
       crown: canopy([[cypressCone, 0, 5.6, 0]], 0x2a4421, 0x5c7f48, { cards: 260, cardSize: 1.25, seed: 1 }),
       coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.8, 1.3],
     },
     { // umbrella (stone) pine: a wide flat crown of overlapping clumps (or the model)
-      name: 'pine', count: 160, model: propGeometry('pine', { y: 9 }),
+      name: 'pine', count: 160, model: propGeometry('pine', { y: 9 }), lod: propGeometry('pineLod', { y: 9 }),
       trunk: new THREE.CylinderGeometry(0.2, 0.32, 7, 10).translate(0, 3.5, 0), trunkR: 0.32,
       crown: canopy([
         [blob(2.4, 1.3, 0.45, 1.3, 1, 0.22, 2), 0, 7.6, 0],
@@ -251,7 +251,8 @@ export function buildTrees(scene) {
       // A modelled tree draws itself whole; its trunk stays, undrawn, for bullets.
       const parts = type.model || built ? [[type.trunk, HIDDEN]]
         : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
-      if (type.model && !built) parts.push([type.model.geometry, type.model.material]);
+      // (A model with a far version draws whole only near by: see below.)
+      if (type.model && !built && !type.lod) parts.push([type.model.geometry, type.model.material]);
       const meshes = parts.map(instanced);
       trunks.push(meshes[0]);
       const [cx, cz] = k.split(',').map(Number);
@@ -261,6 +262,10 @@ export function buildTrees(scene) {
       if (built) {
         c.near.push(instanced([built.trunk.geometry, built.trunk.material]), instanced([built.crown.geometry, built.crown.material]));
         c.far.push(instanced([built.far.geometry, built.far.material]));
+      } else if (type.model && type.lod) {
+        // A modelled tree and its decimated far version (a sixth of the triangles), with its texture.
+        c.near.push(instanced([type.model.geometry, type.model.material]));
+        c.far.push(instanced([type.lod.geometry, type.model.material]));
       }
     }
   }

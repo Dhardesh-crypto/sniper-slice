@@ -204,7 +204,7 @@ function site(scene) {
     }
     b.box(w, hgt, d, mat, cx, y, cz);
     if (flat) for (const [dx, dz, ww, dd] of [[0, -d / 2, w, 0.25], [0, d / 2, w, 0.25]]) b.box(ww, 0.7, dd, mat, cx + dx, y + hgt, cz + dz);
-    else b.gable(w, 2.0, d, M.roof, cx, y + hgt, cz);
+    else b.gable(w, 2.0, d, M.roof, cx, y + hgt, cz, 0, { wall: mat });
     b.windows(cx, cz, w, d, y, floors);
     return { cx, cz, top: y + hgt, flat, w, d };
   };

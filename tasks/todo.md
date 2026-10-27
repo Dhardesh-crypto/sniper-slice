@@ -614,4 +614,21 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] Check: screenshots per mission; draw calls, triangles and frame time before/after in all eight
 - [x] Forest floor and rocks: Poly Haven photo-scans (CC0; public/textures/CREDITS.md)
 - [x] Town: windows and shutters merged per material (3,559 → 1,121 draw calls, 15 → 5 ms)
-- [ ] Background music (AudioCraft/MusicGen weights are non-commercial: decide first)
+- [x] Background music: MusicGen loops per mission + an alarm layer (non-commercial weights: CREDITS)
+
+## Blender pass 2 (2026-10-27): "what else can Blender do? Go all out"
+- [x] Architecture kit (tools/blender/architecture.py → arch_kit.glb): stone sills, lintels and jambs,
+      louvred shutters (open, ajar, shut; paint per house), casements and glass, door jambs with a
+      keystone, a cornice with rafter tails, ridge tiles, base course, quoins, chimneys, balconies,
+      downpipes. Snapped on by src/world/arch.js; decoration only, merged per material (~220k
+      triangles for the whole town). Gable roofs rebuilt: overhangs, soffit, barge boards, end walls
+      in the house's own plaster.
+- [x] Far country per mission (tools/blender/horizon.py, tools/horizons.sh): a real landscape out to
+      20 km by region (fields, woods, cypress avenues, poplar rows, villages, sea, Alps), under the
+      mission's sun, hazed into the game's own sky (sampled by tools/sky-strip.js → skies.json),
+      as a 360° strip on a cylinder that follows the camera; the drawn ridgelines stay as fallback
+- [x] Far versions of the Tripo cypress and umbrella pine (tools/blender/lods.py): 1,809 → 300 and
+      2,030 → 450 triangles beyond 55 m
+- [x] X-ray anatomy modelled (tools/blender/anatomy.py → anatomy.glb): skull, jaw and teeth, brain,
+      vertebrae, rib pairs, sternum, clavicles, scapulae, pelvis, long bones, heart, lungs, liver,
+      stomach, kidneys, intestines; same frames and hit radii as before

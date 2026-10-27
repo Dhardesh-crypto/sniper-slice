@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { M } from './kit.js';
 import { worldUVs } from './textures.js';
 import { propModel } from './props.js';
+import { dressWindow, dressDoor, dressBlock, dressFlatRoof, houseLook } from './arch.js';
 
 
 const RISE = 0.24, RUN = 0.3;
@@ -35,7 +36,7 @@ export function building(b, o) {
   for (const [side, sd] of Object.entries(sides)) {
     for (let f = 0; f < floors; f++) {
       const ops = openings.filter(op => op.side === side && (op.floor ?? 0) === f);
-      wallRun(b, sd, y + f * h, h, wall, mat, ops, doors, side);
+      wallRun(b, sd, y + f * h, h, wall, mat, ops, doors, side, true);
     }
   }
   // Floors: a slab on each storey above the ground, with the stairwell left open.
@@ -58,16 +59,25 @@ export function building(b, o) {
     const sd = iw.axis === 'x' ? { cx: x + mid, cz: z + iw.at, len, alongX: true } : { cx: x + iw.at, cz: z + mid, len, alongX: false };
     wallRun(b, sd, y + f * h, h - 0.18, 0.15, iw.mat ?? mat, (iw.openings ?? []).map(op => ({ ...op, at: op.at - mid, h: op.h ?? 2.1 })), doors, iw.axis === 'x' ? 'n' : 'w');
   }
+  // The stone dressing from the architecture kit (if it's loaded): base course and quoins (not on a
+  // timber building), the cornice.
+  if (mat !== M.wood && mat !== M.darkWood) dressBlock(b, { x, z, w, d, y, height: floors * h });
   // The roof.
-  if (roof === 'gable') b.gable(w, Math.min(2.8, d * 0.28), d, roofMat, x, y + floors * h, z);
-  else for (const [dx, dz, ww, dd] of [[0, -d / 2, w + 0.3, 0.3], [0, d / 2, w + 0.3, 0.3], [-w / 2, 0, 0.3, d], [w / 2, 0, 0.3, d]]) {
-    b.box(ww, 0.9, dd, mat, x + dx, y + floors * h, z + dz);            // parapet around a flat roof
+  if (roof === 'gable') b.gable(w, Math.min(2.8, d * 0.28), d, roofMat, x, y + floors * h, z, 0, { wall: mat });
+  else {
+    dressFlatRoof(b, { x, z, w, d, y: y + floors * h });
+    for (const [dx, dz, ww, dd] of [[0, -d / 2, w + 0.3, 0.3], [0, d / 2, w + 0.3, 0.3], [-w / 2, 0, 0.3, d], [w / 2, 0, 0.3, d]]) {
+      b.box(ww, 0.9, dd, mat, x + dx, y + floors * h, z + dz);          // parapet around a flat roof
+    }
   }
   return out;
 }
 
 // A run of wall from `sd` (centre, length, direction), split around openings.
-function wallRun(b, sd, y0, h, t, mat, ops, doors, side) {
+function wallRun(b, sd, y0, h, t, mat, ops, doors, side, outer = false) {
+  // Where an opening sits on the wall's outer face (for the kit's surrounds).
+  const out = (side === 'n' || side === 'w' ? -1 : 1) * t / 2;
+  const onFace = (at) => sd.alongX ? [sd.cx + at, sd.cz + out] : [sd.cx + out, sd.cz + at];
   const half = sd.len / 2;
   const cuts = ops.map(op => ({ ...op, a: op.at - op.w / 2, b: op.at + op.w / 2 })).sort((p, q) => p.a - q.a);
   const piece = (a, c, bottom, top) => {
@@ -84,7 +94,10 @@ function wallRun(b, sd, y0, h, t, mat, ops, doors, side) {
     piece(c.a, c.b, 0, bottom);                 // below a window
     piece(c.a, c.b, top, h);                    // above the opening
     if (c.door) doors.push(makeDoor(b, sd, y0, c, t, side));
-    if (c.window) shutters(b, sd, y0, c, t, side);
+    const [fx, fz] = onFace(c.at);
+    if (outer && !c.window) dressDoor(b, { cx: fx, cz: fz, side, y0, w: c.w, h: top });
+    if (c.window && !(outer && dressWindow(b, { cx: fx, cz: fz, side, y0: y0 + bottom, w: c.w, h: top - bottom, open: true, look: houseLook(sd.cx, sd.cz), k: Math.round(c.at * 10) })))
+      shutters(b, sd, y0, c, t, side);
     from = c.b;
   }
   piece(from, half, 0, h);
