@@ -42,6 +42,9 @@ export class Explosions {
         const blast = (1 - v.length() / radius) * (0.7 + 0.3 * size) * (heavy ? 1.2 : 1) + 0.1;
         s.applyHit('torso', { damage: { torso: 999 } }, v.setY(0).normalize(), { blast });
         kills++;
+      } else if (v.length() < radius * 2.5 && this.clear(at, s.bodyPosition(new THREE.Vector3()))) {
+        // Further out he lives, but the blast knocks him back and stuns him for a moment.
+        s.blastStun?.(v.setY(0).normalize(), 1 - (v.length() - radius) / (radius * 1.5));
       }
     }
     // Those riding on things that aren't guards on foot: a tank commander in his hatch.

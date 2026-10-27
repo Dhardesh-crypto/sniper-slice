@@ -136,6 +136,20 @@ export class Soldier {
     this.duckT = 0.9 + Math.random() * 0.8;
   }
 
+  // Caught at the edge of a blast (`k`: 1 just outside the kill radius, 0 far out): shoved back
+  // away from it, reeling, down on his haunches and slow to bring his rifle up again.
+  blastStun(away, k) {
+    if (!this.alive || this.riding || this.manning || this.downed || k <= 0) return;
+    k = Math.min(1, k);
+    const shove = (0.4 + 1.1 * k), from = this.root.position.clone();
+    this.root.position.addScaledVector(away, shove);
+    if (this.wallHit) { const a = from.clone(), b = this.root.position.clone(); a.y += 0.9; b.y += 0.9; if (this.wallHit(a, b) !== null) this.root.position.copy(from); }
+    if (this.floorAt) this.root.position.y = this.floorAt(this.root.position.x, this.root.position.z, from.y + 0.5);
+    this.staggerT = 0.45;
+    this.duckT = 1.2 + 2 * k;                        // (guards.js holds his fire while he's ducked)
+    this.shakenT = Math.max(this.shakenT ?? 0, 1 + 1.5 * k);
+  }
+
   // What he's doing while standing (set by the guard AI each tick): 'lookAround', 'kneelWork' or null.
   setActivity(name) {
     if (name === this.activity) return;
