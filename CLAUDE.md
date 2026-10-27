@@ -43,6 +43,10 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
   alarm's up a guard mans each empty one (`GuardAI.gunner`).
 - Guards route across floors: each upper floor has its own grid, joined by its stairs (`src/ai/nav.js`).
 - Each mission's fog takes its horizon sky's colour; the panoramas are rendered with the same haze.
+- Everyone riding a vehicle is a target (bullets and every explosive): tank commanders in their
+  hatches, the truck's driver and the men in the back, the patrol car's and motorcycle's crews; a
+  blast near a vehicle damages it by distance (explodes close, stalls further off). Hidden bullet
+  blocks on vehicles stop at the bodywork so the men above them can be hit.
 
 ## Working style
 

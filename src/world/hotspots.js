@@ -238,6 +238,14 @@ export class Hotspots {
   }
 
   // ---- explosions ----
+  // Caught at the edge of a blast: as good as a hit (an engine stalls and smokes, or goes if it already was).
+  blastDamage(h) {
+    if (!h.active || !h.explosive || h.heavyOnly) return;
+    h.hits++;
+    if (h.hits >= h.toExplode) this.explode(h);
+    else if (!h.broken) { h.broken = true; h.onBreak?.(h); }
+  }
+
   explode(h) {
     if (h.exploded) return;
     const at = h.center();

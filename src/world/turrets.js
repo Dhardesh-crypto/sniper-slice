@@ -24,7 +24,39 @@ let ctx = null;
 // The game's services, once: { scene, world, player, stealth, audio, fx, hud, explosions }.
 export const turretCrews = crews;
 
-export function initTurrets(services) { ctx = services; }
+export function initTurrets(services) {
+  ctx = services;
+  for (const crew of crews) if (crew.commander) armCommander(crew, services.world);
+}
+
+// The commander in his hatch is a target like any guard: a shot to his head or chest, or a blast
+// close by, kills him; he slumps down inside, and the crew, buttoned up behind their periscopes,
+// see only half as far after.
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+function armCommander(crew, world) {
+  const c = crew.commander;
+  const box = (w, h, d, y, zone) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), HIDDEN);
+    m.position.y = y;                       // (in his own frame: root scaled back to metres)
+    m.userData.onShot = () => killCommander(crew, zone);
+    c.root.add(m);
+    world.raycastTargets.push(m);
+    return m;
+  };
+  crew.commanderHits = [box(0.26, 0.28, 0.28, 1.68, 'head'), box(0.5, 0.45, 0.32, 1.3, 'torso')];
+  (world.riders ??= []).push({
+    alive: () => !crew.commanderDead && !crew.dead && shown(crew.pivot),
+    pos: () => c.root.localToWorld(new THREE.Vector3(0, 1.4, 0)),
+    kill: () => killCommander(crew, 'torso'),
+  });
+}
+function killCommander(crew, zone) {
+  if (crew.commanderDead) return { killed: false };
+  crew.commanderDead = true;
+  crew.slump = 0;
+  for (const m of crew.commanderHits ?? []) { const i = ctx?.world.raycastTargets.indexOf(m) ?? -1; if (i >= 0) ctx.world.raycastTargets.splice(i, 1); }
+  return { killed: true, zone };
+}
 
 // Register a turret. pivot: the Object3D that turns (yaw about its parent's y); gun: the
 // barrel's direction in the pivot's parent at yaw 0 (a unit vector); muzzle: the muzzle in the
@@ -39,6 +71,7 @@ export function addTurret({ pivot, gun, muzzle, recoil = null, recoilScale = 1, 
   };
   crews.push(crew);
   crew.commander = commanderFor(crew, recoil);
+  if (ctx && crew.commander) armCommander(crew, ctx.world);   // (a tank added once the game's running)
   if (exhaust) addExhaust({ ...exhaust, heavy: true, running: () => !crew.dead && shown(crew.pivot), speed: () => crew.speed });
   return crew;
 }
@@ -60,6 +93,7 @@ function commanderFor(crew, turret) {
   for (let i = 0; i < pos.count; i++) if (v.fromBufferAttribute(pos, i).y > top - 0.12 * k) { at.add(v); n++; }
   at.divideScalar(Math.max(1, n)).add(turret.position);
   c.root.position.set(at.x, top + turret.position.y - 1.15 * k, at.z);
+  crew.commanderY = c.root.position.y;
   c.root.scale.setScalar(k);
   c.root.rotation.y = crew.base;                   // facing along the gun
   pivot.add(c.root);
@@ -103,11 +137,13 @@ export function tickTurrets(dt) {
   const alerted = world.soldiers.some(s => s.alive && s.aware?.state === 'alerted');
   const fighting = alerted && world.soldiers.some(s => s.alive && s.aware?.state === 'alerted' && s.aware.spotted);
   const target = p.pos.clone().setY(p.pos.y + Math.max(0.3, p.eye * 0.6));
-  const range = RANGE * Math.sqrt(Math.min(1, stealth.playerVisibility()));
+  const range0 = RANGE * Math.sqrt(Math.min(1, stealth.playerVisibility()));
   const at = new THREE.Vector3(), local = new THREE.Vector3();
   let tracks = 0, trackSpeed = 0, trackDist = Infinity, turret = 0, turretDist = Infinity;
   for (const c of crews) {
-    if (c.commander) c.commander.root.visible = !c.dead;
+    if (c.commander) c.commander.root.visible = !c.dead && (c.slump ?? 0) < 1;
+    if (c.commanderDead && c.slump < 1) { c.slump = Math.min(1, c.slump + dt / 0.6); c.commander.root.position.y = c.commanderY - 1.1 * c.slump * c.slump / c.commander.root.parent.getWorldScale(at).y; }
+    const range = range0 * (c.commanderDead ? 0.5 : 1);
     if (c.dead || !shown(c.pivot)) continue;
     c.commander?.update(dt);
     const parent = c.pivot.parent;

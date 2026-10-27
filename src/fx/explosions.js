@@ -36,10 +36,16 @@ export class Explosions {
     for (const s of this.world.soldiers) {
       if (!s.alive || s.range) continue;
       const v = s.bodyPosition(new THREE.Vector3()).sub(at);
-      if (v.length() < radius && this.clear(at, s.bodyPosition(new THREE.Vector3()))) {
+      if (v.length() < radius && (s.riding || this.clear(at, s.bodyPosition(new THREE.Vector3())))) {   // (a man in a vehicle isn't sheltered by it)
         s.applyHit('torso', { damage: { torso: 999 } }, v.setY(0).normalize());
         kills++;
       }
+    }
+    // Those riding on things that aren't guards on foot: a tank commander in his hatch.
+    for (const r of this.world.riders ?? []) {
+      if (!r.alive()) continue;
+      const v = r.pos().sub(at);
+      if (v.length() < radius) { r.kill(v.setY(0).normalize()); kills++; }
     }
     if (d < hurt && this.clear(at, this.player.pos.clone().setY(this.player.pos.y + 1))) this.player.damage(110 * (1 - d / hurt), at);
     if (kills && by === 'player') this.onKills?.(kills);
@@ -47,7 +53,9 @@ export class Explosions {
     // Chain reactions: engines and charges caught in the blast.
     for (const h of this.hotspots?.list ?? []) {
       if (!h.explosive || h.exploded || (h.armored && !heavy)) continue;
-      if (h.distanceTo(at) < (chain ?? Math.min(radius, 4))) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
+      const dh = h.distanceTo(at);
+      if (dh < (chain ?? Math.min(radius, 4))) this.pending.push({ t: 0.25, run: () => this.hotspots.explode(h) });
+      else if (dh < radius) this.pending.push({ t: 0.2, run: () => this.hotspots.blastDamage(h) });   // further off: damaged, not destroyed
     }
     for (const c of this.chainers) c.caughtIn(at, radius, this.pending);
     return kills;

@@ -40,6 +40,10 @@ const ROUTES = {
   'Sentry': [[0, -21, 6], [20, -21], [28, -12, 6], [20, -21], [0, -21]],
 };
 
+// Where those aboard the truck sit (its frame, cab toward +z): the driver in the cab, two each side
+// on the benches in the back, facing in. [x, y (feet), z, yaw from the truck's heading]
+const TRUCK_SEATS = [[0.45, 0.85, 1.25, 0], [0.62, 1.15, -0.7, -Math.PI / 2], [0.62, 1.15, -2.1, -Math.PI / 2], [-0.62, 1.15, -0.7, Math.PI / 2], [-0.62, 1.15, -2.1, Math.PI / 2]];
+
 // The reinforcement truck: the Opel Blitz model (cab toward +z), with invisible blocks fitted
 // to it for bullets (and the one over the engine is the weak spot).
 function truckModel() {
@@ -48,7 +52,8 @@ function truckModel() {
   g.add(body);
   const hidden = new THREE.MeshBasicMaterial({ visible: false });
   const block = (w, h, d, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hidden); m.position.set(0, y + h / 2, z); g.add(m); return m; };
-  const proxies = [block(2.3, 2.4, 3.6, 0.35, -1.2), block(2.1, 2.0, 1.2, 0.35, 1.2)];
+  // (up to the bodywork only: the men on the benches and the driver show above it, targets)
+  const proxies = [block(2.3, 0.85, 3.6, 0.35, -1.2), block(2.1, 1.0, 1.2, 0.35, 1.2)];
   const bonnet = block(1.8, 1.25, 1.2, 0.5, 2.4);
   g.userData = { body, bodyMesh: body.userData.mesh, proxies, bonnet };
   return g;
@@ -538,7 +543,15 @@ export class GuardAI {
     for (const m of proxies) this.world.raycastTargets.push(m);
     t.hotspot = this.hotspots?.add({ kind: 'engine', title: 'TRUCK ENGINE', explosive: true, meshes: [bonnet], parts: [bodyMesh],
       onBreak: () => { t.stalled = true; this.hud.message('TRUCK STALLED · THEY GET OUT ON FOOT', ''); },
-      onExplode: () => { t.stalled = true; if (!t.unloaded) { t.unloaded = true; t.lost = true; this.hotspots.mission?.blastKills(4); } this.audio.setTruck(0); } });
+      onExplode: () => { t.stalled = true; if (!t.unloaded) { t.unloaded = true; t.lost = true; } this.audio.setTruck(0); } });   // (the blast kills those aboard)
+    // Aboard: a driver in the cab and four men on the benches in the back, guards like the rest,
+    // sat low (seen, shot, caught in a blast where they sit); the ones still alive get out when it stops.
+    t.riders = TRUCK_SEATS.map(([x, y, z, yaw], i) => {
+      const s = this.spawnReinforcement(t.model.localToWorld(new THREE.Vector3(x, y, z)), 0, i);
+      s.riding = t; s.seat = new THREE.Vector3(x, y, z); s.seatYaw = yaw;
+      return s;
+    });
+    this.seatRiders(t);
     if (!quiet) this.hud.message('ENEMY REINFORCEMENTS ON THE ROAD', 'wound');
     this.audio.truckStart?.(new THREE.Vector3(t.x, 0, roadCenterZ(t.x)).distanceTo(this.player.pos.clone().setY(0)));
   }
@@ -578,19 +591,35 @@ export class GuardAI {
       }
     }
     t.model.updateMatrixWorld(true); // bullets test against it every tick
+    this.seatRiders(t);
     const d = here.distanceTo(this.player.pos);
     if ((!t.unloaded || t.parkT < 20) && !t.stalled) this.audio.setTruck(Math.max(0, 1 - d / 450));
     else if (t.stalled) this.audio.setTruck(0);
+  }
+
+  // Those aboard where they sit, as the truck moves (sat low on the benches, facing in; the driver forward).
+  seatRiders(t) {
+    for (const s of t.riders ?? []) {
+      if (!s.riding || !s.alive) continue;
+      s.root.position.copy(t.model.localToWorld(s.seat.clone()));
+      s.root.rotation.y = s.targetYaw = t.model.rotation.y + s.seatYaw;
+    }
   }
 
   unload(t) {
     t.unloaded = true;
     const back = new THREE.Vector3(0, 0, -1).applyQuaternion(t.model.quaternion);
     const side = new THREE.Vector3(-back.z, 0, back.x);
-    for (let i = 0; i < 4; i++) {
+    const aboard = (t.riders ?? []).filter(s => s.riding);
+    for (const s of aboard) s.riding = null;
+    const alive = aboard.filter(s => s.alive);
+    if (!alive.length) { this.hud.message('NOBODY GOT OUT OF THE TRUCK', 'head'); return; }
+    for (const [i, s] of alive.entries()) {
       const at = t.model.position.clone().addScaledVector(back, 4.2).addScaledVector(side, (i - 1.5) * 0.9);
       at.y = this.world.groundAt(at.x, at.z);
-      const s = this.spawnReinforcement(at, Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z), i);
+      s.root.position.copy(at); s.crouchTarget = 0;
+      s.root.rotation.y = s.targetYaw = Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z);
+      s.brain.path = null;                   // (his post: the yard, as spawnReinforcement set it)
       const known = this.guards().reduce((k, o) => (o.brain.lastSeenT > (k?.t ?? -1) && o.brain.lastSeen ? { t: o.brain.lastSeenT, at: o.brain.lastSeen } : k), null)?.at;
       const guess = (known ?? this.player.pos).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
       this.stealth.raise(s, 'alerted', guess, 'shout');

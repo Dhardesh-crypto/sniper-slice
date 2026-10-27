@@ -801,3 +801,19 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       it has you: the three nearest guards are alerted to you and the light follows you for 8 s. Each
       lamp is a weak spot: one shot puts it out. Checked at the airfield: two lamps sweeping; standing
       in a beam alerted three guards and the light locked on; one hit put it out.
+
+## Everyone on a vehicle is a target (2026-10-27): "people sticking out of vehicles and tanks"
+- [x] Tank commanders: a head and a chest block in the hatch (turrets.js armCommander): a shot or a
+      blast kills him, he slumps inside, and the crew behind their periscopes see half as far. Kills
+      count (Arsenal: an onShot target can report { killed, zone }).
+- [x] The reinforcement truck carries its men: a driver in the cab and four on the benches in the
+      back, real guards sat low (seen, shot, blown up where they sit); when it stops only the living
+      get out ("NOBODY GOT OUT" if none). Its hidden blocks now stop at the bodywork.
+- [x] The road patrol is a Kübelwagen or (two in five) a motorcycle and sidecar: a rider astride and a
+      man in the sidecar; its engine the weak spot.
+- [x] Blasts: men riding in vehicles aren't sheltered by them; riders that aren't guards (the
+      commanders) are caught too (world.riders); a vehicle at the edge of a blast is damaged (its
+      engine stalls and smokes; one already hit goes up), close in it explodes.
+- [x] Checked: the Panzer's commander killed by a head shot (slumped, gone); the truck's five aboard
+      seated (cab 0.85 m, benches 1.15 m), one shot, four got out; a blast 5.2 m from the staff car
+      stalled it, one at 3 m blew it up; the motorcycle with its two men on the vineyard road.

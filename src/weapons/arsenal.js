@@ -411,13 +411,18 @@ export class Arsenal {
   resolveHit(bullet, hit) {
     const distance = bullet.origin.distanceTo(hit.point);
     const dir = _v.copy(bullet.vel).normalize().clone();
-    if (hit.object?.userData.onShot) {            // something alive that isn't a man (a guard's dog)
-      hit.object.userData.onShot(hit, dir, distance);
+    if (hit.object?.userData.onShot) {            // something alive that isn't a guard on foot (a dog, a tank commander)
+      const r = hit.object.userData.onShot(hit, dir, distance) ?? {};
       this.fx.blood(hit.point, dir, true);
       this.world.decals?.spatter(hit.point, dir);
-      this.audio.hitConfirm(true, false);
+      this.audio.hitConfirm(true, r.zone === 'head');
       this.stats.hits++;
-      this.onHit?.({ miss: true, distance, point: hit.point.clone() });
+      if (r.killed) {
+        this.stats.kills++; if (r.zone === 'head') this.stats.headshots++;
+        this.stats.longest = Math.max(this.stats.longest, distance);
+        const evt = { killed: true, zone: r.zone ?? 'torso', distance, point: hit.point.clone(), kills: 1 };
+        this.onHit?.(evt); this.onKill?.(evt);
+      } else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
       return;
     }
     if (hit.soldier) {
