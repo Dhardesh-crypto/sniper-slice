@@ -12,3 +12,22 @@ redistributed as standalone sound files):
 - `army_truck.mp3`: the steady middle of "A semi-truck drives by" by spinopel, https://pixabay.com/sound-effects/film-special-effects-a-semi-truck-drives-by-626428/ (cut into a seamless loop, levelled)
 - `truck_start.mp3`: 3.5–12 s of "Truck start moving" by spinopel, https://pixabay.com/sound-effects/film-special-effects-truck-start-moving-290808/ (faded in and out, levelled)
 - `siren.mp3`: "Air Raid Siren Sound Effect" by 11325622, https://pixabay.com/sound-effects/film-special-effects-air-raid-siren-sound-effect-241383/ (trimmed to one wind-up and wind-down, looped, levelled)
+
+## Music
+
+`music_<mission>.mp3` (one per mission: vineyard, town, harbour, forest, railway, bridge, airfield,
+radar) and `music_alarm.mp3` were generated for this game with Meta's MusicGen (`facebook/musicgen-medium`,
+from AudioCraft, https://github.com/facebookresearch/audiocraft), run locally through Hugging Face
+`transformers`: 30 s from a text prompt, continued once from its last 10 s, then EQ'd (rumble and the
+2–4 kHz voice range pulled back), crossfaded end-into-start for a seamless loop, and levelled.
+
+Licence: the MusicGen model weights are released under **CC-BY-NC 4.0** (non-commercial use only).
+This music can't ship in a game that is sold; replace it (e.g. with a commercially licensed model or
+composer) before any commercial release.
+
+Prompts (each began "1940s war film score, slow, sparse, restrained and quiet, ambient underscore,"):
+vineyard: warm low strings and a lonely solo clarinet; town: low pizzicato strings and a muted french horn;
+harbour: deep cellos and bassoon; forest: alto flute over a soft dark string pad; railway: low string
+ostinato and soft distant timpani; bridge: double basses and a solo oboe; airfield: muted trombones and
+low strings; radar: low brass chorale and cellos. Alarm: "tense 1940s war film action score, driving
+low string ostinato, staccato low brass, snare drum and timpani, urgent but dark".

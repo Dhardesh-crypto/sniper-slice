@@ -93,6 +93,7 @@ if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing;
 const input = new Input(canvas);
 const audio = new Audio();
 audio.volume = settings.volume;
+audio.musicVolume = settings.music;
 const world = new World(scene, renderer, M.site);
 dressSite(world);
 await usePhotoTextures(scene);                   // the photographs over the drawn textures
@@ -242,6 +243,7 @@ mission.onComplete = (sum) => {
   audio.setSiren(0);
   audio.setTruck(0); audio.setEngine(0);
   audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
+  audio.stopMusic();
   document.exitPointerLock?.();
 };
 mission.onFail = (why) => {
@@ -250,6 +252,7 @@ mission.onFail = (why) => {
   menu.classList.add('hidden');
   audio.setSiren(0);
   audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
+  audio.stopMusic();
   document.exitPointerLock?.();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
@@ -347,6 +350,7 @@ const bind = (id, key, fmt = (v) => v) => {
     settings[key] = kind === 'check' ? el.checked : kind === 'select' ? el.value : parseFloat(el.value);
     show();
     if (key === 'volume') audio.setVolume(settings.volume);
+    if (key === 'music') audio.setMusicVolume(settings.music);
     if (key === 'quality') post.setQuality(settings.quality);
     saveSettings(settings);
   });
@@ -367,6 +371,7 @@ showTab(tabButtons.some(b => b.dataset.tab === savedTab) ? savedTab : 'mission')
 bind('set-sens', 'sensitivity', (v) => v.toFixed(2));
 bind('set-fov', 'fov', (v) => `${v}°`);
 bind('set-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
+bind('set-music', 'music', (v) => `${Math.round(v * 100)}%`);
 bind('set-invert', 'invertY');
 bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
@@ -375,6 +380,7 @@ bind('set-aim', 'aimMode', () => '');
 
 document.getElementById('play').addEventListener('click', () => {
   audio.start();
+  audio.startMusic(missionId);
   input.lock();
 });
 // The menu doubles as the pause screen once the mission has started (`started`, declared above).
@@ -452,6 +458,7 @@ function tick(dt) {
     menu.classList.add('hidden');
     audio.setSiren(0);
     audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
+    audio.stopMusic();
     document.exitPointerLock?.();
   }
   input.consume();
@@ -493,6 +500,8 @@ function step(realDt, draw = true) {
     return;
   }
 
+  audio.duckMusic(killCam.active);
+  audio.setMusicAlarm(stealth.alarm);
   // During the kill cam the player has no control; the world runs at the cam's pace.
   if (killCam.active) {
     if (input.wasPressed('Mouse0') || input.wasPressed('Space')) killCam.skip();

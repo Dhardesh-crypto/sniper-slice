@@ -38,12 +38,15 @@ const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_ta
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
 EXTRA.push(...Object.values(SHOUTS).flat());
+// The music's level under the effects at 100% on the music slider.
+const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
 
 export class Audio {
   constructor() {
     this.ctx = null;
     this.volume = 0.8;
+    this.musicVolume = 0.5;
   }
 
   // Must be called from a user gesture. (An OfflineAudioContext can be passed in to render
@@ -149,6 +152,67 @@ export class Audio {
   setVolume(v) {
     this.volume = v;
     if (this.master) this.master.gain.value = v;
+  }
+
+  // ---- music ----
+  // Each mission has a quiet looping score (public/sounds/music_<mission>.mp3, made with
+  // MusicGen) and shares one tense alarm loop; both play from the start, in step, and the
+  // alarm fades in over the calm one while the siren sounds. The kill cam ducks the lot.
+  // The music sits well under the effects so footsteps and the guards' voices stay clear.
+  async startMusic(track) {
+    if (!this.ctx || this.music) return;
+    const ctx = this.ctx;
+    const bus = ctx.createGain(); bus.gain.value = 0;
+    const duck = ctx.createGain();
+    bus.connect(duck).connect(this.master);
+    this.music = { bus, duck, layers: {}, alarm: false, ducked: false };
+    const load = async (name) => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}sounds/music_${name}.mp3`);
+        return await ctx.decodeAudioData(await res.arrayBuffer());
+      } catch { return null; }   // missing or undecodable: no music, the game plays on
+    };
+    const [calm, alarm] = await Promise.all([load(track), load('alarm')]);
+    const t = ctx.currentTime + 0.05;
+    for (const [key, buf] of [['calm', calm], ['alarm', alarm]]) {
+      if (!buf) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = (key === 'alarm') === this.music.alarm ? 1 : 0;
+      src.connect(g).connect(bus);
+      src.start(t);
+      this.music.layers[key] = { src, g };
+    }
+    bus.gain.setTargetAtTime(this.musicVolume * MUSIC_LEVEL, t, 1.5);   // eases in
+  }
+
+  // The siren is sounding: the alarm loop takes over quickly, and hands back slowly.
+  setMusicAlarm(on) {
+    const m = this.music;
+    if (!m || m.alarm === on) return;
+    m.alarm = on;
+    const t = this.ctx.currentTime;
+    m.layers.calm?.g.gain.setTargetAtTime(on ? 0 : 1, t, on ? 0.6 : 2.5);
+    m.layers.alarm?.g.gain.setTargetAtTime(on ? 1 : 0, t, on ? 0.4 : 2.5);
+  }
+
+  // Under the kill cam the music drops right back.
+  duckMusic(on) {
+    const m = this.music;
+    if (!m || m.ducked === on) return;
+    m.ducked = on;
+    m.duck.gain.setTargetAtTime(on ? 0.15 : 1, this.ctx.currentTime, on ? 0.15 : 0.8);
+  }
+
+  setMusicVolume(v) {
+    this.musicVolume = v;
+    if (this.music) this.music.bus.gain.setTargetAtTime(v * MUSIC_LEVEL, this.ctx.currentTime, 0.05);
+  }
+
+  // The mission is over (done, dead or failed): the music fades away.
+  stopMusic() {
+    if (this.music) this.music.bus.gain.setTargetAtTime(0, this.ctx.currentTime, 1.2);
   }
 
   noiseBurst({ at = 0, dur = 0.2, type = 'lowpass', freq = 1000, q = 0.7, gain = 0.5, attack = 0.002, wet = 0, freqEnd = null }) {
