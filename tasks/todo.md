@@ -716,3 +716,10 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       900 m), fade the far country, and cut how far a guard sees you (×0.75, ×0.7); rain falls and
       covers some of your noise. Maps with their own mist or rain keep it. The menu and the briefing
       say what today is like.
+
+## What a fight leaves behind (2026-10-27)
+- [x] src/fx/decals.js: bullet holes where your rounds strike walls, timber and the ground (a dark
+      hole in chipped surface, tinted to what it struck; bigger scuffs in earth), scuffs where guards'
+      rounds land round you, blood spattered on whatever was within 3 m behind a man you hit, and a
+      pool spreading under each body for half a minute. Two instanced meshes, a ring of 320 holes and
+      140 blood decals. None on hidden collision blocks or doors (they'd hang in the air).

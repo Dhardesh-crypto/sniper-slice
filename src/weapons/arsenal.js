@@ -419,6 +419,7 @@ export class Arsenal {
         if (hit.zone === 'head') this.stats.headshots++;
       }
       this.fx.blood(hit.point, dir, true); // exit spray
+      this.world.decals?.spatter(hit.point, dir, hit.soldier);   // and on whatever's behind him
       this.audio.hitConfirm(res.killed, res.zone === 'head');
       if (res.killed) bullet.kills = (bullet.kills ?? 0) + 1;
       const evt = { ...res, distance, soldier: hit.soldier, point: hit.point.clone(), speed: bullet.vel.length(), time: bullet.time, kills: bullet.kills ?? 0 };
@@ -436,7 +437,7 @@ export class Arsenal {
       else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
     } else {
       if (hit.object?.userData.water) this.fx.emit(hit.point, new THREE.Vector3(0, 1, 0), { color: 0xe4ecee, count: 10, speed: 4, size: 0.25 * (1 + distance / 150), life: 0.8, grow: 1.5, gravity: -9 });   // a splash
-      else this.fx.dust(hit.point, hit.normal, distance);
+      else { this.fx.dust(hit.point, hit.normal, distance); this.world.decals?.bullet(hit); }   // (and the hole it leaves)
       this.audio.impact(this.player.pos.distanceTo(hit.point));
       this.onImpactNoise?.(hit.point.clone()); // the crack of a near miss carries
       this.onHit?.({ miss: true, distance, point: hit.point.clone() });

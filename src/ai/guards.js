@@ -310,6 +310,7 @@ export class GuardAI {
       const miss = p.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3));
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
+      this.world.decals?.scuff(miss);
       if (d < 250) this.audio.crack();
     }
   }
@@ -395,6 +396,7 @@ export class GuardAI {
       const miss = p.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4));
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
+      this.world.decals?.scuff(miss);
       if (d < 250 && Math.random() < 0.35) this.audio.crack();
     }
   }
