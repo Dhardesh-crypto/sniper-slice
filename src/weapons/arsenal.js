@@ -404,6 +404,15 @@ export class Arsenal {
   resolveHit(bullet, hit) {
     const distance = bullet.origin.distanceTo(hit.point);
     const dir = _v.copy(bullet.vel).normalize().clone();
+    if (hit.object?.userData.onShot) {            // something alive that isn't a man (a guard's dog)
+      hit.object.userData.onShot(hit, dir, distance);
+      this.fx.blood(hit.point, dir, true);
+      this.world.decals?.spatter(hit.point, dir);
+      this.audio.hitConfirm(true, false);
+      this.stats.hits++;
+      this.onHit?.({ miss: true, distance, point: hit.point.clone() });
+      return;
+    }
     if (hit.soldier) {
       const res = hit.soldier.applyHit(hit.zone, bullet.def, dir);
       this.fx.blood(hit.point, dir.clone().negate());

@@ -12,6 +12,7 @@ const SPECS = {
   horse: { size: { x: 2.4 }, walk: 1.1, run: 9, shy: 10 },
   goat: { size: { x: 1.3 }, walk: 0.8, run: 6, shy: 14 },
   deer: { size: { x: 2.0 }, walk: 1.0, run: 11, shy: 45 },
+  dog: { size: { x: 1.3 }, walk: 1.4, run: 8, shy: 0 },     // a guard's dog (ai/dogs.js drives it)
 };
 
 // The rig, as fractions of the animal's height: where the legs part from the belly; `crown`: the
@@ -22,6 +23,7 @@ const RIGS = {
   horse: { belly: 0.42, withers: 0.15, run: 'gallop' },
   goat: { belly: 0.32, crown: 0.84, run: 'gallop' },
   deer: { belly: 0.32, crown: 0.66, run: 'gallop' },
+  dog: { belly: 0.38, withers: 0.4, run: 'gallop' },
 };
 
 // Gaits: stride (one full cycle) in leg lengths, the share of it each hoof is on the ground, how far
@@ -141,25 +143,36 @@ function skin(kind, model, body) {
 export function addAnimals(scene, kind, x, z, radius, count = 1) {
   const spec = SPECS[kind];
   for (let i = 0; i < count; i++) {
-    const model = propModel(kind, spec.size, { own: true });
-    if (!model) return;
-    const body = new THREE.Group();            // bobs and pitches inside the root, which walks
-    body.add(model);
-    model.rotation.y = Math.PI / 2;           // (props lie nose toward −x; the root walks toward +z)
-    const { rig, bones } = skin(kind, model, body);
-    const root = new THREE.Group();
-    root.add(body);
     const a = Math.random() * Math.PI * 2, r = Math.random() * radius;
-    root.position.set(x + Math.cos(a) * r, 0, z + Math.sin(a) * r);
-    root.rotation.y = Math.random() * Math.PI * 2;
-    scene.add(root);
-    herd.push({
-      kind, spec, root, body, rig, bones, home: new THREE.Vector3(x, 0, z), radius, goal: null, state: 'graze',
-      t: 2 + Math.random() * 8, phase: Math.random() * 10, v: 0, cycle: Math.random(),
-      shuffle: 0, idle: 3 + Math.random() * 20, look: 3 + Math.random() * 8, swish: Math.random() * 6, rest: 2 + (i % 2),
-    });
+    const animal = makeAnimal(scene, kind, x + Math.cos(a) * r, z + Math.sin(a) * r, i);
+    if (!animal) return;
+    Object.assign(animal, { home: new THREE.Vector3(x, 0, z), radius, t: 2 + Math.random() * 8 });
+    herd.push(animal);
   }
 }
+
+// One animal, skinned and standing at (x, z), not yet in the herd: addAnimals puts the farm's in
+// it; a guard's dog is driven by ai/dogs.js instead, which moves it and calls poseAnimal.
+export function makeAnimal(scene, kind, x, z, i = 0) {
+  const spec = SPECS[kind];
+  const model = propModel(kind, spec.size, { own: true });
+  if (!model) return null;
+  const body = new THREE.Group();            // bobs and pitches inside the root, which walks
+  body.add(model);
+  model.rotation.y = Math.PI / 2;           // (props lie nose toward −x; the root walks toward +z)
+  const { rig, bones } = skin(kind, model, body);
+  const root = new THREE.Group();
+  root.add(body);
+  root.position.set(x, heightAt(x, z), z);
+  root.rotation.y = Math.random() * Math.PI * 2;
+  scene.add(root);
+  return {
+    kind, spec, root, body, rig, bones, goal: null, state: 'graze',
+    phase: Math.random() * 10, v: 0, cycle: Math.random(),
+    shuffle: 0, idle: 3 + Math.random() * 20, look: 3 + Math.random() * 8, swish: Math.random() * 6, rest: 2 + (i % 2),
+  };
+}
+export const poseAnimal = (a, dt) => pose(a, dt);
 
 // Something loud at `at` (heard up to `radius` m): animals within it bolt away.
 export function startle(at, radius) {

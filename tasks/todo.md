@@ -729,3 +729,16 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       at 45% pace (1.7 m/s running instead of 3.8); an arm and he takes 1.5 s to bring his rifle up
       again and shoots half as straight; the body or pelvis and he bleeds (damage/60 hp a second) and
       may fold forward and die half a minute later (26 s after a 70-point torso hit).
+
+## Guard dogs (2026-10-27)
+- [x] src/ai/dogs.js: one or two German shepherds a run (from the run's seed), each at a patrolling
+      guard's heel. A dog smells you within ~12 m (up to ~19 m downwind, ×0.6 in rain), then tracks
+      you nose down and barks (every bark a noise the guards within 45 m hear; its handler comes);
+      within 1.3 m it bites (11 a second-ish). Kill its handler and it stays by the body barking;
+      shoot it (a hidden block over its body) and it yelps and rolls onto its side.
+- [x] The dog: a photo-real reference picture (Higgsfield gpt_image_2_5) → Tripo H3.1 image-to-3D
+      (12 credits) → tools/import-model.sh, skinned and walked by animals.js like the farm animals
+      (makeAnimal/poseAnimal let ai/dogs.js drive it). A first try built in Blender from blobs looked
+      nothing like a dog and was dropped.
+- [x] Barks: 11 recorded barks cut from three Pixabay recordings the user picked (a German shepherd
+      among them), fainter, duller and later with distance; the synthesised bark is the fallback.

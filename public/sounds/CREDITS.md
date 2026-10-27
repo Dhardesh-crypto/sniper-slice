@@ -12,6 +12,9 @@ redistributed as standalone sound files):
 - `army_truck.mp3`: the steady middle of "A semi-truck drives by" by spinopel, https://pixabay.com/sound-effects/film-special-effects-a-semi-truck-drives-by-626428/ (cut into a seamless loop, levelled)
 - `truck_start.mp3`: 3.5–12 s of "Truck start moving" by spinopel, https://pixabay.com/sound-effects/film-special-effects-truck-start-moving-290808/ (faded in and out, levelled)
 - `siren.mp3`: "Air Raid Siren Sound Effect" by 11325622, https://pixabay.com/sound-effects/film-special-effects-air-raid-siren-sound-effect-241383/ (trimmed to one wind-up and wind-down, looped, levelled)
+- `dog_bark_1.mp3`–`dog_bark_5.mp3`: five barks cut from "Dog Barking" by DRAGON-STUDIO, https://pixabay.com/sound-effects/nature-dog-barking-406629/ (cut at the silences, faded, levelled)
+- `dog_bark_6.mp3`: "Free Dog Bark" by DRAGON-STUDIO, https://pixabay.com/sound-effects/nature-free-dog-bark-419014/ (trimmed, levelled)
+- `dog_bark_7.mp3`–`dog_bark_11.mp3`: five barks cut from "German shepherd barking" by AudioPapkin, https://pixabay.com/sound-effects/nature-german-shepherd-barking-302356/ (cut at the silences, faded, levelled)
 
 ## Music
 

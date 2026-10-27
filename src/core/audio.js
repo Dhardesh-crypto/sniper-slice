@@ -38,6 +38,9 @@ const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_ta
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
 EXTRA.push(...Object.values(SHOUTS).flat());
+// A guard dog's barks (Pixabay, cut from two recordings; see public/sounds/CREDITS.md).
+const BARKS = Array.from({ length: 11 }, (_, i) => `dog_bark_${i + 1}`);   // (7–11: a German shepherd)
+EXTRA.push(...BARKS);
 // The music's level under the effects at 100% on the music slider.
 const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
@@ -486,6 +489,40 @@ export class Audio {
     const at = Math.min(distance / 343, 1.2), k = Math.max(0.12, 1 - distance / 450);
     if (this.sample('shot_mg42', { at, gain: 0.5 * k, filter: 1000 + 9000 * k * k, wet: 0.25 })) return;
     this.enemyShot(distance);
+  }
+
+  // A guard dog's bark from `distance` m: one of the recordings, fainter, duller and later with
+  // distance; without them, two or three synthesised woofs (a voiced, falling tone through the
+  // throat's formant, with breath on the attack).
+  bark(distance) {
+    if (!this.ctx) return;
+    const k = Math.max(0.05, 1 - distance / 120), name = BARKS[Math.floor(Math.random() * BARKS.length)];
+    if (this.sample(name, { at: Math.min(distance / 343, 0.4), gain: 0.75 * k ** 0.8, rate: 0.94 + Math.random() * 0.12, filter: 1200 + 14000 * k * k, wet: 0.3 })) return;
+    // (the recordings not loaded: a synthesised bark)
+    const ctx = this.ctx, n = Math.random() < 0.3 ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const t = ctx.currentTime + Math.min(distance / 343, 0.4) + i * (0.17 + Math.random() * 0.05), f0 = 330 + Math.random() * 60;
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.62, t + 0.12);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 850 + Math.random() * 200; bp.Q.value = 1.6;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 + 3000 * k;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5 * k, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(bp).connect(lp).connect(g).connect(this.master);
+      const w = ctx.createGain(); w.gain.value = 0.35; g.connect(w).connect(this.reverb);
+      o.start(t); o.stop(t + 0.2);
+      this.noiseBurst({ at: t - ctx.currentTime, dur: 0.07, type: 'bandpass', freq: 1400, q: 1.2, gain: 0.18 * k });
+    }
+  }
+
+  // A dog hit: a high yelp falling away.
+  yelp(distance) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime, k = Math.max(0.05, 1 - distance / 100);
+    const o = ctx.createOscillator(); o.type = 'triangle';
+    o.frequency.setValueAtTime(1100, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.45);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35 * k, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.55);
   }
 
   // A bullet passing close: the supersonic crack, then a whizz.

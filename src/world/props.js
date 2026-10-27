@@ -87,6 +87,7 @@ export const PROPS = {
   bunk: { file: 'prop_bunk', turn: 0 }, locker: { file: 'prop_locker', turn: 0 }, stove: { file: 'prop_stove', turn: 0 },
   filingCabinet: { file: 'prop_filing_cabinet', turn: 0 }, tableSet: { file: 'prop_table_set', turn: 0 }, horseCart: { file: 'prop_horse_cart', turn: 1 },
   cow: { file: 'animal_cow', turn: 1 }, horse: { file: 'animal_horse', turn: 3 }, goat: { file: 'animal_goat', turn: 1 }, deer: { file: 'animal_deer', turn: 1 },
+  dog: { file: 'animal_dog', turn: 3 },   // (a German shepherd: Higgsfield picture → Tripo H3.1)
 };
 
 export async function loadProps(keys, onProgress = () => {}) {

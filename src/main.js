@@ -21,6 +21,7 @@ import { Carry } from './player/carry.js';
 import { MountedGuns } from './world/mgnest.js';
 import { SideJobs } from './mission/sidejobs.js';
 import { Decals } from './fx/decals.js';
+import { Dogs } from './ai/dogs.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
 import { Masking } from './stealth/masking.js';
@@ -88,7 +89,7 @@ const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMiss
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
-await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'archKit', 'interiorKit', 'anatomy', 'safe', 'siren', 'crates', 'cypress', 'pine', 'cypressLod', 'pineLod', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'archKit', 'interiorKit', 'anatomy', 'safe', 'siren', 'crates', 'cypress', 'pine', 'cypressLod', 'pineLod', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 M.map.id ??= missionId;                          // (its far country: textures/horizon_<id>.webp)
@@ -121,6 +122,7 @@ const stealth = new Stealth({ world, player, arsenal, masking, audio, hud });
 arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
+const dogs = new Dogs({ scene, world, player, stealth, audio, fx, hud, seed: runSeed });   // a guard dog or two this run
 const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def: M.def });
 mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
@@ -451,6 +453,7 @@ function tick(dt) {
   masking.update(dt, camera.position);
   stealth.tick(dt);
   ai.tick(dt);
+  dogs.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);
   tickGroundMarks();
@@ -634,7 +637,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews, guns,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
