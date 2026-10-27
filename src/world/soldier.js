@@ -472,15 +472,35 @@ export class Soldier {
     this.char.setHoldWeight(0);
     this.char.play(clip, { fade: 0, once: true });
     if (this.char.base) this.char.base.time = this.char.base.getClip().duration;
-    if (rifle && this.char.rifle.visible) {
-      const r = this.char.rifle;
-      this.root.parent.attach(r);
-      r.position.fromArray(rifle.pos);
-      r.quaternion.fromArray(rifle.quat);
-      this.drop = { done: true };
-    }
+    this.layRifle(rifle);
     this.char.update(0);
     this.root.updateMatrixWorld(true);
+  }
+
+  // Down and wounded from the start (a loaded save): lying where he crawled to, still bleeding
+  // unless someone bandaged him; guards.js has him call out again.
+  restoreDowned(d, rifle) {
+    const away = new THREE.Vector3().fromArray(d.away);
+    this.downed = { t: 2, away, crawled: d.crawled, max: d.max, callT: 2, helper: null, crawling: true, bandaged: !!d.bandaged };
+    this.root.rotation.y = this.targetYaw = Math.atan2(away.x, away.z);
+    this.wounded = this.limp = true;
+    this.bleed = d.bleed ?? 0;
+    this.aimDir = null; this.gait = 'stand'; this.speed = 0;
+    this.char.setHoldWeight(0);
+    this.char.play('crawl', { fade: 0, timeScale: 0 });
+    this.layRifle(rifle);
+    this.char.update(0);
+    this.root.updateMatrixWorld(true);
+  }
+
+  // His dropped rifle where it lay (a loaded save).
+  layRifle(rifle) {
+    if (!rifle || !this.char.rifle.visible) return;
+    const r = this.char.rifle;
+    this.root.parent.attach(r);
+    r.position.fromArray(rifle.pos);
+    r.quaternion.fromArray(rifle.quat);
+    this.drop = { done: true };
   }
 
   // Where the body lies (follows the fall), for searching and the map.
