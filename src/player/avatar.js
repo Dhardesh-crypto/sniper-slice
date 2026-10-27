@@ -236,6 +236,20 @@ export class Avatar {
     s.upright = damp(s.upright, peek ? 1 : 0, 8, dt);
     c.lowerBody(s.crouch, st.mounted ? { drop: 0.3, sitBack: 0.1, lean: 0.32, plant: true } : { plant: !moving, kneel: s.kneel, upright: s.upright });
 
+    // Leaning out past a corner (player.js): the spine rolls toward that side, the head back level.
+    if (Math.abs(st.lean ?? 0) > 0.01) {
+      const fwd = new THREE.Vector3(-Math.sin(st.lookYaw), 0, -Math.cos(st.lookYaw));   // (rolling about it by + tips you right)
+      this.root.updateMatrixWorld(true);
+      for (const [name, k] of [['Spine', 0.3], ['Spine01', 0.3], ['Spine02', 0.3], ['neck', -0.55]]) {
+        const bone = c.bones[name];
+        if (!bone) continue;
+        // (undone at the next update, like the crouch, in case no clip drives these bones)
+        c._lowered ??= [];
+        if (!c._lowered.some(([b]) => b === bone)) c._lowered.push([bone, bone.position.clone(), bone.quaternion.clone()]);
+        rollBone(bone, fwd, st.lean * k);
+      }
+    }
+
     // Weapon up: after a shot or while aiming, the rifle comes to the shoulder.
     s.ready = damp(s.ready, Math.max(st.ready, st.aiming ? 1 : 0), 14, dt);
     this.root.updateMatrixWorld(true);
@@ -274,4 +288,14 @@ export class Avatar {
       solveArmIK(b.LeftArm, b.LeftForeArm, b.LeftHand, left, out(0.8, -1, -0.3));
     }
   }
+}
+
+// Turn a bone by `angle` about a world-space axis, keeping its parent where it is.
+const _q = new THREE.Quaternion(), _w = new THREE.Quaternion(), _p = new THREE.Quaternion();
+function rollBone(bone, axis, angle) {
+  if (!bone) return;
+  bone.getWorldQuaternion(_w);
+  bone.parent.getWorldQuaternion(_p);
+  bone.quaternion.copy(_p.invert().multiply(_q.setFromAxisAngle(axis, angle).multiply(_w)));
+  bone.updateMatrixWorld(true);
 }

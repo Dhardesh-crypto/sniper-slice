@@ -593,7 +593,7 @@ function step(realDt, draw = true) {
     stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
-    throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0, mounted: player.mounted,
+    throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0, mounted: player.mounted, lean: player.lean ?? 0,
     visible: fpBlend < 0.5 && rig.armLen > 0.9, // hide the body when a wall pushes the camera into it
   });
   takedown.placeKnife();
