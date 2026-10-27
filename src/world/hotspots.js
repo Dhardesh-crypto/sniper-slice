@@ -95,6 +95,18 @@ function swapForWreck(h) {
   return true;
 }
 
+// The vehicle a hotspot belongs to: its own group (the one with its kind on it, or the one that
+// stands alone in the scene), never the map's group of everything.
+function vehicleRoot(h) {
+  let v = (h.parts ?? h.meshes)[0];
+  while (v && !v.userData.kind && !v.userData.propKey) {
+    const up = v.parent;
+    if (!up || up.isScene || up.children.length > 40) break;
+    v = up;
+  }
+  return v && !v.isScene ? v : null;
+}
+
 export class Hotspots {
   constructor({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions }) {
     Object.assign(this, { scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
@@ -249,7 +261,17 @@ export class Hotspots {
   explode(h) {
     if (h.exploded) return;
     const at = h.center();
+    // A vehicle comes apart (fx/wreckage.js); a tank whose turret is blown off keeps its own
+    // charred hull rather than the burnt-out model (which has its turret on).
+    const root = vehicleRoot(h);
+    let turret = false;
+    root?.traverse(o => { if (o.userData.turret) turret = true; });
+    if (turret) h.turretBlown = true;
+    const body = (h.parts ?? h.meshes).find(m => m.material?.visible !== false);
+    if (root && this.wreckage) this.wreckage.blow({ root, body, at, armored: !!h.armored, kind: root.userData.kind ?? root.userData.propKey ?? (h.armored ? 'tank' : null), size: h.armored ? 1.3 : 1 });
     this.wreck(h);
+    // The fuel goes up a moment after: a second, rolling fireball.
+    this.explosions.pending.push({ t: 0.45 + Math.random() * 0.3, run: () => this.explosions.visuals(at.clone().add(new THREE.Vector3(0, 0.8, 0)), h.armored ? 1.1 : 0.8) });
     const name = h.title.replace(' ENGINE', '');
     this.explosions.explode(at, { radius: h.armored ? 7.5 : 6.5, size: h.armored ? 1.5 : 1, burn: true, heavy: true, label: `${name} DESTROYED`, ...(h.blast ?? {}) });
     h.onExplode?.(h);
@@ -259,12 +281,13 @@ export class Hotspots {
   // is swapped for it instead.
   wreck(h) {
     h.exploded = true;
-    if (swapForWreck(h)) return;
+    if (!h.turretBlown && swapForWreck(h)) return;
     for (const m of h.parts ?? h.meshes) {
       if (!m.material) continue;
       m.material = m.material.clone();
-      m.material.color.multiplyScalar(0.18);
+      m.material.color.setHex(0x1f1c19);            // (charred: a set colour, as some models' colours are pushed past white under their texture)
       m.material.map = null;
+      if ('metalness' in m.material) { m.material.metalness = 0.15; m.material.roughness = 1; }   // (burnt paint doesn't shine)
       m.material.needsUpdate = true;
     }
   }

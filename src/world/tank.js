@@ -117,7 +117,7 @@ export class Tank {
     this.alive = false;
     this.crew.dead = true;
     // The burnt-out Panzer where it stood (its meshes stay hidden in place: bullets still stop on them).
-    const w = hasProp('wreckPanzer') && propModel('wreckPanzer', { x: 5.9 }, { own: true });
+    const w = !this.hotspot?.turretBlown && hasProp('wreckPanzer') && propModel('wreckPanzer', { x: 5.9 }, { own: true });   // (its turret blown off: the charred hull stays)
     if (w) {
       this.model.traverse(o => { if (o.isMesh) o.visible = false; });
       w.rotation.y = Math.PI / 2;
@@ -127,8 +127,10 @@ export class Tank {
       this.onDestroyed?.();
       return;
     }
-    this.turretPivot.position.y += 0.06;         // the turret is blown up off its ring
-    this.turretPivot.rotation.set(0.25, this.turretPivot.rotation.y + 0.4, 0.12);
+    if (!this.hotspot?.turretBlown) {             // (blown clean off: fx/wreckage.js has it)
+      this.turretPivot.position.y += 0.06;         // the turret is blown up off its ring
+      this.turretPivot.rotation.set(0.25, this.turretPivot.rotation.y + 0.4, 0.12);
+    }
     this.root.updateMatrixWorld(true);
     this.audio.setTank?.(0);
     this.onDestroyed?.();

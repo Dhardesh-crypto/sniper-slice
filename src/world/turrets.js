@@ -70,6 +70,7 @@ export function addTurret({ pivot, gun, muzzle, recoil = null, recoilScale = 1, 
     kick: 0, tracking: false, dead: false, lastSeen: null, lostT: Infinity, prevAt: null, speed: 0,
   };
   crews.push(crew);
+  pivot.userData.turret = true; pivot.userData.crew = crew;   // (blown off its ring when the tank goes up: fx/wreckage.js)
   crew.commander = commanderFor(crew, recoil);
   if (ctx && crew.commander) armCommander(crew, ctx.world);   // (a tank added once the game's running)
   if (exhaust) addExhaust({ ...exhaust, heavy: true, running: () => !crew.dead && shown(crew.pivot), speed: () => crew.speed });

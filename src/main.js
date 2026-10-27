@@ -36,6 +36,7 @@ import { Mission } from './mission/mission.js';
 import { Hotspots } from './world/hotspots.js';
 import { Takedown } from './player/takedown.js';
 import { Explosions } from './fx/explosions.js';
+import { Wreckage } from './fx/wreckage.js';
 import { Tank } from './world/tank.js';
 import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
 import { initExhaust, tickExhaust } from './world/exhaust.js';
@@ -132,6 +133,7 @@ const mission = new Mission({ world, player, arsenal, stealth, ai, search, input
 mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
+hotspots.wreckage = new Wreckage({ scene, world, fx });   // vehicles that blow up come apart
 const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
 const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
 const birds = new Birds({ scene, world, audio, player });   // put up out of the trees by shots and blasts
@@ -486,6 +488,7 @@ function tick(dt) {
   world.casings.tick(dt);
   tickAnimals(dt, player);
   explosions.tick(dt);
+  hotspots.wreckage.tick(dt);
   mission.tick(dt);
   jobs.tick();
   hotspots.tick(dt);
