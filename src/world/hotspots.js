@@ -6,6 +6,8 @@
 //   staff car      the same, engine at the back
 //   tank           armoured: standard rounds ping off; two armour-piercing hits on the engine
 //                  grille, or a satchel charge, destroy it
+//   fuel drums     every stack standing about: a hit holes a drum (it smokes), the second blows it up,
+//                  and the stacks beside it go with it
 // An armour-piercing round counts as two hits on an ordinary engine (it blows in one shot).
 // Each can be tagged with the binoculars; tagged spots show on screen and on the compass.
 // Looking through the scope or the binoculars, every weak spot still worth shooting glows a
@@ -114,6 +116,22 @@ export class Hotspots {
     if (world.staffCar) this.add({ kind: 'engine', title: world.staffCar.title ?? 'STAFF CAR ENGINE', explosive: true, meshes: [world.staffCar.engine], parts: world.staffCar.parts });
     for (const v of world.site?.vehicles ?? []) this.add({ kind: 'engine', title: v.title, explosive: true, meshes: [v.engine], parts: v.parts });
     for (const d of world.site?.hotspotDefs ?? []) this.add(d);       // the map's own (a ship, fuel tanks, a flak gun)
+    this.armFuelDrums();
+  }
+
+  // Every stack of fuel drums standing about (the scenery's, not a map's own dump): two hits and it
+  // goes up, the first holing a drum so it smokes. The hidden block that stops bullets at the stack
+  // is what's struck, so it carries the weak spot; the drums themselves blacken.
+  armFuelDrums() {
+    const taken = new Set(this.list.flatMap(h => [...(h.parts ?? []), ...h.meshes]));
+    const stacks = [];
+    this.scene.traverse(o => { if (o.userData?.propKey === 'drums' && o.userData.meshes?.length && !o.userData.meshes.some(m => taken.has(m))) stacks.push(o); });
+    for (const o of stacks) {
+      const at = o.getWorldPosition(new THREE.Vector3());
+      const block = this.world.solids.find(m => m.material?.visible === false && Math.hypot(m.position.x - at.x, m.position.z - at.z) < 0.6 && Math.abs(m.position.y - at.y) < 2);
+      this.add({ kind: 'fuel', title: 'FUEL DRUMS', explosive: true, hitsToExplode: 2, meshes: [block ?? o.userData.meshes[0]], parts: o.userData.meshes,
+        blast: { radius: 5.5, size: 0.9, heavy: false, label: 'FUEL DRUMS DESTROYED' } });
+    }
   }
 
   add(opts) {

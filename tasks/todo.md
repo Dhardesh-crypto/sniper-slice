@@ -775,3 +775,10 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       A pair rests 40–100 s between talks. A guard alone at his post smokes now and then (12–22 s,
       a puff rising every few seconds; he watches 15% less). Checked: a pair placed together traded
       four lines facing each other; smoking starts on its cooldown.
+
+## Fuel drums that go up (2026-10-27)
+- [x] Every stack of fuel drums in the scenery is an explosive weak spot (Hotspots.armFuelDrums: the
+      hidden block that stops bullets at the stack carries it): the first hit holes a drum and it
+      smokes, the second blows it up (5.5 m, it burns), and stacks within 4 m go with it. Checked: the
+      bridge camp's stack (smoking after one round, gone after two) and the airfield's three (one set
+      off the other two and killed a guard standing 3.5 m off).
