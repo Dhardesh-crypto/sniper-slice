@@ -824,3 +824,17 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       the side that's clear (right first) and sees at least 4 m on; the scope and the shot go with it.
       No key of its own. Checked at the town hall's corner: aiming at the wall leaned the eye and the
       camera 0.55 m right past its end; let go of aim and it comes back; nothing happens in the open.
+
+## Dusk, towers, torches, the lean on the body (2026-10-27)
+- [x] Dusk was too dark to see the trees and grass: the sky's fill light doubled and bluer, the
+      ground bounce lighter (conditions.js). Checked on the vineyard at dusk (seed 6).
+- [x] Guards carry torches at dusk (flashlights.js): a lamp on the chest, a faint cone, the three
+      nearest light the ground for real; out when dead, on a gun, or riding. Officers and the range
+      dummies have none.
+- [x] A guard's beam finds you: in it you are made out about four times as fast, and tall grass
+      doesn't hide you from him (stealth.js canSee). Checked: 1.17/s lit against 0.29 dark at 8 m.
+- [x] Watchtowers (vineyard, bridge, airfield) and the forest's hunting stands: the generated legs
+      were cut off short of the deck (and the stands' hovered); now one braced timber frame from
+      the ground to the roof (buildings.js timberFrame). Rendered all four.
+- [x] The corner lean shows on the body: the spine rolls to that side, the neck back level, undone
+      each frame like the crouch. Checked from behind both ways; no drift over 5 s.
