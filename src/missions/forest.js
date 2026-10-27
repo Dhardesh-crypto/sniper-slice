@@ -10,10 +10,10 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
-import { building, furniture, ladder } from '../world/buildings.js';
+import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { hasProp, propModel, clipAbove, dressProps } from '../world/props.js';
+import { propModel, dressProps } from '../world/props.js';
 
 const LODGE = { x: 95, z: -45 }, CAMP = { x: -140, z: 52 }, START = { x: 330, z: 300 }, MEADOW = { x: -10, z: 190 };
 const FB = 200;                                  // the firebreak runs north–south along x = 200
@@ -282,26 +282,14 @@ function site(scene) {
   // ---- the hunting stands: a cabin on four posts, rails on three sides, a ladder up the fourth ----
   for (const s of STANDS) {
     const y = heightAt(s.x, s.z), top = y + 5;
-    // The modelled stand (when loaded) gives the legs and its ladder to the south: it's cut off just
-    // under the cabin floor (its generated cabin is solid where the picture had openings and hid the
-    // sniper); the floor, rails, posts and roof above are ours.
-    const model = hasProp('huntingStand') && propModel('huntingStand', { y: 5 / 0.62 });
-    const wood = model ? hidden : M.wood;
-    for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(0.18, 7.4, 0.18, wood, s.x + dx, y - 0.3, s.z + dz);
+    // Four legs braced into one frame, the floor, rails on three sides, a roof, a ladder up the south.
+    timberFrame(b, { x: s.x, z: s.z, y, deck: top - 0.15, roof: top + 2.0, half: 1.1, post: 0.18, brace: 0.1, mat: M.wood });
     b.box(2.4, 0.15, 2.4, M.wood, s.x, top - 0.15, s.z);
     b.box(2.4, 1.0, 0.08, M.wood, s.x, top, s.z - 1.16);
     b.box(0.08, 1.0, 2.4, M.wood, s.x - 1.16, top, s.z);
     b.box(0.08, 1.0, 2.4, M.wood, s.x + 1.16, top, s.z);
     b.box(2.9, 0.12, 2.9, M.roof, s.x, top + 2.0, s.z, { solid: false });
-    const before = b.group.children.length;
-    ladders.push(ladder(b, { x: s.x, z: s.z + 1.25, y, top, face: 's' }));
-    if (model) {
-      for (const o of b.group.children.slice(before)) o.material = hidden;   // (the model has its ladder)
-      model.position.set(s.x, y, s.z + 0.82);
-      b.group.add(model);
-      clipAbove(model, top - 0.2);
-      for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(0.14, 2.0, 0.14, M.wood, s.x + dx, top, s.z + dz, { solid: false });
-    }
+    ladders.push(ladder(b, { x: s.x, z: s.z + 1.4, y, top, face: 's' }));
     s.top = new THREE.Vector3(s.x, top, s.z);
     towerTops.push(s.top);
     add(s.x, s.z - 0.3, face(s.x, s.z, ...s.look), { y: top, name: 'Counter-sniper', stance: 'alert', look: 'guardCamo' });
@@ -438,4 +426,4 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', props: ['huntingStand', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', props: ['drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

@@ -14,10 +14,10 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
-import { building, furniture, ladder } from '../world/buildings.js';
+import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
-import { propModel, clipAbove, dressProps } from '../world/props.js';
+import { propModel, dressProps } from '../world/props.js';
 
 const Y = 20;                                    // the airfield's level
 const START = { x: 330, z: 345 };
@@ -238,12 +238,9 @@ function site(scene, world) {
 
   // ---- a watchtower at the north-east corner ----
   const [wx, wz] = [380, -180], wy = heightAt(wx, wz), wtop = wy + 7;
-  const wt = propModel('watchtower', { x: 3.4, y: 7 / 0.6, z: 3.4 }, { stretch: true });
-  if (wt) { place(wt, wx, wy, wz); clipAbove(wt, wtop - 0.25); }        // (its legs: see compound.js)
-  for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.25, 9.2, 0.25, wt ? hidden : M.wood, wx + dx, wy, wz + dz);
+  timberFrame(b, { x: wx, z: wz, y: wy, deck: wtop - 0.15, roof: wtop + 2.1, half: 1.3 });
   b.box(3, 0.15, 3, M.wood, wx, wtop - 0.15, wz);
   for (const [w, d, dx, dz] of [[3, 0.08, 0, -1.46], [0.08, 3, -1.46, 0], [0.08, 3, 1.46, 0]]) b.box(w, 1.0, d, M.wood, wx + dx, wtop, wz + dz);
-  for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.18, 2.2, 0.18, M.wood, wx + dx, wtop - 0.1, wz + dz, { solid: false });
   b.box(3.4, 0.12, 3.4, M.roof, wx, wtop + 2.1, wz, { solid: false });
   ladders.push(ladder(b, { x: wx, z: wz + 1.5 + 0.35, y: wy, top: wtop, face: 's' }));
   towerTops.push(new THREE.Vector3(wx, wtop, wz));
@@ -408,5 +405,5 @@ const briefing = `
   <p class="brief">The field is flat and open; the fence is cut on the north side and the east side. When the mechanics run an engine
     up on the apron, nobody near the hangars hears a shot.</p>`;
 
-export default { id: 'airfield', props: ['bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'watchtower', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
+export default { id: 'airfield', props: ['bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
   subtitle: 'Operation Night Owl · Lombardy, 1944', map, site, def, intel, briefing };

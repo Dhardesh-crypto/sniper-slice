@@ -10,14 +10,14 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
-import { building, furniture, ladder } from '../world/buildings.js';
+import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { turretProp, addTurret } from '../world/turrets.js';
 import { addExhaust } from '../world/exhaust.js';
 import { addGroundMarks } from '../world/groundmarks.js';
 import { panzerModel } from '../world/tank.js';
-import { hasProp, propModel, clipAbove, splitProp, dressProps } from '../world/props.js';
+import { hasProp, propModel, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
 
 const DECK = 40.4, BW = 3.5;                    // the deck's top and half-width
@@ -219,13 +219,7 @@ function site(scene, world) {
     mg.position.set(nx - 2.6, ny + 1.0, nz); b.group.add(mg);
   }
   const [tx, tz] = [80, 24], ty = heightAt(tx, tz), top = ty + 7;
-  // (The modelled tower gives the legs, cut just under the platform: see compound.js.)
-  const tower = propModel('watchtower', { x: 3.4, y: 7 / 0.6, z: 3.4 }, { stretch: true });
-  if (tower) {
-    tower.position.set(tx, ty, tz); b.group.add(tower); clipAbove(tower, top - 0.25);
-    for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.18, 2.2, 0.18, M.wood, tx + dx, top - 0.1, tz + dz, { solid: false });
-  }
-  for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) b.box(0.25, 9.2, 0.25, tower ? hidden : M.wood, tx + dx, ty, tz + dz);
+  timberFrame(b, { x: tx, z: tz, y: ty, deck: top - 0.15, roof: top + 2.1, half: 1.3 });
   b.box(3, 0.15, 3, M.wood, tx, top - 0.15, tz);
   for (const [w, d, dx, dz] of [[3, 0.08, 0, -1.46], [0.08, 3, -1.46, 0], [0.08, 3, 1.46, 0]]) b.box(w, 1.0, d, M.wood, tx + dx, top, tz + dz);
   b.box(3.4, 0.12, 3.4, M.roof, tx, top + 2.1, tz, { solid: false });
@@ -432,7 +426,7 @@ function layout({ world, on }) {
     { kind: 'parts', where: 'the west checkpoint hut', at: on(-55, -7) },
     { kind: 'parts', where: 'the engineers\' plans table', at: on(cx - 4.5, cz - 11) },
     { kind: 'parts', where: 'the footbridge', at: on(gx(170) - 15, 170) },
-    { kind: 'parts', where: 'under the watchtower', at: on(81, 22.6) },
+    { kind: 'parts', where: 'under the watchtower', at: on(80.4, 23.6) },
     { kind: 'parts', where: 'the east bank under the bridge', at: on(gx(-12) + 12, -12) },
     { kind: 'weapon', weapon: 'panzerfaust', where: 'the MG nest', at: on(62, -12) },
     { kind: 'weapon', weapon: 'm1carbine', where: 'the west gully', at: on(gx(120) - 60, 118) },
@@ -612,4 +606,4 @@ const briefing = `
     or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
     the mission is lost.</p>`;
 
-export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'watchtower', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
+export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };

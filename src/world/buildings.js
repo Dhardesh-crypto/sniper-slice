@@ -260,6 +260,29 @@ export const furniture = {
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const BLANKET = new THREE.MeshStandardMaterial({ color: 0x5b6b4a, roughness: 1 });
 
+// The legs of a watchtower or a hunting stand: four squared posts from the ground (y) up to the
+// roof, a girt round them halfway up the legs, and an X of braces on every face in each storey up
+// to the deck: one frame, all joined. `half`: half the span between post centres.
+export function timberFrame(b, { x, z, y, deck, roof, half, post = 0.25, brace = 0.12, mat = M.darkWood }) {
+  for (const dx of [-half, half]) for (const dz of [-half, half]) b.box(post, roof - y, post, mat, x + dx, y, z + dz);
+  const mid = (y + deck) / 2, levels = [[y + 0.3, mid], [mid, deck - 0.1]];
+  const timber = (from, to) => {
+    const geo = new THREE.BoxGeometry(brace, from.distanceTo(to), brace);
+    worldUVs(geo, mat.userData.tile);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.copy(from).add(to).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+    m.castShadow = m.receiveShadow = true;
+    b.group.add(m);
+  };
+  const out = post / 2 + brace / 2 - 0.015;     // (each face's braces sit on the posts' outer faces, not through them)
+  for (const [ax, az, bx, bz, ox, oz] of [[-1, -1, 1, -1, 0, -1], [-1, 1, 1, 1, 0, 1], [-1, -1, -1, 1, -1, 0], [1, -1, 1, 1, 1, 0]]) {
+    const P = (sx, sz, py) => new THREE.Vector3(x + sx * half + ox * out, py, z + sz * half + oz * out);
+    b.box(Math.abs(bx - ax) * half + post + 0.05, brace + 0.04, Math.abs(bz - az) * half + post + 0.05, mat, x + (ax + bx) * half / 2 + ox * out, mid - 0.08, z + (az + bz) * half / 2 + oz * out, { solid: false });
+    for (const [lo, hi] of levels) { timber(P(ax, az, lo), P(bx, bz, hi)); timber(P(bx, bz, lo), P(ax, az, hi)); }
+  }
+}
+
 // A ladder up a wall face to a roof or platform at `top`. face 's': the ladder hangs on a south
 // face (you stand south of it, facing north, and step off northward); 'n' the other way.
 // Returns the climbing data the player uses (push it onto the map's `ladders`).
