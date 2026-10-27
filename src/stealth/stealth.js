@@ -74,7 +74,7 @@ export class Stealth {
   gunshot(origin, def) {
     const masked = this.masking.loudnessAt(origin).amount;
     const radius = def.noiseRadius * (1 - (1 - MASKED_SHOT) * masked);
-    this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source };
+    this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source, origin: origin.clone() };
     this.noise(origin, radius, 'shot');
   }
 

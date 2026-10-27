@@ -403,6 +403,21 @@ export class Audio {
     }
   }
 
+  // Birds put up by a shot: a rush of wingbeats (soft low noise bursts, fast, thinning out) and a
+  // couple of alarm calls; fainter the farther off.
+  birdFlush(distance, count = 6) {
+    if (!this.ctx || distance > 160) return;
+    const k = Math.max(0, 1 - distance / 160) ** 1.3, beats = Math.min(40, 10 + count * 3);
+    for (let i = 0; i < beats; i++) {
+      const at = 0.05 + i * (0.025 + Math.random() * 0.03) + (i / beats) ** 2 * 0.5;
+      this.noiseBurst({ at, dur: 0.035 + Math.random() * 0.03, type: 'bandpass', freq: 500 + Math.random() * 700, q: 1.2, gain: 0.32 * k * (1 - 0.6 * i / beats), attack: 0.006 });
+    }
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+      const f = 3000 + Math.random() * 1500;
+      this.noiseBurst({ at: 0.1 + i * 0.13 + Math.random() * 0.05, dur: 0.06, type: 'bandpass', freq: f, freqEnd: f * 0.7, q: 16, gain: 0.45 * k, attack: 0.005 });
+    }
+  }
+
   // ---- items ----
   // A two-note "fweet-fwoo" lip whistle, the way you'd call someone over.
   whistle() {

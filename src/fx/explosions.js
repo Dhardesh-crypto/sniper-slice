@@ -31,6 +31,7 @@ export class Explosions {
     this.audio.explosion(d, size >= 1.2 || burn);
     this.arsenal.shake = Math.max(this.arsenal.shake ?? 0, Math.max(0, 1.5 * size - d / 60));
     this.stealth.noise(at, noise, 'explosion');
+    this.onBlast?.(at, size);                // (birds put up: fx/birds.js)
     // Casualties.
     let kills = 0;
     for (const s of this.world.soldiers) {

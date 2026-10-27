@@ -25,6 +25,7 @@ import { Casings } from './fx/casings.js';
 import { Dogs } from './ai/dogs.js';
 import { CarPatrol } from './ai/patrol.js';
 import { Searchlights } from './world/searchlights.js';
+import { Birds } from './fx/birds.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
@@ -133,6 +134,8 @@ const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hu
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
 const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
+const birds = new Birds({ scene, world, audio, player });   // put up out of the trees by shots and blasts
+explosions.onBlast = (at, size) => birds.flush(at, 1.6 * size);
 const flashlights = new Flashlights({ scene, world, player });   // and at dusk the guards carry torches
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
@@ -430,7 +433,7 @@ input.onLockChange = (locked) => {
   if (!locked && !benchOpen && document.querySelector('.tab.on')?.dataset.tab === 'loadout') renderMenuLoadout();
   if (audio.ctx) menuPaused ? audio.ctx.suspend() : audio.ctx.resume();
 };
-let birdT = 4;
+let birdT = 4, lastFlush = null;
 let shadowFrame = 0;
 let menuPaused = true;   // the world waits behind the menu until you click play
 let forceRun = false;    // window.game.advance() steps even behind the menu
@@ -473,6 +476,7 @@ function tick(dt) {
   dogs.tick(dt);
   patrol.tick(dt);
   searchlights.tick(dt);
+  birds.tick(dt);
   flashlights.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);
@@ -487,6 +491,8 @@ function tick(dt) {
   hotspots.tick(dt);
   // Birdsong in the quiet; a gunshot or the siren silences it for a while.
   birdT -= dt;
+  const shot = stealth.lastShot;
+  if (shot && shot !== lastFlush) { lastFlush = shot; birds.flush(shot.origin, THREE.MathUtils.clamp(shot.radius / 220, 0.25, 1.5)); }
   if (stealth.lastShot && stealth.time - stealth.lastShot.t < 0.05) birdT = 35;
   if (birdT <= 0) { birdT = 3 + Math.random() * 7; if (!stealth.alarm) audio.birdCall(); }
   world.tick(dt);
@@ -658,7 +664,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
