@@ -66,6 +66,7 @@ export class Wreckage {
     const axis = new THREE.Vector3(centre.z - at.z, 0, at.x - centre.x);
     if (axis.lengthSq() < 0.01) axis.set(Math.random() - 0.5, 0, Math.random() - 0.5);
     this.heaves.push({ root, base: root.position.clone(), quat: root.quaternion.clone(), axis: axis.normalize(), t: 0, lift: (armored ? 1.2 : 4.5) * size, tip: (armored ? 0.08 : 0.32) * (0.7 + Math.random() * 0.6), rest: (armored ? 0.02 : 0.06) * (Math.random() < 0.5 ? -1 : 1) });
+    return { turret };
   }
 
   throw(mesh, from, at, power, burning) {

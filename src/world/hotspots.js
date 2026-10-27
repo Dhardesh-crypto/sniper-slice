@@ -268,13 +268,28 @@ export class Hotspots {
     root?.traverse(o => { if (o.userData.turret) turret = true; });
     if (turret) h.turretBlown = true;
     const body = (h.parts ?? h.meshes).find(m => m.material?.visible !== false);
-    if (root && this.wreckage) this.wreckage.blow({ root, body, at, armored: !!h.armored, kind: root.userData.kind ?? root.userData.propKey ?? (h.armored ? 'tank' : null), size: h.armored ? 1.3 : 1 });
+    if (root && this.wreckage) h.turretObj = this.wreckage.blow({ root, body, at, armored: !!h.armored, kind: root.userData.kind ?? root.userData.propKey ?? (h.armored ? 'tank' : null), size: h.armored ? 1.3 : 1 })?.turret;
     this.wreck(h);
     // The fuel goes up a moment after: a second, rolling fireball.
     this.explosions.pending.push({ t: 0.45 + Math.random() * 0.3, run: () => this.explosions.visuals(at.clone().add(new THREE.Vector3(0, 0.8, 0)), h.armored ? 1.1 : 0.8) });
     const name = h.title.replace(' ENGINE', '');
     this.explosions.explode(at, { radius: h.armored ? 7.5 : 6.5, size: h.armored ? 1.5 : 1, burn: true, heavy: true, label: `${name} DESTROYED`, ...(h.blast ?? {}) });
     h.onExplode?.(h);
+  }
+
+  // A loaded save: a tank's turret lying where the blast threw it ({ pos, quat }, world space).
+  restoreTurret(h, saved) {
+    let turret = null;
+    vehicleRoot(h)?.traverse(o => { if (!turret && o.userData.turret) turret = o; });
+    if (!turret) return;
+    h.turretBlown = true;
+    if (turret.userData.crew) turret.userData.crew.dead = true;
+    this.scene.attach(turret);
+    turret.position.fromArray(saved.pos);
+    turret.quaternion.fromArray(saved.quat);
+    turret.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color?.setHex(0x1f1c19); o.material.map = null; if ('metalness' in o.material) { o.material.metalness = 0.15; o.material.roughness = 1; } } });
+    turret.updateMatrixWorld(true);
+    h.turretObj = turret;
   }
 
   // The wreck goes black (also used when a save restores one); a vehicle with a burnt-out model

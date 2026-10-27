@@ -108,7 +108,8 @@ export class Saves {
         aware: s.aware && { state: s.aware.state, meter: s.aware.meter, stimulus: v3(s.aware.stimulus), why: s.aware.why ?? null, bodiesSeen: s.aware.bodiesSeen ? [...s.aware.bodiesSeen].map(b => world.soldiers.indexOf(b)) : [] },
         brain: s.brain && { routeI: s.brain.routeI, lastSeen: v3(s.brain.lastSeen) },
       })),
-      hotspots: hotspots.list.map(h => ({ title: h.title, hits: h.hits, broken: !!h.broken, exploded: !!h.exploded, tagged: !!h.tagged })),
+      hotspots: hotspots.list.map(h => ({ title: h.title, hits: h.hits, broken: !!h.broken, exploded: !!h.exploded, tagged: !!h.tagged,
+        turret: h.turretObj ? { pos: h.turretObj.position.toArray(), quat: h.turretObj.quaternion.toArray() } : null })),   // (a tank's turret, blown off)
       ai: {
         alarm: { on: ai.alarm.on, working: ai.alarm.working, knownDead: !!ai.alarm.knownDead, count: ai.alarm.count, quietT: ai.alarm.quietT, reinforceT: ai.alarm.reinforceT ?? null },
         reinforced: ai.reinforced, radioDown: !!ai.radioDown,
@@ -191,6 +192,7 @@ export class Saves {
       h.hits = hs.hits; h.broken = hs.broken; h.tagged = hs.tagged;
       if (h.kind === 'siren' && hs.broken) { const [horn] = h.meshes; horn.rotation.x = 0.9; horn.position.y -= 0.15; }
       if (hs.exploded && !h.exploded) {
+        if (hs.turret) hotspots.restoreTurret(h, hs.turret);   // (before the wreck: the charred hull stays, no burnt-out model)
         hotspots.wreck(h);
         if (h.title === 'RADIO TRUCK ENGINE' && world.radio) world.radio.antenna.visible = false;
         if (h.kind === 'tank' && tank) { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
@@ -198,7 +200,7 @@ export class Saves {
     }
     if (tank && d.tank) {
       if (!d.tank.alive && tank.alive) { const cb = tank.onDestroyed; tank.onDestroyed = null; tank.destroyed(); tank.onDestroyed = cb; }
-      tank.turretYaw = d.tank.turretYaw; tank.turretPivot.rotation.y = tank.turretYaw;
+      if (!tank.hotspot?.turretBlown) { tank.turretYaw = d.tank.turretYaw; tank.turretPivot.rotation.y = tank.turretYaw; }
     }
     for (const f of d.fires ?? []) explosions.fires.push({ at: toV(f.at), t: f.t, emitT: 0 });
 
