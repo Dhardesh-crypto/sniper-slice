@@ -656,4 +656,9 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       where the mission put none: the family's, a billet's, or the occupiers' map table with a radio
       or telephone; bedrooms upstairs (one bed, two in a big room, a chest at the foot, wardrobe,
       washstand); stores of ammunition boxes and jerrycans in the offices; radios on desks; rugs
-      upstairs too, kept off the stairwell. Still decoration (walk-through), like the rest of the kit.
+      upstairs too, kept off the stairwell.
+- [x] Tables, beds and wardrobes are solid (collision boxes; climbable; bullets still pass): kept a
+      metre clear of the stairs and off the guards' posts; dressInteriors returns its boxes so the
+      missions that copied their builders' boxes (vineyard, forest, harbour, railway) get them too.
+      tools/navcheck.js: no walkable ground cut off in town, vineyard, forest, harbour or railway, and
+      guard-to-house paths fail only where they already did (A*'s 40k-node limit on long routes).

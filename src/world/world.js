@@ -61,7 +61,9 @@ export class World {
     this.staffCar = b.staffCar ?? null;
     this.villa = b.villa ?? null;
     this.site = b;
-    dressInteriors();                     // (now the mission's own furniture is in)
+    const furniture = dressInteriors(b.soldiers);   // (now the mission's own furniture is in, and its guards)
+    const have = new Set(this.boxes);
+    for (const bx of furniture) if (!have.has(bx)) this.boxes.push(bx);
     mergeDecor(scene);
     // Ground detail (Blender): stones and scrub, or ferns, needles, stumps and branches in a forest.
     // Stumps are solid: they join the trees for walking into and the solids for bullets.

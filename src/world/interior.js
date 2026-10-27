@@ -7,14 +7,17 @@
 // ammunition boxes, a map table, papers, telephones and radios.
 // buildings.js registers each building; world.js calls dressInteriors() once the mission has put
 // in its own furniture, so nothing is put where a table, a cabinet or the stairs already stand,
-// in front of a door, or over a stairwell. All of it is decoration (nothing solid), merged per
-// material with the rest (mergeDecor).
+// in front of a door, at the foot or head of the stairs, or where a guard stands. It's decoration,
+// merged per material with the rest (mergeDecor), except that the tables, beds and wardrobes get
+// collision boxes: you can't walk through them (you can climb onto them), and the guards' paths
+// (ai/nav.js, built from the same boxes) go round them. Bullets still pass through.
 import * as THREE from 'three';
 import { put, hasPart, onFace, ROT } from './arch.js';
 import { M } from './kit.js';
 import { worldUVs } from './textures.js';
 
 const registered = [];
+let added = [];                                   // the collision boxes put in (see dressInteriors)
 export function registerInterior(b, info) { registered.push({ b, ...info }); }
 
 // The faces looking into a room from each wall: the inside of the south wall looks north, and so on.
@@ -32,13 +35,18 @@ function rngFor(x, z) {
   return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
-export function dressInteriors() {
-  if (!hasPart('beam')) { registered.length = 0; return; }
-  for (const e of registered) dressBuilding(e);
+// soldiers: the mission's, so nothing solid is put where one stands. Returns the furniture's
+// collision boxes (a mission may have copied its builders' boxes into the world's list already).
+export function dressInteriors(soldiers = []) {
+  added = [];
+  if (!hasPart('beam')) { registered.length = 0; return added; }
+  const posts = soldiers.map(s => s.root.position);
+  for (const e of registered) dressBuilding(e, posts);
   registered.length = 0;
+  return added;
 }
 
-function dressBuilding(e) {
+function dressBuilding(e, posts) {
   const { b, x, z, y, w, d, floors, h, wall, mat, timber, openings, well, walls } = e;
   const rnd = rngFor(x, z);
   const inner = { x0: x - w / 2 + wall, x1: x + w / 2 - wall, z0: z - d / 2 + wall, z1: z + d / 2 - wall };
@@ -64,7 +72,7 @@ function dressBuilding(e) {
     if (tall > 5) continue;
     // The rooms on this floor, and what goes in each.
     for (const room of rooms(inner, walls.filter(iw => (iw.floor ?? 0) === f), x, z)) {
-      furnish(b, e, room, { floorY, ceilY, f, office, rnd, holeBelow, holeAbove, doorsHere, openings: openings.filter(op => (op.floor ?? 0) === f) });
+      furnish(b, e, room, { floorY, ceilY, f, office, rnd, holeBelow, holeAbove, doorsHere, posts, openings: openings.filter(op => (op.floor ?? 0) === f) });
     }
   }
 }
@@ -144,14 +152,21 @@ function rooms(inner, walls, x, z) {
 }
 
 function furnish(b, e, room, ctx) {
-  const { floorY, ceilY, f, office, rnd, holeBelow, holeAbove, doorsHere } = ctx;
+  const { floorY, ceilY, f, office, rnd, holeBelow, holeAbove, doorsHere, posts } = ctx;
   const cx = (room.x0 + room.x1) / 2, cz = (room.z0 + room.z1) / 2, rw = room.x1 - room.x0, rd = room.z1 - room.z0;
   // What's already standing in the room (the mission's furniture, the stairs), the doors' swing, the stairwells.
   const blocks = b.boxes.filter(bx => bx.max.y > floorY + 0.05 && bx.min.y < floorY + 2.2
     && bx.max.x > room.x0 + 0.02 && bx.min.x < room.x1 - 0.02 && bx.max.z > room.z0 + 0.02 && bx.min.z < room.z1 - 0.02
     && (bx.max.x - bx.min.x) < rw * 0.95 && (bx.max.z - bx.min.z) < rd * 0.95).map(bx => [bx.min.x, bx.min.z, bx.max.x, bx.max.z]);
   for (const dr of doorsHere) blocks.push([dr.centre.x - 1.1, dr.centre.z - 1.1, dr.centre.x + 1.1, dr.centre.z + 1.1]);
-  for (const hole of [holeBelow, holeAbove]) if (hole) blocks.push([hole[0] - 0.3, hole[1] - 0.3, hole[2] + 0.3, hole[3] + 0.3]);
+  // The stairwells, with a metre round them for the stairs' foot and head.
+  for (const hole of [holeBelow, holeAbove]) if (hole) blocks.push([hole[0] - 1.0, hole[1] - 1.0, hole[2] + 1.0, hole[3] + 1.0]);
+  for (const p of posts) if (Math.abs(p.y - floorY) < 1.5) blocks.push([p.x - 0.8, p.z - 0.8, p.x + 0.8, p.z + 0.8]);
+  // A collision box over a piece's footprint, `h` tall.
+  const solid = ([x0, z0, x1, z1], h) => {
+    const box = Object.assign(new THREE.Box3(new THREE.Vector3(x0, floorY, z0), new THREE.Vector3(x1, floorY + h, z1)), { furniture: true });
+    b.boxes.push(box); added.push(box);
+  };
   const clear = (x0, z0, x1, z1) => blocks.every(([a, c, p, q]) => x1 <= a || x0 >= p || z1 <= c || z0 >= q);
   const tables = b.boxes.filter(bx => bx.min.y < floorY + 0.1 && bx.max.y > floorY + 0.65 && bx.max.y < floorY + 0.9
     && bx.min.x >= room.x0 - 0.1 && bx.max.x <= room.x1 + 0.1 && bx.min.z >= room.z0 - 0.1 && bx.max.z <= room.z1 + 0.1
@@ -197,14 +212,16 @@ function furnish(b, e, room, ctx) {
         const a = uu - width / 2, c = uu + width / 2;
         if (fc.gaps.some(([p, q, lo, hi]) => c > p && a < q && y1 > lo && y0 < hi)) continue;
         if (fc.used.some(([p, q, lo, hi]) => c > p - 0.15 && a < q + 0.15 && y1 > lo && y0 < hi)) continue;
+        let box = null;
         if (depth) {
           const p0 = onFace(fc.cx, fc.cz, fc.rot, a, 0), p1 = onFace(fc.cx, fc.cz, fc.rot, c, depth);
-          if (!clear(Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]))) continue;
-          blocks.push([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1])]);
+          box = [Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1])];
+          if (!clear(...box)) continue;
+          blocks.push(box);
         }
         fc.used.push([a, c, y0, y1]);
         const [px, pz] = onFace(fc.cx, fc.cz, fc.rot, uu, 0);
-        return { x: px, z: pz, rot: fc.rot, fc, u: uu };
+        return { x: px, z: pz, rot: fc.rot, fc, u: uu, box };
       }
     }
     return null;
@@ -212,6 +229,7 @@ function furnish(b, e, room, ctx) {
   const onWall = (name, width, y0, y1, depth = 0, opts = {}) => {
     const s = slot(width, y0, y1, depth, opts.prefer);
     if (s) put(b, name, s.x, floorY + (opts.at ?? 0), s.z, s.rot, { shadow: false, ...opts.put });
+    if (s && opts.solid) solid(s.box, opts.solid);
     return s;
   };
 
@@ -242,13 +260,14 @@ function furnish(b, e, room, ctx) {
       if (!s2) break;
       bed = s2;
       put(b, 'bed', bed.x, floorY, bed.z, bed.rot, { shadow: false });
+      solid(bed.box, 0.6);
       const [px, pz] = onFace(bed.fc.cx, bed.fc.cz, bed.fc.rot, bed.u, 2.02);
       if (rnd() < 0.6 && clear(px - 0.6, pz - 0.3, px + 0.6, pz + 0.3)) {
         put(b, 'chest', px, floorY, pz, bed.rot, { shadow: false });
         blocks.push([px - 0.6, pz - 0.3, px + 0.6, pz + 0.3]);
       }
     }
-    if (rnd() < 0.8) onWall('wardrobe', 1.1, 0, 2.2, 0.6);
+    if (rnd() < 0.8) onWall('wardrobe', 1.1, 0, 2.2, 0.6, { solid: 2.0 });
     if (rnd() < 0.7) onWall('washstand', 0.75, 0, 1.6, 0.45);
     for (let i = 0; i < 1 + Math.floor(rnd() * 2); i++) onWall(`picture_${Math.floor(rnd() * 3)}`, 0.85, 1.45, 2.0, 0, { at: 1.5 });
     if (!bed && rnd() < 0.6) onWall('credenza', 1.5, 0, 1.25, 0.55);
@@ -268,6 +287,7 @@ function furnish(b, e, room, ctx) {
       const [ox, oz] = spot;
       put(b, 'table', ox, floorY, oz, turn, { shadow: false });
       blocks.push(ext(ox, oz));
+      solid(turn ? [ox - 0.43, oz - 0.8, ox + 0.43, oz + 0.8] : [ox - 0.8, oz - 0.43, ox + 0.8, oz + 0.43], 0.76);
       const top = floorY + 0.762;
       if (office) {
         const [mx, mz] = at(ox, oz, -0.15, 0);
