@@ -36,9 +36,10 @@ export function pickConditions(map, seed) {
     map.sightScale = wet ? 0.75 : 0.95;
     if (wet) map.weather = { ...map.weather, rain: 0.75 };
   } else if (kind === 'dusk') {
-    // The sun on the hills, the sky going from orange to blue; the searchlights come on.
+    // The sun on the hills, the sky going from orange to blue; the searchlights come on. A strong
+    // blue fill from the sky keeps the trees and the grass readable in the foreground.
     map.light = { ...L, zenith: 87, sun: 0xff8448, sunIntensity: L.sunIntensity * 0.45, turbidity: 9, rayleigh: 3.4, clouds: 0.45,
-      hemi: (L.hemi ?? 0.5) * 0.75, hemiSky: 0x6a7aa4, hemiGround: 0x2c2620, env: (L.env ?? 0.22) * 0.6, exposure: (L.exposure ?? 0.85) + 0.25 };
+      hemi: (L.hemi ?? 0.5) * 1.6, hemiSky: 0x8c9cc4, hemiGround: 0x5a4c3e, env: (L.env ?? 0.22) * 1.35, exposure: (L.exposure ?? 0.85) + 0.25 };
     fog.lerp(new THREE.Color(0x8c7c84), 0.6).multiplyScalar(0.72);
     map.fog = { color: fog.getHex(), near: 220, far: 1300 };
     map.horizonFade = 0.55;

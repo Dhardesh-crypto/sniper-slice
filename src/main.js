@@ -25,6 +25,7 @@ import { Casings } from './fx/casings.js';
 import { Dogs } from './ai/dogs.js';
 import { CarPatrol } from './ai/patrol.js';
 import { Searchlights } from './world/searchlights.js';
+import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
 import { Masking } from './stealth/masking.js';
@@ -132,6 +133,7 @@ const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hu
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
 const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
+const flashlights = new Flashlights({ scene, world, player });   // and at dusk the guards carry torches
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
@@ -462,6 +464,7 @@ function tick(dt) {
   dogs.tick(dt);
   patrol.tick(dt);
   searchlights.tick(dt);
+  flashlights.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);
   tickGroundMarks();
@@ -646,7 +649,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
