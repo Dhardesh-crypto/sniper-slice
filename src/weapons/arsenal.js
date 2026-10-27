@@ -2,6 +2,7 @@
 // the bolt and reloads, binoculars and tagging, and the simulated bullets in flight.
 import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
+import { throughCover } from './penetration.js';
 import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
@@ -456,7 +457,23 @@ export class Arsenal {
       this.audio.impact(this.player.pos.distanceTo(hit.point));
       this.onImpactNoise?.(hit.point.clone()); // the crack of a near miss carries
       this.onHit?.({ miss: true, distance, point: hit.point.clone() });
+      this.throughCover(bullet, hit, dir);
     }
+  }
+
+  // Through a plank wall, a door, a shutter, a tent (penetration.js): it goes on from the far side,
+  // slower and weaker, and leaves a hole there too. No round goes through more than three things.
+  throughCover(bullet, hit, dir) {
+    if (hit.object?.userData.water || (bullet.through ?? 0) >= 3) return;
+    const pen = throughCover(hit, dir, bullet.vel.length(), !!bullet.def.ap);
+    if (!pen) return;
+    const k = pen.keep, def = { ...bullet.def, damage: Object.fromEntries(Object.entries(bullet.def.damage).map(([z, v]) => [z, v === 999 ? (k > 0.6 ? v : 120 * k) : v * k * k])) };
+    this.world.decals?.bullet({ point: pen.exit.clone().addScaledVector(dir, -0.02), normal: dir.clone(), object: hit.object });
+    this.fx.emit(pen.exit, dir, { color: 0xb8a882, count: 4, speed: 2, size: 0.12, life: 0.5, grow: 2 });   // splinters and dust out the back
+    this.bullets.push({
+      def, pos: pen.exit.clone(), vel: dir.clone().multiplyScalar(bullet.vel.length() * k), origin: bullet.origin, dir: dir.clone(), time: bullet.time,
+      path: [pen.exit.clone()], prev: new THREE.Vector3(), through: (bullet.through ?? 0) + 1, kills: bullet.kills ?? 0,
+    });
   }
 
   // A full-power round goes on through a man (the double kill): slower and weaker, it can still

@@ -756,3 +756,13 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       may be metallic; the no-bells rule is for video music).
 - [x] The nests' floor (the model's trodden earth, 0.24 m up) is solid now: gunners, guards and cases
       stood sunk in it before.
+
+## Shooting through cover (2026-10-27)
+- [x] src/weapons/penetration.js: a round goes through what it can (m of the stuff at 800 m/s: timber,
+      doors, shutters, crates 0.3; plaster 0.18; glass 0.1; roof tiles 0.05; canvas, vines freely;
+      stone, sandbags, earth, steel stop it), scaled by its speed squared, doubled for AP; the
+      thickness is measured by a ray back from beyond. It comes out slower and weaker by the share it
+      used, leaves a hole on both sides, and goes through no more than three things. Guards' rifles
+      and MGs reach you through a door or a plank wall too (less likely to hit). In town: a door 11 cm
+      (rifle through at 89% speed, a pistol stops), a plaster partition 15 cm (41%; AP 76%), an outer
+      plaster wall (AP only, 55%), stone (nothing); one rifle shot through a closed door killed a guard.

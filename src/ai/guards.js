@@ -17,6 +17,7 @@ import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
 import { addExhaust } from '../world/exhaust.js';
 import { addGroundMarks } from '../world/groundmarks.js';
 import { ARC, PITCH } from '../world/mgnest.js';
+import { throughCover } from '../weapons/penetration.js';
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -293,9 +294,12 @@ export class GuardAI {
     // railing right at his elbow he shoots past.)
     const eye = s.headPosition(new THREE.Vector3()); eye.y -= 0.25;
     const block = this.world.raycastSegment(eye.addScaledVector(aimPoint.clone().sub(eye).normalize(), 1), aimPoint);
+    let through = 1;
     if (block && !block.soldier && block.point.distanceTo(aimPoint) > 0.5) {
       this.fx.dust(block.point, block.normal, d);
-      return;
+      const pen = throughCover(block, aimPoint.clone().sub(block.point).normalize(), 760);   // a door or a plank wall doesn't save you
+      if (!pen) return;
+      through = pen.keep * 0.7;
     }
     // How likely this shot lands: range, your stance and movement, how much of you shows,
     // and he finds his aim on a target that doesn't move.
@@ -304,6 +308,7 @@ export class GuardAI {
     if (p.moving) hit *= p.sprinting ? 0.5 : 0.75;
     if (s.aware.headOnly) hit *= 0.45;
     hit *= Math.min(1.6, 1 + 0.15 * b.shots);
+    hit *= through;
     if (s.armHit) hit *= 0.5;                             // shaky with a wounded arm
     if (s.bleed > 0) hit *= 0.8;
     b.shots++;
@@ -391,8 +396,14 @@ export class GuardAI {
     this.audio.enemyBurstShot(d);
     this.world.casings?.eject(muzzle, dir, new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), 0, true);
     const block = this.world.raycastSegment(muzzle.clone().addScaledVector(dir, 0.3), aim);
-    if (block && !block.soldier && block.point.distanceTo(aim) > 0.5) { this.fx.dust(block.point, block.normal, d); return; }
-    let hit = 0.14 * Math.exp(-d / 110) * (s.armHit ? 0.5 : 1);
+    let through = 1;
+    if (block && !block.soldier && block.point.distanceTo(aim) > 0.5) {
+      this.fx.dust(block.point, block.normal, d);
+      const pen = throughCover(block, dir, 740);
+      if (!pen) return;
+      through = pen.keep * 0.7;
+    }
+    let hit = 0.14 * Math.exp(-d / 110) * (s.armHit ? 0.5 : 1) * through;
     hit *= { stand: 1, crouch: 0.7, prone: 0.45 }[p.stance] ?? 1;
     if (p.moving) hit *= p.sprinting ? 0.55 : 0.8;
     if (a.headOnly) hit *= 0.4;
