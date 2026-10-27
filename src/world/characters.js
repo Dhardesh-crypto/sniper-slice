@@ -319,7 +319,9 @@ export class Character {
   }
 
   // Rifle in both hands: grip in the right hand, the left hand pulled onto the fore-end
-  // by IK. carry: 'port' (raised across the chest), 'low' (low ready), 'prone' (forward).
+  // by IK. carry: 'port' (raised across the chest), 'low' (low ready), 'prone' (forward),
+  // 'high' (muzzle up, close to the body: in a doorway, against a wall), 'up' (upright: hard
+  // against one).
   placeRifleInHands(carry = 'port') {
     const { a } = this._v;
     const rh = this.bones.RightHand;
@@ -327,7 +329,7 @@ export class Character {
     rh.getWorldPosition(a);
     this.root.worldToLocal(a);
     this.rifle.position.copy(a);
-    const DIRS = { port: [0.7, 0.35, 0.62], low: [0.5, -0.2, 0.8], prone: [0.04, 0.02, 1] };
+    const DIRS = { port: [0.7, 0.35, 0.62], low: [0.5, -0.2, 0.8], prone: [0.04, 0.02, 1], high: [0.3, 1, 0.22], up: [0.08, 1, 0.02] };
     this.aimRifle(this.modelDir(...DIRS[carry]), this.modelDir(0, 1, 0));
     this.root.updateMatrixWorld(true);
     this.leftHandToForeEnd();

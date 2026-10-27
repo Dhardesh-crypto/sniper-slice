@@ -153,12 +153,21 @@ export class Soldier {
     this.quietDeath = quiet;
     // Shot from the front falls backward; from behind falls forward.
     const facing = new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y));
-    const fromFront = bulletDir.dot(facing) < 0;
+    let fallBack = bulletDir.dot(facing) < 0;
+    // He falls the way there's room: not backward through the wall he stood against.
+    const room = (dir) => {
+      if (!this.wallHit) return 1;
+      const a = this.root.position.clone(); a.y += 0.9;
+      return this.wallHit(a, a.clone().addScaledVector(dir, 1.7)) ?? 1;
+    };
+    const behind = room(facing.clone().negate()), ahead = room(facing);
+    if (fallBack ? behind < 0.9 && ahead > behind : ahead < 0.9 && behind > ahead) fallBack = !fallBack;
     this.char.setHoldWeight(0);
-    this.deathClip = quiet && this.grabClip ? 'takedownVic' : fromFront ? 'deathBack' : 'deathFwd'; // for saving: the pose he ends in
+    this.deathClip = quiet && this.grabClip ? 'takedownVic' : fallBack ? 'deathBack' : 'deathFwd'; // for saving: the pose he ends in
     if (!(quiet && this.grabClip)) this.char.play(this.deathClip, { fade: 0.08, once: true, timeScale: 1.15 });
     this.fallFrom = this.root.position.clone();
     this.knock = new THREE.Vector3(bulletDir.x, 0, bulletDir.z).normalize().multiplyScalar(quiet ? 0 : 0.35);
+    if (this.knock.lengthSq() && room(this.knock.clone().normalize()) < 0.5) this.knock.set(0, 0, 0);   // (not into a wall)
     this.deathT = 0;
     if (this.char.rifle.visible) this.dropRifle(bulletDir);
   }
@@ -227,10 +236,40 @@ export class Soldier {
     this.kick = Math.max(0, this.kick - dt * 4);
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
-    else if (this.alive && this.aimDir && this.stance !== 'officer') this.char.placeRifleShouldered(this.aimDir, this.kick * 0.07);
-    else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.char.placeRifleInHands(this.gait === 'run' ? 'port' : 'low');
+    else if (this.alive && this.aimDir && this.stance !== 'officer') this.keepRifleClear(this.aimDir);
+    else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.keepRifleClear(null, this.gait === 'run' ? 'port' : 'low');
     else if (this.alive && this.stance === 'easy') this.char.slingRifle();
     this.root.updateMatrixWorld(true);
+  }
+
+  // The rifle shouldered along `aim` (or carried), but never through a wall: up against one he
+  // draws it in close, and if the barrel still meets it, raises the muzzle until it's clear; at
+  // the last, holds it upright. Carried, it comes up across him, or goes on his back.
+  keepRifleClear(aim, carry) {
+    const c = this.char, kick = this.kick * 0.07;
+    this.rifleBlocked = false;
+    if (aim) c.placeRifleShouldered(aim, kick); else c.placeRifleInHands(carry);
+    if (!this.wallHit || !this.inWall()) return;
+    if (!aim) { c.placeRifleInHands('high'); if (this.inWall()) c.slingRifle(); return; }   // (face to a wall: slung)
+    const h = this._clear ??= new THREE.Vector3(), pitch = Math.asin(THREE.MathUtils.clamp(aim.y, -1, 1));
+    h.set(aim.x, 0, aim.z).normalize();
+    for (const [pull, lift] of [[0.25, 0], [0.4, 0], [0.4, 0.5], [0.4, 0.95], [0.35, 1.4]]) {
+      const p = Math.min(1.45, pitch + lift), dir = this._clearDir ??= new THREE.Vector3();
+      dir.set(h.x * Math.cos(p), Math.sin(p), h.z * Math.cos(p));
+      c.placeRifleShouldered(dir, kick + pull);
+      if (!this.inWall()) return;
+    }
+    // Still: hold it upright, and (guards.js) step back before he can shoot.
+    c.placeRifleInHands('up');
+    this.rifleBlocked = true;
+  }
+
+  // Does his rifle, from his body out to the muzzle, go into a wall?
+  inWall() {
+    const m = this.char.muzzleWorld(this._muzzle ??= new THREE.Vector3());
+    const from = (this._body ??= new THREE.Vector3()).copy(this.root.position);
+    from.y = m.y;
+    return this.wallHit(from, m) !== null;
   }
 
   reset() {

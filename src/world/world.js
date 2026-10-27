@@ -81,7 +81,7 @@ export class World {
     // Where a guard kneels to restart it: in front of the shed's open side.
     this.generatorStand = this.generatorPos && new THREE.Vector3(this.generatorPos.x, heightAt(this.generatorPos.x, this.generatorPos.z), this.generatorPos.z - 1.4);
     this.hotspots = [];      // weak spots you can shoot (see src/world/hotspots.js)
-    for (const s of this.soldiers) s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05); // where dropped rifles land
+    for (const s of this.soldiers) this.equip(s);
     this.hitMeshes = this.soldiers.flatMap(s => s.hitMeshes);
     this.raycastTargets = [...this.solids, ...this.hitMeshes];
     // The sea, if the map has one: a surface bullets splash into (it isn't walked on).
@@ -196,10 +196,41 @@ export class World {
   // A soldier who arrives during play (reinforcements).
   addSoldier(s) {
     this.scene.add(s.root);
-    s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05);
+    this.equip(s);
     this.soldiers.push(s);
     this.hitMeshes.push(...s.hitMeshes);
     this.raycastTargets.push(...s.hitMeshes);
+  }
+
+  // What a soldier asks of the world: where a dropped rifle lands, and whether his rifle (or his
+  // fall) would go into a wall.
+  equip(s) {
+    s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05);
+    s.wallHit = (a, b) => this.boxAlong(a, b);
+  }
+
+  // How far along the segment a→b (0..1) it first enters a collision box (a wall, a crate, a
+  // closed door), or null. Boxes it starts inside don't count (the floor slab under his feet).
+  boxAlong(a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const lx = Math.min(a.x, b.x), hx = Math.max(a.x, b.x), ly = Math.min(a.y, b.y), hy = Math.max(a.y, b.y), lz = Math.min(a.z, b.z), hz = Math.max(a.z, b.z);
+    let best = null;
+    for (const bx of this.boxes) {
+      const mn = bx.min, mx = bx.max;
+      if (mx.x < lx || mn.x > hx || mx.y < ly || mn.y > hy || mx.z < lz || mn.z > hz) continue;
+      let t0 = 0, t1 = 1;
+      for (const [o, d, lo, hi] of [[a.x, dx, mn.x, mx.x], [a.y, dy, mn.y, mx.y], [a.z, dz, mn.z, mx.z]]) {
+        if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { t0 = 2; break; } continue; }
+        let u = (lo - o) / d, v = (hi - o) / d;
+        if (u > v) [u, v] = [v, u];
+        if (u > t0) t0 = u;
+        if (v < t1) t1 = v;
+        if (t0 > t1) break;
+      }
+      if (t0 > t1 || t0 <= 0) continue;
+      if (best === null || t0 < best) best = t0;
+    }
+    return best;
   }
 
   // Nearest hit along the segment a→b: terrain, solids, trees or a soldier's body part.

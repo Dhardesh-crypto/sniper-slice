@@ -662,3 +662,12 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       missions that copied their builders' boxes (vineyard, forest, harbour, railway) get them too.
       tools/navcheck.js: no walkable ground cut off in town, vineyard, forest, harbour or railway, and
       guard-to-house paths fail only where they already did (A*'s 40k-node limit on long routes).
+
+## Guards and walls (2026-10-27): "they stick their guns right through the walls"
+- [x] A guard's rifle is checked against the walls every frame (world.boxAlong, from his body out
+      to the muzzle): shouldered, he draws it in, then raises the muzzle, then holds it upright and
+      steps back before he fires; carried, it comes up across him or goes on his back. 45 poses
+      against the town hall's walls: all clear (were 36 through). ~0.2 ms a frame for a mission.
+- [x] Guards walk with a 0.36 m radius (was 0.3), so shoulders and elbows stay out of the walls
+- [x] A guard who's shot falls the way there's room (forward if the wall's behind him) and the
+      bullet's shove doesn't push him into a wall

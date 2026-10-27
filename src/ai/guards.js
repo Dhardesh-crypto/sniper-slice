@@ -228,6 +228,13 @@ export class GuardAI {
     const aimPoint = target.clone(); aimPoint.y += a.headOnly ? p.eye + 0.05 : Math.max(0.3, p.eye * 0.75);
     s.targetYaw = Math.atan2(aimPoint.x - s.root.position.x, aimPoint.z - s.root.position.z);
     b.fireT -= dt;
+    // Too close to a wall to bring his rifle to bear (soldier.js keepRifleClear): step back first.
+    if (s.rifleBlocked && !b.fixed) {
+      const pos = s.root.position, back = this.v.set(pos.x - aimPoint.x, 0, pos.z - aimPoint.z).normalize();
+      pos.addScaledVector(back, WALK * 0.6 * dt);
+      this.world.collideCircle(pos, 0.36, pos.y, pos.y + 1.7);
+      b.fireT = Math.max(b.fireT, 0.4);
+    }
     // In cover: duck between shots, rise for the last moment before firing.
     s.crouchTarget = b.atCover && b.fireT > 0.8 ? 1 : 0;
     const raised = b.fireT < 1.0;
@@ -496,7 +503,7 @@ export class GuardAI {
     const step = Math.min(dist, speed * dt);
     pos.x += (dx / dist) * step;
     pos.z += (dz / dist) * step;
-    this.world.collideCircle(pos, 0.3, pos.y, pos.y + 1.7);
+    this.world.collideCircle(pos, 0.36, pos.y, pos.y + 1.7);   // (shoulders and elbows clear of the wall)
     pos.y = this.world.floorAt(pos.x, pos.z, pos.y); // up terrace steps, onto the terrace
     s.targetYaw = Math.atan2(dx, dz);
     s.aimDir = null;
