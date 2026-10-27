@@ -1,10 +1,12 @@
 // Flashlights, at dusk (map.dusk: conditions.js). Every guard on his feet carries a torch clipped to
 // his tunic, as the Wehrmacht did, lit and pointing where he faces, a little down at the ground in
-// front of him: a bright point you see from far off and a faint cone in the haze. The nearest few
-// light the ground for real (a small pool of spotlights handed round, so the shaders never change);
-// the rest show only the lamp and the cone. Caught in a guard's beam you are lit up: he makes you out
-// fast, and tall grass doesn't hide you from him (stealth.js asks `inBeam`). A dead man's torch goes out; so does a gunner's (both
-// hands on the gun) and a man riding in a vehicle (the vehicle's lamps are blacked out).
+// front of him; wary, he takes it in his hand and sweeps it about whatever he's looking for. A
+// bright point you see from far off and a faint cone in the haze. The nearest few light the ground
+// for real (a small pool of spotlights handed round, so the shaders never change); the rest show
+// only the lamp and the cone. Caught in a guard's beam you are lit up: he makes you out fast, and
+// tall grass doesn't hide you from him (stealth.js asks `inBeam`). A dead or downed man's torch
+// goes out; so does a gunner's (both hands on the gun) and a man riding in a vehicle (the
+// vehicle's lamps are blacked out).
 import * as THREE from 'three';
 import { activeMap } from './terrain.js';
 
@@ -64,7 +66,7 @@ export class Flashlights {
     const fwd = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     for (const t of this.torches) {
       const s = t.s;
-      t.on = s.alive && !s.riding && !s.manning;
+      t.on = s.alive && !s.riding && !s.manning && !s.downed;
       t.beam.visible = t.lamp.visible = t.on;
       if (!t.on) { if (t.light) t.light.intensity = 0; continue; }
       // On his chest, a hand's breadth out in front; swinging a little with his stride.
@@ -73,7 +75,17 @@ export class Flashlights {
       fwd.set(0, 0, 1).applyQuaternion(s.root.quaternion);
       t.at.addScaledVector(fwd, 0.17).y += 0.04;
       if (s.aimDir) fwd.copy(s.aimDir);
-      else {
+      else if (s.aware && s.aware.state !== 'calm') {
+        // Wary: he takes it in his hand and sweeps it to and fro, about whatever he's looking for.
+        const st = s.aware.stimulus;
+        let dip = 0.12;
+        if (st) {
+          const to = _st.copy(st).sub(t.at), dd = Math.hypot(to.x, to.z);
+          if (dd > 1.5 && dd < REACH * 2.5) { fwd.set(to.x, 0, to.z).normalize(); dip = THREE.MathUtils.clamp(Math.atan2(t.at.y - st.y - 0.3, dd), 0.03, 0.6); }
+        }
+        fwd.applyAxisAngle(up, 0.55 * Math.sin(this.world.time * 1.9 + s.root.id)).normalize();
+        fwd.y = -Math.tan(dip);
+      } else {
         const sway = s.gait === 'stand' ? 0 : 0.05 * Math.sin(this.world.time * 5.5 + s.root.id);
         fwd.applyAxisAngle(up, sway).normalize();
         fwd.y = -Math.tan(DIP);
@@ -102,7 +114,7 @@ export class Flashlights {
 }
 
 // Is `p` in this torch's beam (lit, near enough, inside the cone)? The line of sight is the caller's.
-const _to = new THREE.Vector3();
+const _to = new THREE.Vector3(), _st = new THREE.Vector3();
 export function inBeam(torch, p) {
   if (!torch?.on) return false;
   _to.copy(p).sub(torch.at);
