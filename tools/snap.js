@@ -3,7 +3,7 @@
 //   const s = await import('/tools/snap.js'); await s.snap('name', [x, y, z], [tx, ty, tz], fov?);
 export async function snap(name, from, to, fov = 55) {
   const g = window.game, THREE = g.THREE, R = g.renderer;
-  g.world.scene.traverse(o => { if (o.isSkinnedMesh) o.visible = false; });
+  g.world.scene.traverse(o => { if (o.isSkinnedMesh && !o.userData.animal) o.visible = false; });   // (people, not animals)
   const cam = new THREE.PerspectiveCamera(fov, 4 / 3, 0.05, 3000);
   cam.position.set(...from); cam.lookAt(...to); cam.updateMatrixWorld();
   g.world.cullTrees(cam.position, Math.tan(THREE.MathUtils.degToRad(55) / 2) / Math.tan(THREE.MathUtils.degToRad(fov) / 2));
