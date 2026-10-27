@@ -683,3 +683,19 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] Checked in town, vineyard, bridge, harbour, airfield and radar: manned, fired, rounds clear
       of the nest's own bags; in town the front bags stop you, the back lets you in, a chest-high
       shot stops in the bags, and the gun killed a guard at 8 m
+
+## The three open ideas (2026-10-27)
+- [x] Fog per mission: each mission's haze takes the hue of its own sky low on the horizon (from
+      tools/blender/skies.json, halfway to grey, at the old brightness): warm at the sunset missions
+      (airfield, harbour), neutral in the town, as before under the blue skies. The far-country
+      panoramas re-rendered with the same haze colour (tools/horizons.sh), so ground and panorama meet.
+- [x] Guards man the MG nests: once the alarm's up (or a fight's on) the nearest free alerted guard
+      within 70 m runs to each empty nest (a lane through its back gap is kept open on the route map),
+      lays the gun on you at a man's swing speed and fires bursts of 6-11 while you're in its arc and
+      in sight (about 1 round in 7 lands on a standing man at 18 m). Kill him and another may come;
+      nobody can take a nest you're on, and you can't take one a guard is on.
+- [x] Route maps per floor: each upper floor has its own 0.5 m grid (walls, furniture, the stairwell;
+      doorways kept open), joined to the ground by its flight; routes between floors go to the foot,
+      up the flight, across. Guards stationed upstairs move about now (only towers hold). Guards fall
+      at a pace instead of snapping down (they stride over the gap at the top of a flight). Checked in
+      town: outside → the commander's office in 11.6 s and back; alerted to you upstairs, 5 came up.

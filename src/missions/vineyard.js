@@ -79,6 +79,7 @@ export default {
     ...VINEYARD_MAP,
     // Late morning in Tuscany: high, warm sun through a light haze.
     light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4 },
+    fog: { color: 0xb6c6cd },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
     animals: [['cow', 95, 40, 18, 4], ['horse', 80, -2, 8, 1]],   // a few cows in the east field, the farm's horse
   },
   // The compound and the firing range by the start hill.

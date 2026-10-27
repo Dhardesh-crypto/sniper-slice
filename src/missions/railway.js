@@ -47,6 +47,7 @@ function heightAt(x, z) {
 const map = {
   // An overcast noon on the plain: soft light, faint shadows.
   light: { zenith: 42, azimuth: 200, sun: 0xfff0e0, sunIntensity: 1.5, turbidity: 9, rayleigh: 1.2, clouds: 0.85, hemi: 0.8, hemiSky: 0xd0d6dc, env: 0.32, exposure: 0.92 },
+  fog: { color: 0xb3c7d3 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   animals: [['cow', -160, 95, 25, 5]],   // cattle on the plain north of the line
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280,
   heightAt,

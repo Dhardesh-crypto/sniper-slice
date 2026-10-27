@@ -16,6 +16,7 @@ import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
 import { addExhaust } from '../world/exhaust.js';
 import { addGroundMarks } from '../world/groundmarks.js';
+import { ARC, PITCH } from '../world/mgnest.js';
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -75,7 +76,7 @@ export class GuardAI {
     const ground = this.world.groundAt(s.root.position.x, s.root.position.z);
     s.brain = {
       mode: 'post', path: null, wpi: 0, goal: null, repathT: 0, lookT: 0, sweeps: 0,
-      fixed: s.root.position.y > ground + 3,            // tower guards hold their platform
+      fixed: s.root.position.y > ground + 3 && !this.nav.onStorey(s.root.position),   // tower guards hold their platform (not one upstairs in a house)
       route: (activeMap().routes ?? ROUTES)[s.name]?.map(([x, z, wait = 0]) => Object.assign(new THREE.Vector3(COMPOUND.x + x, ground, COMPOUND.z + z), { wait })), routeI: 0, waitT: 0,
       lastSeen: null, lastSeenT: -99, fireT: 0, shots: 0, cover: null, coverTried: false,
       progressT: 0, progressAt: s.root.position.clone(), stuck: 0,
@@ -97,6 +98,7 @@ export class GuardAI {
       this.run(s, dt);
       s.setActivity(s.nextActivity);
     }
+    this.tickNests();
     this.tickAlarm(dt);
     this.tickTruck(dt);
     this.tickSabotage(dt);
@@ -106,6 +108,10 @@ export class GuardAI {
   decide(s) {
     const a = s.aware, b = s.brain;
     if (s.officer) return a.state === 'calm' ? 'post' : 'flee';
+    if (b.nest) {                      // sent to a machine-gun nest: he holds it while the fight's on
+      if (a.state === 'alerted' && this.player.mounted !== b.nest) return 'gunner';
+      this.leaveNest(s);
+    }
     if (b.task && a.state !== 'alerted') return 'repair';
     if (a.state === 'alerted') {
       if (this.alarm.runner === s) return 'alarm';
@@ -174,6 +180,7 @@ export class GuardAI {
         break;
       }
       case 'combat': this.combat(s, dt); break;
+      case 'gunner': this.gunner(s, dt); break;
       case 'alarm': {
         if (this.goTo(s, this.siren.standAt, RUN, dt)) {
           this.stop(s);
@@ -304,6 +311,91 @@ export class GuardAI {
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       if (d < 250) this.audio.crack();
+    }
+  }
+
+  // ---------------------------------------------------------------- machine-gun nests
+  // Once the alarm's up, or a fight's on, the nearest free alerted guard within 70 m runs to each
+  // empty nest (mgnest.js). Kill him and the next may come; man it yourself and nobody can.
+  tickNests() {
+    for (const n of this.world.nests ?? []) {
+      const g = n.gunner;
+      if (g && (!g.alive || g.takenDown || g.brain?.nest !== n)) { if (g.manning === n) g.manning = null; n.gunner = null; }
+      if (n.gunner || this.player.mounted === n) continue;
+      if (!this.alarm.on && !this.guards().some(s => s.brain.mode === 'combat')) continue;
+      let best = null, bestD = 70;
+      for (const s of this.guards()) {
+        const b = s.brain;
+        if (s.officer || b.fixed || b.nest || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
+        const d = s.root.position.distanceTo(n.seat);
+        if (d < bestD) { best = s; bestD = d; }
+      }
+      if (best) { best.brain.nest = n; n.gunner = best; }
+    }
+  }
+
+  leaveNest(s) {
+    const b = s.brain, n = b.nest;
+    if (n?.gunner === s) n.gunner = null;
+    b.nest = null; s.manning = null; s.crouchTarget = 0;
+  }
+
+  // On the gun: lay it on you (or where he last saw you), turning it no faster than a man can
+  // swing an MG42 on its bipod, and fire bursts while you're in its arc and in sight.
+  gunner(s, dt) {
+    const b = s.brain, n = b.nest, a = s.aware, p = this.player, pos = s.root.position;
+    if (!s.manning) {
+      if (!this.goTo(s, n.seat, RUN, dt)) return;
+      if (Math.hypot(pos.x - n.seat.x, pos.z - n.seat.z) > 1.2) { this.leaveNest(s); return; }   // no way in
+      pos.copy(n.seat);
+      s.manning = n;
+      b.gunRel = 0; b.gunPitch = 0; b.burstLeft = 0; b.fireT = 0.8 + Math.random() * 0.6;
+    }
+    this.stop(s);
+    s.aimDir = null;
+    s.crouchTarget = 0.5;
+    const target = a.spotted ? p.pos : b.lastSeen;
+    const pivot = n.yawG.getWorldPosition(this.v);
+    let rel = b.gunRel, pitch = b.gunPitch;
+    if (target) {
+      const dx = target.x - pivot.x, dz = target.z - pivot.z, dy = target.y + 1.0 - pivot.y, y = Math.atan2(-dx, -dz) - n.yaw;
+      rel = Math.atan2(Math.sin(y), Math.cos(y));
+      pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    }
+    const turn = 1.6 * dt;
+    b.gunRel += THREE.MathUtils.clamp(THREE.MathUtils.clamp(rel, -ARC, ARC) - b.gunRel, -turn, turn);
+    b.gunPitch += THREE.MathUtils.clamp(THREE.MathUtils.clamp(pitch, PITCH[0], PITCH[1]) - b.gunPitch, -turn, turn);
+    n.lay(b.gunRel, b.gunPitch);
+    const along = n.fwd.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), b.gunRel);
+    s.targetYaw = Math.atan2(along.x, along.z);
+    const onTarget = target && Math.abs(rel) <= ARC && pitch >= PITCH[0] && pitch <= PITCH[1] && Math.abs(b.gunRel - rel) < 0.06 && Math.abs(b.gunPitch - pitch) < 0.06;
+    b.fireT -= dt;
+    if (b.fireT > 0 || !onTarget || p.dead || this.time - b.lastSeenT > 2.5) return;
+    if (b.burstLeft <= 0) b.burstLeft = 6 + Math.floor(Math.random() * 6);
+    this.fireMG(s, n, target);
+    b.fireT = --b.burstLeft > 0 ? 0.065 : 1.1 + Math.random() * 0.9;
+  }
+
+  // One round from a nest's gun: a muzzle flash, the report; the sandbags or a wall may take it,
+  // and each round is far less likely to land than an aimed rifle shot.
+  fireMG(s, n, target) {
+    const p = this.player, a = s.aware, muzzle = n.muzzle(new THREE.Vector3());
+    const aim = target.clone(); aim.y += Math.max(0.3, p.eye * 0.75);
+    const d = muzzle.distanceTo(aim), dir = aim.clone().sub(muzzle).normalize();
+    this.fx.flash(muzzle, dir);
+    this.audio.enemyBurstShot(d);
+    const block = this.world.raycastSegment(muzzle.clone().addScaledVector(dir, 0.3), aim);
+    if (block && !block.soldier && block.point.distanceTo(aim) > 0.5) { this.fx.dust(block.point, block.normal, d); return; }
+    let hit = 0.14 * Math.exp(-d / 110);
+    hit *= { stand: 1, crouch: 0.7, prone: 0.45 }[p.stance] ?? 1;
+    if (p.moving) hit *= p.sprinting ? 0.55 : 0.8;
+    if (a.headOnly) hit *= 0.4;
+    if (a.spotted && Math.random() < hit) p.damage(15 + Math.random() * 8, s.root.position);
+    else {
+      const miss = p.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4));
+      miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
+      this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
+      if (d < 250 && Math.random() < 0.35) this.audio.crack();
     }
   }
 
@@ -485,7 +577,7 @@ export class GuardAI {
   // Walk/run toward `target` along a path. Returns true on arrival.
   goTo(s, target, speed, dt) {
     const b = s.brain, pos = s.root.position;
-    if (Math.hypot(target.x - pos.x, target.z - pos.z) < 0.6) { b.path = null; return true; }
+    if (Math.hypot(target.x - pos.x, target.z - pos.z) < 0.6 && Math.abs(target.y - pos.y) < 1.6) { b.path = null; return true; }   // (not the room overhead)
     b.repathT -= dt;
     const moved = b.pathTarget && b.pathTarget.distanceTo(target) > 2;
     if (!b.path || ((moved || b.stuck) && b.repathT <= 0)) {
@@ -504,7 +596,10 @@ export class GuardAI {
     pos.x += (dx / dist) * step;
     pos.z += (dz / dist) * step;
     this.world.collideCircle(pos, 0.36, pos.y, pos.y + 1.7);   // (shoulders and elbows clear of the wall)
-    pos.y = this.world.floorAt(pos.x, pos.z, pos.y); // up terrace steps, onto the terrace
+    // Up terrace steps and stairs at once; down anything higher at a falling pace, so he strides
+    // over a hand's width of open stairwell at the top of a flight instead of dropping through it.
+    const floor = this.world.floorAt(pos.x, pos.z, pos.y);
+    pos.y = floor < pos.y - 0.6 ? Math.max(floor, pos.y - 6 * dt) : floor;
     s.targetYaw = Math.atan2(dx, dz);
     s.aimDir = null;
     s.crouchTarget = 0;

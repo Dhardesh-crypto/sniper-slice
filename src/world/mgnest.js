@@ -5,14 +5,16 @@
 // Step up behind the gun and press E: you're on it, the view held to its arc of fire, and the
 // left mouse fires it (the arsenal's `mount`: its own 250-round belt and two spare belts in the
 // boxes beside it, R to change belts). E again, or a takedown, a fall, death, leaves it.
+// Once the alarm's up the guards man them too (ai/guards.js): one runs to an empty nest and holds
+// you under fire across its arc; kill him and another may take his place.
 import * as THREE from 'three';
 import { rifleModel } from './characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const IRON = new THREE.MeshStandardMaterial({ color: 0x232421, roughness: 0.55, metalness: 0.45 });
-const ARC = 1.15;                    // rad either side of straight out over the parapet
-const PITCH = [-0.32, 0.3];          // rad down, up
+export const ARC = 1.15;                    // rad either side of straight out over the parapet
+export const PITCH = [-0.32, 0.3];          // rad down, up
 const GUN_AHEAD = 0.42;              // m from the pistol grip forward to the bipod's pivot
 const BELT = 250, SPARE = 500;
 // On its bipod, braced on the sandbags: far steadier than the MG42 fired from the hip.
@@ -46,6 +48,7 @@ function arm(o, world, scene) {
     world.solids.push(block);
     world.boxes.push(new THREE.Box3().setFromObject(block));
   }
+  // The guards' route map keeps a lane open through the gap at the back (ai/nav.js), as through a door.
 
   // The gun: on its bipod on the front sandbags, the muzzle out over them.
   const pivot = new THREE.Vector3(R - 0.12, h + 0.17, 0);
@@ -69,11 +72,18 @@ function arm(o, world, scene) {
   const seatLocal = new THREE.Vector3(pivot.x - GUN_AHEAD - 0.5, 0, 0);
   const seat = seatLocal.applyQuaternion(q).add(base);
   seat.y = world.floorAt(seat.x, seat.z, base.y + 0.5);
+  (world.navLanes ??= []).push([new THREE.Vector3(-(s + 1.2), 0, 0).applyQuaternion(q).add(base), seat.clone()]);
   return {
-    o, yawG, tilt, gun, seat, base, fwd,
+    o, yawG, tilt, gun, seat, base, fwd, gunner: null,
     yaw: Math.atan2(-fwd.x, -fwd.z),                     // the player's yaw looking straight out
     eye: base.y + pivot.y + 0.16 - seat.y,               // eye height over the gun's sights
     weapon: { def: MOUNTED_DEF, mag: BELT, reserve: SPARE, zeroIndex: 0, zeroAngles: [0] },
+    // Lay the gun `rel` rad round from straight out (left +), `pitch` up; both held to its arc.
+    lay(rel, pitch) {
+      yawG.rotation.y = Math.PI / 2 + THREE.MathUtils.clamp(rel, -ARC, ARC);
+      tilt.rotation.x = -THREE.MathUtils.clamp(pitch, PITCH[0], PITCH[1]);
+      o.updateMatrixWorld(true);
+    },
     muzzle(out = new THREE.Vector3()) { gun.updateMatrixWorld(true); return out.copy(gun.userData.muzzle).applyMatrix4(gun.matrixWorld); },
     grips() {                                            // where the gunner's hands go (world)
       gun.updateMatrixWorld(true);
@@ -164,6 +174,7 @@ export class MountedGuns {
     const p = this.player;
     if (p.dead || p.climb || p.carrying || p.locked || p.stance === 'prone') return null;
     for (const n of this.world.nests ?? []) {
+      if (n.gunner?.alive) continue;                     // a guard's on it
       if (Math.hypot(p.pos.x - n.seat.x, p.pos.z - n.seat.z) < 1.1 && Math.abs(p.pos.y - n.seat.y) < 0.8) return n;
     }
     return null;
@@ -212,9 +223,7 @@ export class MountedGuns {
     rel = THREE.MathUtils.clamp(rel, -ARC, ARC);
     p.yaw = n.yaw + rel;
     p.pitch = THREE.MathUtils.clamp(p.pitch, PITCH[0], PITCH[1]);
-    n.yawG.rotation.y = Math.PI / 2 + rel;
-    n.tilt.rotation.x = -p.pitch;
-    n.o.updateMatrixWorld(true);
+    n.lay(rel, p.pitch);
   }
 
   state() {

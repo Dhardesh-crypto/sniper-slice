@@ -39,6 +39,7 @@ const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Ma
 const map = {
   // Late afternoon: a low golden sun from the west, long shadows down the streets.
   light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
+  fog: { color: 0xc4c4c0 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1]],   // in the fields below the south wall
   half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 130,
   // The hilltop is flattened inside the walls and falls away outside them.

@@ -481,6 +481,13 @@ export class Audio {
     this.noiseBurst({ at: at + 0.3, dur: 1.2, type: 'lowpass', freq: 600, freqEnd: 200, gain: 0.12 * k, attack: 0.15 });
   }
 
+  // A round from a guard's machine gun (a nest's MG42) heard from `distance` metres.
+  enemyBurstShot(distance) {
+    const at = Math.min(distance / 343, 1.2), k = Math.max(0.12, 1 - distance / 450);
+    if (this.sample('shot_mg42', { at, gain: 0.5 * k, filter: 1000 + 9000 * k * k, wet: 0.25 })) return;
+    this.enemyShot(distance);
+  }
+
   // A bullet passing close: the supersonic crack, then a whizz.
   crack() {
     this.noiseBurst({ dur: 0.025, type: 'highpass', freq: 3000, gain: 0.55 });

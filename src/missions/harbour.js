@@ -46,6 +46,7 @@ const roadZ = (x) => 40 + Math.sin(x * 0.012) * 14 * smoothstep(-260, -330, x);
 const map = {
   // Evening over the sea: the sun low in the west, orange light on the quay.
   light: { zenith: 76, azimuth: 285, sun: 0xffa868, sunIntensity: 2.4, turbidity: 8, rayleigh: 2.4, clouds: 0.45, hemiSky: 0xc8b8b0, hemiGround: 0x5a4a3a, exposure: 0.95 },
+  fog: { color: 0xd3c0b6 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 160 }, start: START, navHalf: 262, waterLevel: 0,
   heightAt,
   roadCenterZ: (x) => (x < -DX ? roadZ(x) : NaN),

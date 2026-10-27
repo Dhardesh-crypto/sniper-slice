@@ -20,6 +20,10 @@ import { dressWindow, dressDoor, dressBlock, dressFlatRoof, houseLook } from './
 
 
 const RISE = 0.24, RUN = 0.3;
+
+// Every upper floor built, for the guards' route maps (ai/nav.js; world.js takes the list).
+export const storeys = [];
+let buildingCount = 0;
 const DOOR_MAT = M.darkWood;
 
 export function building(b, o) {
@@ -57,6 +61,18 @@ export function building(b, o) {
   // Stairs: one flight per storey, all stacked in the same well.
   if (st) for (let f = 0; f < floors - 1; f++) stairs(b, x + st.at[0], z + st.at[1], y + f * h, h, st.dir, st.w ?? 1.0, floorMat);
   out.stairsFoot = st ? new THREE.Vector3(x + st.at[0], y, z + st.at[1]) : null;
+  // Each upper floor's inside and height, the flight up to it (where you step on at its foot and off
+  // at its head) and the stairwell in it.
+  const id = buildingCount++;
+  for (let f = 1; f < floors; f++) {
+    const [dx, dz] = st ? { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[st.dir] : [0, 0], len = Math.round(h / RISE) * RUN;
+    const fx = st ? x + st.at[0] : 0, fz = st ? z + st.at[1] : 0;
+    storeys.push({
+      building: id, f, y: y + f * h, x0: x - w / 2 + wall, x1: x + w / 2 - wall, z0: z - d / 2 + wall, z1: z + d / 2 - wall, well,
+      foot: st ? new THREE.Vector3(fx - dx * 0.4, y + (f - 1) * h, fz - dz * 0.4) : null,
+      head: st ? new THREE.Vector3(fx + dx * (len + 0.45), y + f * h, fz + dz * (len + 0.45)) : null,
+    });
+  }
   // Interior walls.
   for (const iw of o.walls ?? []) {
     const f = iw.floor ?? 0, len = iw.to - iw.from, mid = (iw.from + iw.to) / 2;

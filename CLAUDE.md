@@ -39,7 +39,10 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
   at where they last saw you (`src/world/turrets.js`).
 - Guards and their rifles stay out of walls (`soldier.keepRifleClear`, `world.boxAlong`).
 - Interiors: tables, beds and wardrobes are solid; the rest of the room dressing is decoration.
-- MG nests are usable: E behind the gun mans it (`src/world/mgnest.js`, `Arsenal.mount`).
+- MG nests are usable: E behind the gun mans it (`src/world/mgnest.js`, `Arsenal.mount`); once the
+  alarm's up a guard mans each empty one (`GuardAI.gunner`).
+- Guards route across floors: each upper floor has its own grid, joined by its stairs (`src/ai/nav.js`).
+- Each mission's fog takes its horizon sky's colour; the panoramas are rendered with the same haze.
 
 ## Working style
 
@@ -52,6 +55,4 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
 
 ## Open ideas, not yet done
 
-- Per-mission fog colour to match the horizon panoramas.
-- The guards' nav grid is one level: upstairs furniture and walls don't shape their routes.
-- Guards don't man the MG nests themselves.
+- (none listed: see the latest sections of `tasks/todo.md` for what's in progress)

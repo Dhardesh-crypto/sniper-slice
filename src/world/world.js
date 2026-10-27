@@ -8,6 +8,7 @@ import { buildGround, cullGround } from './ground.js';
 import { mergeDecor } from './kit.js';
 import { dressInteriors } from './interior.js';
 import { armNests } from './mgnest.js';
+import { storeys } from './buildings.js';
 
 import { buildHorizon } from './horizon.js';
 
@@ -65,7 +66,8 @@ export class World {
     const furniture = dressInteriors(b.soldiers);   // (now the mission's own furniture is in, and its guards)
     const have = new Set(this.boxes);
     for (const bx of furniture) if (!have.has(bx)) this.boxes.push(bx);
-    this.nests = armNests(this, scene);   // machine-gun nests you can man (solid sandbags, a gun that turns)
+    this.nests = armNests(this, scene);
+    this.storeys = storeys.splice(0);     // the upper floors, for the guards' route maps   // machine-gun nests you can man (solid sandbags, a gun that turns)
     mergeDecor(scene);
     // Ground detail (Blender): stones and scrub, or ferns, needles, stumps and branches in a forest.
     // Stumps are solid: they join the trees for walking into and the solids for bullets.

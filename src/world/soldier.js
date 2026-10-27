@@ -4,7 +4,7 @@
 // behind cover, wounds and a shot-and-fall death.
 import * as THREE from 'three';
 import { clearXray } from './anatomy.js';
-import { Character, buildHitZones } from './characters.js';
+import { Character, buildHitZones, solveArmIK } from './characters.js';
 
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
@@ -235,6 +235,7 @@ export class Soldier {
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand', kneel: this.gait === 'stand' ? this.crouch : 0 });   // still: down on one knee
     this.kick = Math.max(0, this.kick - dt * 4);
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
+    else if (this.alive && this.manning) this.onGun(this.manning);
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
     else if (this.alive && this.aimDir && this.stance !== 'officer') this.keepRifleClear(this.aimDir);
     else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.keepRifleClear(null, this.gait === 'run' ? 'port' : 'low');
@@ -264,6 +265,17 @@ export class Soldier {
     this.rifleBlocked = true;
   }
 
+  // On a nest's machine gun (mgnest.js): his rifle on his back, stooped behind the gun, hands on it.
+  onGun(n) {
+    const c = this.char, b = c.bones;
+    c.slingRifle();
+    if (!b.Hips) return;
+    const [right, left] = n.grips(), hips = b.Hips.getWorldPosition(new THREE.Vector3());
+    const out = (x, y, z) => c.modelDir(x, y, z).applyQuaternion(this.root.quaternion).add(hips);
+    solveArmIK(b.RightArm, b.RightForeArm, b.RightHand, right, out(-0.8, -1, -0.3));
+    solveArmIK(b.LeftArm, b.LeftForeArm, b.LeftHand, left, out(0.8, -1, -0.3));
+  }
+
   // Does his rifle, from his body out to the muzzle, go into a wall?
   inWall() {
     const m = this.char.muzzleWorld(this._muzzle ??= new THREE.Vector3());
@@ -284,7 +296,7 @@ export class Soldier {
     this.found = this.hidden = this.dragged = this.deathNoted = false;
     this.takenDown = this.grabClip = this.quietDeath = false;
     this.stance = this.baseStance;
-    this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouch = this.crouchTarget = 0;
+    this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouch = this.crouchTarget = 0; this.manning = null;
     this.root.rotation.y = this.targetYaw = this.homeYaw;
     if (this.aware) Object.assign(this.aware, { meter: 0, state: 'calm', stimulus: null });
     for (const a of Object.values(this.char.actions)) if (a !== this.char.hold) a.stop();
