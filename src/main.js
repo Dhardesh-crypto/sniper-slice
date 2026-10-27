@@ -24,6 +24,7 @@ import { Decals } from './fx/decals.js';
 import { Casings } from './fx/casings.js';
 import { Dogs } from './ai/dogs.js';
 import { CarPatrol } from './ai/patrol.js';
+import { Searchlights } from './world/searchlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
 import { Masking } from './stealth/masking.js';
@@ -98,7 +99,7 @@ M.map.id ??= missionId;                          // (its far country: textures/h
 const conditions = pickConditions(M.map, runSeed); // this run's weather: as briefed, or overcast, rain, mist
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
-if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on. Keep out of their beams, or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
 
 const input = new Input(canvas);
 const audio = new Audio();
@@ -130,6 +131,7 @@ mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });
 const hotspots = new Hotspots({ scene, world, player, stealth, masking, audio, fx, hud, arsenal, explosions });
 const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
+const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
 arsenal.hotspots = hotspots;
@@ -459,6 +461,7 @@ function tick(dt) {
   ai.tick(dt);
   dogs.tick(dt);
   patrol.tick(dt);
+  searchlights.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);
   tickGroundMarks();
@@ -643,7 +646,7 @@ renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
 window.game = {
-  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol,
+  beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

@@ -1,5 +1,5 @@
 // The conditions for this run: most often the weather the mission was written for, but sometimes
-// an overcast day, rain, or a morning mist, drawn from the run's seed. Each changes the light
+// an overcast day, rain, a morning mist, or dusk (the searchlights lit: searchlights.js), drawn from the run's seed. Each changes the light
 // (the sun dimmed behind cloud, more fill from the sky), how close the haze comes in, how much of
 // the far country shows through it, the weather (rain, mist), and how far a guard can see you.
 // It edits the map before the world is built from it.
@@ -8,10 +8,11 @@ import { LIGHT } from './world.js';
 import { seeded } from '../core/run.js';
 
 const KINDS = {
-  briefed: { weight: 0.45, label: null },
-  overcast: { weight: 0.2, label: 'Overcast' },
-  rain: { weight: 0.15, label: 'Rain' },
-  mist: { weight: 0.2, label: 'Morning mist' },
+  briefed: { weight: 0.4, label: null },
+  overcast: { weight: 0.16, label: 'Overcast' },
+  rain: { weight: 0.12, label: 'Rain' },
+  mist: { weight: 0.15, label: 'Morning mist' },
+  dusk: { weight: 0.17, label: 'Dusk' },
 };
 
 export function pickConditions(map, seed) {
@@ -34,6 +35,15 @@ export function pickConditions(map, seed) {
     map.horizonFade = wet ? 0.85 : 0.45;
     map.sightScale = wet ? 0.75 : 0.95;
     if (wet) map.weather = { ...map.weather, rain: 0.75 };
+  } else if (kind === 'dusk') {
+    // The sun on the hills, the sky going from orange to blue; the searchlights come on.
+    map.light = { ...L, zenith: 87, sun: 0xff8448, sunIntensity: L.sunIntensity * 0.45, turbidity: 9, rayleigh: 3.4, clouds: 0.45,
+      hemi: (L.hemi ?? 0.5) * 0.75, hemiSky: 0x6a7aa4, hemiGround: 0x2c2620, env: (L.env ?? 0.22) * 0.6, exposure: (L.exposure ?? 0.85) + 0.25 };
+    fog.lerp(new THREE.Color(0x8c7c84), 0.6).multiplyScalar(0.72);
+    map.fog = { color: fog.getHex(), near: 220, far: 1300 };
+    map.horizonFade = 0.55;
+    map.sightScale = 0.75;
+    map.dusk = true;
   } else {
     map.light = { ...L, sunIntensity: L.sunIntensity * 0.8, exposure: (L.exposure ?? 0.85) + 0.05 };
     fog.lerp(new THREE.Color(0xd4d8d6), 0.5);

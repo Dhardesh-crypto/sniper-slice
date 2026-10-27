@@ -792,3 +792,12 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       and both jump out and fight on foot. Its engine is a weak spot: one hit stalls it (they get out),
       two blow it up with anyone still in it. Checked in the vineyard: up the road, the stop, the turn,
       back; one crewman alarmed → the car stopped and both were out, searching.
+
+## Dusk and searchlights (2026-10-27)
+- [x] A fifth condition, dusk (17% of runs): the sun on the hills, an orange-to-blue sky, dimmer fill,
+      the haze in to 1.3 km, guards seeing ×0.75. src/world/searchlights.js: the searchlight props (or
+      the watchtowers, on maps without) carry lamps, at most four: a spotlight and a faint cone of
+      light sweeping a slow arc out over the approaches. In a beam with nothing between for 0.6 s and
+      it has you: the three nearest guards are alerted to you and the light follows you for 8 s. Each
+      lamp is a weak spot: one shot puts it out. Checked at the airfield: two lamps sweeping; standing
+      in a beam alerted three guards and the light locked on; one hit put it out.
