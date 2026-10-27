@@ -1,8 +1,8 @@
 // Shooting through cover. A rifle round goes through a plank wall, a door, a shutter, a crate, a
 // tent, a vine row or a pane, and through a lath-and-plaster partition; stone, sandbags, earth and
 // steel stop it. How much it can go through (m of the stuff, for a full-power round at 800 m/s)
-// falls with the square of its speed (a pistol bullet gets through a pane or a tent, not a door), AP rounds
-// go twice as far, and it comes out the other side slower and weaker by the share it used up.
+// falls with the square of its speed (a pistol bullet gets through a pane or a tent, not a door),
+// AP rounds go twice as far, and it comes out the other side slower and weaker by the share it used.
 // The thickness is measured: a ray back from beyond the hit finds where the round would come out.
 import * as THREE from 'three';
 import { M, isPlaster } from '../world/kit.js';
