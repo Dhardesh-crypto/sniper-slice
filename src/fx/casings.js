@@ -1,16 +1,17 @@
 // Spent brass: every round from a rifle or machine gun throws its case out of the ejection port, to
 // the right and up, tumbling; it bounces once or twice and lies where it lands (on the ground, a
 // floor, a sandbag top). An MG42 drops them out of the bottom: a burst leaves a drift under the gun.
-// One instanced mesh, a ring of 260 cases: the oldest goes when a new one flies. (No tinkle when they
-// land: a thin metallic ping is the kind of sound this game leaves out.)
+// Each rings on the ground when it first lands (recorded drops, audio.casing; within earshot only).
+// One instanced mesh, a ring of 260 cases: the oldest goes when a new one flies.
 import * as THREE from 'three';
 
 const N = 260, GRAVITY = 9.8;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1);
 
 export class Casings {
-  constructor({ scene, world }) {
+  constructor({ scene, world, audio }) {
     this.world = world;
+    this.audio = audio;
     const geo = new THREE.CylinderGeometry(0.0062, 0.0062, 0.057, 6).rotateZ(Math.PI / 2);   // along x
     const mat = new THREE.MeshStandardMaterial({ color: 0x9a7a3a, metalness: 0.8, roughness: 0.45 });
     this.mesh = new THREE.InstancedMesh(geo, mat, N);
@@ -53,6 +54,7 @@ export class Casings {
       const floor = this.world.floorAt(c.pos.x, c.pos.z, c.pos.y + 0.05, 0.1) + 0.006;
       if (c.pos.y <= floor && c.vel.y < 0) {
         c.pos.y = floor;
+        if (!c.bounces && this.audio && this.world.viewer) this.audio.casing(c.pos.distanceTo(this.world.viewer));
         c.bounces++;
         c.vel.y *= -0.3; c.vel.x *= 0.45; c.vel.z *= 0.45; c.rate *= 0.4;
         if (c.bounces >= 3 || Math.abs(c.vel.y) < 0.4) {           // it settles, lying on its side

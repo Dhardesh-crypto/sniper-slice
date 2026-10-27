@@ -138,7 +138,7 @@ initExhaust({ fx, player });          // fumes from every running engine
 initGroundMarks(scene);               // tracks and tyre marks in the soft ground
 const weather = new Weather({ scene, camera, fx, audio, player, world });   // rain, mist, spray (per mission)
 world.decals = new Decals({ scene, world });   // bullet holes, blood
-world.casings = new Casings({ scene, world }); // spent brass
+world.casings = new Casings({ scene, world, audio }); // spent brass, ringing as it lands
 for (const [kind, x, z, r, n] of activeMap().animals ?? []) addAnimals(scene, kind, x, z, r, n);   // cows, goats, deer
 { const heard = stealth.noise.bind(stealth); stealth.noise = (pos, radius, kind) => { startle(pos, Math.min(radius, 150)); return heard(pos, radius, kind); }; }   // shots and blasts scatter them
 const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one

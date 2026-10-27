@@ -751,6 +751,8 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 - [x] src/fx/casings.js: every rifle and machine-gun round throws its case (a ring of 260 instanced
       cases): flicked up and right from a rifle (when the bolt's worked on a bolt rifle), dropped out
       of the bottom of an MG42 and off the parapet to the gunner's feet; they tumble, bounce and lie
-      where they land. No landing sound (no metallic pings in this game).
+      where they land. Each rings on the ground as it first lands: 11 recorded drops (Pixabay: .30 cases
+      and mixed sizes), within ~25 m, at most one every 70 ms in a burst (the user: game sound effects
+      may be metallic; the no-bells rule is for video music).
 - [x] The nests' floor (the model's trodden earth, 0.24 m up) is solid now: gunners, guards and cases
       stood sunk in it before.

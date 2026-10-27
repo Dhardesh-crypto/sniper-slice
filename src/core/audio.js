@@ -41,6 +41,9 @@ EXTRA.push(...Object.values(SHOUTS).flat());
 // A guard dog's barks (Pixabay, cut from two recordings; see public/sounds/CREDITS.md).
 const BARKS = Array.from({ length: 11 }, (_, i) => `dog_bark_${i + 1}`);   // (7–11: a German shepherd)
 EXTRA.push(...BARKS);
+// Spent brass landing (Pixabay: eleven drops of .30 and mixed-size cases bouncing; CREDITS.md).
+const CASINGS = Array.from({ length: 11 }, (_, i) => `casing_${i + 1}`);
+EXTRA.push(...CASINGS);
 // The music's level under the effects at 100% on the music slider.
 const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
@@ -513,6 +516,16 @@ export class Audio {
       o.start(t); o.stop(t + 0.2);
       this.noiseBurst({ at: t - ctx.currentTime, dur: 0.07, type: 'bandpass', freq: 1400, q: 1.2, gain: 0.18 * k });
     }
+  }
+
+  // A spent case landing `distance` m away (quiet: heard within 25 m or so). A burst drops them
+  // faster than anyone could tell apart, so no more than one every 70 ms.
+  casing(distance) {
+    const now = this.ctx?.currentTime ?? 0;
+    if (!this.ctx || distance > 25 || now < (this.casingUntil ?? 0)) return;
+    this.casingUntil = now + 0.07;
+    const k = Math.max(0, 1 - distance / 25);
+    this.sample(CASINGS[Math.floor(Math.random() * CASINGS.length)], { gain: 0.5 * k * k, rate: 0.9 + Math.random() * 0.25, filter: 2500 + 15000 * k });
   }
 
   // A dog hit: a high yelp falling away.

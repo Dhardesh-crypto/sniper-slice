@@ -16,6 +16,8 @@ redistributed as standalone sound files):
 - `dog_bark_6.mp3`: "Free Dog Bark" by DRAGON-STUDIO, https://pixabay.com/sound-effects/nature-free-dog-bark-419014/ (trimmed, levelled)
 - `dog_bark_7.mp3`–`dog_bark_11.mp3`: five barks cut from "German shepherd barking" by AudioPapkin, https://pixabay.com/sound-effects/nature-german-shepherd-barking-302356/ (cut at the silences, faded, levelled)
 - `shot_mg42.mp3` and `mg42_tail.mp3`: the last round of the burst, and the echo after it, from "Machine Gun" by DennisH18, https://pixabay.com/sound-effects/film-special-effects-machine-gun-129929/ (cut, levelled to the clips they replace; the round plays once per shot at the gun's rate, the echo when the trigger's let go). Used for the MG42 you carry, the nests' guns (yours and the guards')
+- `casing_1.mp3`–`casing_5.mp3`: five drops cut from ".30 Shell Bouncing" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-30-shell-bouncing-87453/ (cut at the silences, faded, levelled)
+- `casing_6.mp3`–`casing_11.mp3`: six drops cut from "Bouncing Shell Casings (Various Sizes)" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-bouncing-shell-casings-various-sizes-32291/ (cut at the silences, faded, levelled)
 
 ## Music
 

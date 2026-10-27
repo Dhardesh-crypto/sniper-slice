@@ -30,7 +30,7 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
   architecture and interior kits, horizon panoramas, tree LODs, anatomy. Prefer Blender or code over
   Higgsfield (Higgsfield costs credits; use it only when asked).
 - Music: MusicGen (AudioCraft) per mission plus an alarm layer, `public/sounds/music_*.mp3`, credits
-  in `public/sounds/CREDITS.md`. **No bell-like sounds** (no chimes, glockenspiel, metallic pings).
+  in `public/sounds/CREDITS.md`. No bell-like timbres in the **music** (no chimes, glockenspiel); realistic metallic sound effects (brass cases landing) are fine.
 - The fal.ai key is in `~/.config/fal/key`: never write it into the project (the repo is public).
 
 ## Rules the user has set
