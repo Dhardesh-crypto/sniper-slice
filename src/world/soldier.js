@@ -107,6 +107,11 @@ export class Soldier {
       return { zone, killed: true, damage };
     }
     this.wounded = true;
+    // Where it hit him tells for the rest of the fight: a leg and he goes down on a knee, then limps;
+    // an arm and his aim is shaky; the body and he bleeds, and may bleed out a while later.
+    if (zone === 'leg') { this.limp = true; this.kneelT = 1.4; }
+    else if (zone === 'arm') { this.armHit = true; this.shakenT = 1.5; }
+    else this.bleed = (this.bleed ?? 0) + damage / 60;        // hp a second: half a minute or so
     if (this.char.action('hitReact')) {
       // He reels from the hit, then carries on.
       this.reactT = 0.9;
@@ -231,9 +236,16 @@ export class Soldier {
       this.char.bones.Spine01?.rotateX(-0.25 * k);
     }
     // Ducking behind cover (the same world-space crouch as the player's).
-    this.crouch += ((this.alive ? this.crouchTarget : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
+    // (down on a knee for a moment after a leg wound)
+    if (this.kneelT > 0) this.kneelT -= dt;
+    this.crouch += ((this.alive ? Math.max(this.crouchTarget, this.kneelT > 0.3 ? 0.85 : 0) : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand', kneel: this.gait === 'stand' ? this.crouch : 0 });   // still: down on one knee
     this.kick = Math.max(0, this.kick - dt * 4);
+    // Bleeding from a body wound (applyHit).
+    if (this.alive && this.bleed > 0) {
+      this.hp -= this.bleed * dt;
+      if (this.hp <= 0) { this.die(new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y))); this.bledOut = true; }   // he folds forward
+    }
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.manning) this.onGun(this.manning);
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
@@ -297,6 +309,7 @@ export class Soldier {
     this.takenDown = this.grabClip = this.quietDeath = false;
     this.stance = this.baseStance;
     this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouch = this.crouchTarget = 0; this.manning = null;
+    this.limp = this.armHit = false; this.kneelT = this.shakenT = this.bleed = 0; this.bledOut = false;
     this.root.rotation.y = this.targetYaw = this.homeYaw;
     if (this.aware) Object.assign(this.aware, { meter: 0, state: 'calm', stimulus: null });
     for (const a of Object.values(this.char.actions)) if (a !== this.char.hold) a.stop();

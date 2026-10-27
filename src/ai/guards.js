@@ -235,6 +235,7 @@ export class GuardAI {
     const aimPoint = target.clone(); aimPoint.y += a.headOnly ? p.eye + 0.05 : Math.max(0.3, p.eye * 0.75);
     s.targetYaw = Math.atan2(aimPoint.x - s.root.position.x, aimPoint.z - s.root.position.z);
     b.fireT -= dt;
+    if (s.shakenT > 0) { s.shakenT -= dt; b.fireT = Math.max(b.fireT, s.shakenT); }   // an arm wound: a moment to bring the rifle up again
     // Too close to a wall to bring his rifle to bear (soldier.js keepRifleClear): step back first.
     if (s.rifleBlocked && !b.fixed) {
       const pos = s.root.position, back = this.v.set(pos.x - aimPoint.x, 0, pos.z - aimPoint.z).normalize();
@@ -302,6 +303,8 @@ export class GuardAI {
     if (p.moving) hit *= p.sprinting ? 0.5 : 0.75;
     if (s.aware.headOnly) hit *= 0.45;
     hit *= Math.min(1.6, 1 + 0.15 * b.shots);
+    if (s.armHit) hit *= 0.5;                             // shaky with a wounded arm
+    if (s.bleed > 0) hit *= 0.8;
     b.shots++;
     if (Math.random() < Math.min(0.8, hit)) {
       p.damage(24 + Math.random() * 10, s.root.position);
@@ -387,7 +390,7 @@ export class GuardAI {
     this.audio.enemyBurstShot(d);
     const block = this.world.raycastSegment(muzzle.clone().addScaledVector(dir, 0.3), aim);
     if (block && !block.soldier && block.point.distanceTo(aim) > 0.5) { this.fx.dust(block.point, block.normal, d); return; }
-    let hit = 0.14 * Math.exp(-d / 110);
+    let hit = 0.14 * Math.exp(-d / 110) * (s.armHit ? 0.5 : 1);
     hit *= { stand: 1, crouch: 0.7, prone: 0.45 }[p.stance] ?? 1;
     if (p.moving) hit *= p.sprinting ? 0.55 : 0.8;
     if (a.headOnly) hit *= 0.4;
@@ -579,6 +582,8 @@ export class GuardAI {
   // Walk/run toward `target` along a path. Returns true on arrival.
   goTo(s, target, speed, dt) {
     const b = s.brain, pos = s.root.position;
+    if (s.kneelT > 0) { this.stop(s); return false; }   // down on a knee from a leg wound
+    if (s.limp) speed *= 0.45;                          // and limping after it
     if (Math.hypot(target.x - pos.x, target.z - pos.z) < 0.6 && Math.abs(target.y - pos.y) < 1.6) { b.path = null; return true; }   // (not the room overhead)
     b.repathT -= dt;
     const moved = b.pathTarget && b.pathTarget.distanceTo(target) > 2;

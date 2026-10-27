@@ -723,3 +723,9 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       rounds land round you, blood spattered on whatever was within 3 m behind a man you hit, and a
       pool spreading under each body for half a minute. Two instanced meshes, a ring of 320 holes and
       140 blood decals. None on hidden collision blocks or doors (they'd hang in the air).
+
+## Wounds that tell (2026-10-27)
+- [x] A guard who survives a hit carries it: a leg and he drops to one knee for a second, then limps
+      at 45% pace (1.7 m/s running instead of 3.8); an arm and he takes 1.5 s to bring his rifle up
+      again and shoots half as straight; the body or pelvis and he bleeds (damage/60 hp a second) and
+      may fold forward and die half a minute later (26 s after a 70-point torso hit).
