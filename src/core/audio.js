@@ -34,9 +34,10 @@ export const SOUND_CHECK = [
   ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren'];
+const EXTRA = ['bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', 'explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren'];
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
-const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'] };
+const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'],
+  medic: ['vo_medic_1', 'vo_medic_2', 'vo_medic_3', 'vo_medic_4'] };   // a wounded man down, calling for help
 EXTRA.push(...Object.values(SHOUTS).flat());
 // A guard dog's barks (Pixabay, cut from two recordings; see public/sounds/CREDITS.md).
 const BARKS = Array.from({ length: 11 }, (_, i) => `dog_bark_${i + 1}`);   // (7–11: a German shepherd)
@@ -549,7 +550,22 @@ export class Audio {
     o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.55);
   }
 
-  // A bullet passing close: the supersonic crack, then a whizz.
+  // An enemy round missing you close: the snap of it going past your head (or, slow and far, its
+  // whizz), and where it lands beside you: a smack into the dirt, or off stone with a ricochet.
+  bulletPast({ far = false, impact = null } = {}) {
+    const now = this.ctx?.currentTime ?? 0;
+    if (now < (this.pastUntil ?? 0)) return;                 // (a burst: not every round at once)
+    this.pastUntil = now + 0.06;
+    const rate = 0.92 + Math.random() * 0.16;
+    if (far) { if (!this.sample('bullet_whiz', { gain: 0.6, rate })) this.crack(); }
+    else {
+      if (!this.sample(Math.random() < 0.5 ? 'bullet_crack_1' : 'bullet_crack_2', { gain: 0.9, rate, wet: 0.08 })) this.crack();
+      if (Math.random() < 0.35) this.sample('bullet_whiz', { at: 0.015, gain: 0.3, rate });
+    }
+    if (impact) this.sample(impact === 'stone' ? 'bullet_ricochet' : 'bullet_dirt', { at: 0.02 + Math.random() * 0.04, gain: impact === 'stone' ? 0.55 : 0.65, rate, wet: 0.12 });
+  }
+
+  // A bullet passing close (synthesised, before the recordings load): the supersonic crack, then a whizz.
   crack() {
     this.noiseBurst({ dur: 0.025, type: 'highpass', freq: 3000, gain: 0.55 });
     this.noiseBurst({ at: 0.01, dur: 0.16, type: 'bandpass', freq: 2200, freqEnd: 900, q: 1.5, gain: 0.18 });

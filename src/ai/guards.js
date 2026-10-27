@@ -90,7 +90,7 @@ export class GuardAI {
     };
   }
 
-  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && s.brain && !s.takenDown); }
+  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && s.brain && !s.takenDown && !s.downed); }   // (the wounded on the ground: tickDowned)
 
   // ---------------------------------------------------------------- per tick
   tick(dt) {
@@ -105,6 +105,7 @@ export class GuardAI {
       this.run(s, dt);
       s.setActivity(s.nextActivity);
     }
+    for (const s of this.world.soldiers) if (s.alive && s.downed && s.brain) this.tickDowned(s, dt);
     this.tickNests();
     this.tickIdle(dt);
     this.tickAlarm(dt);
@@ -120,6 +121,10 @@ export class GuardAI {
     if (b.nest) {                      // sent to a machine-gun nest: he holds it while the fight's on
       if (a.state === 'alerted' && this.player.mounted !== b.nest) return 'gunner';
       this.leaveNest(s);
+    }
+    if (b.help) {                      // sent to a wounded man on the ground
+      if (b.help.alive && b.help.downed && !b.help.downed.bandaged && !(a.spotted && a.state === 'alerted')) return 'help';
+      b.help = null; b.helpT = 0;                // (he's seen you: he fights)
     }
     if (b.task && a.state !== 'alerted') return 'repair';
     if (a.state === 'alerted') {
@@ -165,6 +170,21 @@ export class GuardAI {
           this.stop(s);
           if (a.state === 'calm') s.targetYaw = s.homeYaw;
         }
+        break;
+      }
+      case 'help': {
+        // Run to him, kneel at his side and work on him: a while out in the open.
+        const w = b.help, aw = w.downed.away, at = w.root.position.clone().addScaledVector(aw, 0.7).add(new THREE.Vector3(-aw.z, 0, aw.x).multiplyScalar(1.15));   // (at his side, by his chest)
+        if (!b.helpT && !this.goTo(s, at, a.state === 'calm' ? WALK * 1.5 : RUN, dt)) break;
+        if (s.root.position.distanceTo(w.root.position) > 2.2) {   // (no way to him: someone else must go)
+          (w.downed.refused ??= new Set()).add(s); w.downed.helper = null; w.downed.callT = Math.min(w.downed.callT, 1);
+          b.help = null; b.helpT = 0; break;
+        }
+        this.stop(s);
+        s.targetYaw = Math.atan2(w.root.position.x - s.root.position.x, w.root.position.z - s.root.position.z);
+        s.nextActivity = 'kneelWork';
+        b.helpT = (b.helpT ?? 0) + dt;
+        if (b.helpT > 7) { w.downed.bandaged = true; w.bleed = 0; b.help = null; b.helpT = 0; }   // he'll live: he lies there, out of it
         break;
       }
       case 'investigate': {
@@ -330,8 +350,14 @@ export class GuardAI {
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       this.world.decals?.scuff(miss);
-      if (d < 250) this.audio.crack();
+      this.audio.bulletPast({ far: d > 450, impact: this.missLands(miss) });
     }
+  }
+
+  // What a round that missed you strikes beside you: stone (a wall, a step: it ricochets) or the dirt.
+  missLands(miss) {
+    const floorBox = miss.y > this.world.groundAt(miss.x, miss.z) + 0.05;
+    return floorBox || Math.random() < 0.15 ? 'stone' : 'dirt';
   }
 
   // ---------------------------------------------------------------- idle life
@@ -473,7 +499,7 @@ export class GuardAI {
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       this.world.decals?.scuff(miss);
-      if (d < 250 && Math.random() < 0.35) this.audio.crack();
+      if (Math.random() < 0.7) this.audio.bulletPast({ far: d > 450, impact: Math.random() < 0.5 ? this.missLands(miss) : null });
     }
   }
 
@@ -494,7 +520,7 @@ export class GuardAI {
         if (best) { al.runner = best; al.activateT = 0; if (best.aware.state !== 'alerted') this.stealth.raise(best, 'alerted', best.aware.stimulus, 'shout'); }
       }
     }
-    if (al.runner && !al.runner.alive) { al.runner = null; al.activateT = 0; }
+    if (al.runner && (!al.runner.alive || al.runner.downed)) { al.runner = null; al.activateT = 0; }
     if (al.on) {
       const seen = this.guards().some(s => s.aware.spotted && s.aware.state === 'alerted');
       al.quietT = seen ? 0 : al.quietT + dt;
@@ -677,6 +703,43 @@ export class GuardAI {
 
   // ---------------------------------------------------------------- movement
   // Walk/run toward `target` along a path. Returns true on arrival.
+  // A wounded man on the ground: he falls, crawls a few metres on away from the shot, then lies
+  // there calling for a medic; the nearest comrade who isn't busy fighting comes to him.
+  tickDowned(s, dt) {
+    const d = s.downed, b = s.brain, pos = s.root.position;
+    b.task = null; b.nest = null;
+    d.t += dt;
+    if (d.t < 1.2) return;                                        // still going down
+    if (!d.crawling) { d.crawling = true; s.char.play('crawl', { fade: 0.4, timeScale: 0 }); }
+    const crawl = s.char.actions.crawl;
+    if (d.crawled < d.max && !d.bandaged && !d.helper?.brain?.helpT) {
+      const from = pos.clone(), step = 0.32 * dt;
+      pos.addScaledVector(d.away, step);
+      this.world.collideCircle(pos, 0.3, pos.y, pos.y + 0.5);
+      pos.y = this.world.floorAt(pos.x, pos.z, pos.y + 0.3);
+      const moved = Math.hypot(pos.x - from.x, pos.z - from.z);
+      d.crawled += moved < step * 0.4 ? d.max : moved;           // (up against something: he stops there)
+      if (crawl) crawl.timeScale = -0.9;                          // (the clip crawls backward: played reversed)
+    } else if (crawl) crawl.timeScale = 0;
+    if (d.bandaged) return;
+    if ((d.callT -= dt) <= 0) {
+      d.callT = 5 + Math.random() * 4;
+      this.audio.shout('medic', pos.distanceTo(this.player.pos));
+      this.stealth.noise?.(pos.clone(), 30, 'shout');
+      if (!d.helper?.alive || d.helper.downed || d.helper.brain.help !== s) {
+        d.helper = null;
+        let best = null, bd = 45;
+        for (const g of this.guards()) {
+          const gb = g.brain;
+          if (g.officer || gb.fixed || gb.nest || gb.help || g.riding || this.alarm.runner === g || g.aware.spotted || d.refused?.has(g) || Math.abs(g.root.position.y - pos.y) > 2) continue;
+          const dd = g.root.position.distanceTo(pos);
+          if (dd < bd) { bd = dd; best = g; }
+        }
+        if (best) { d.helper = best; best.brain.help = s; best.brain.helpT = 0; if (best.aware.state === 'calm') this.stealth.raise(best, 'suspicious', pos.clone(), 'shout'); }
+      }
+    }
+  }
+
   goTo(s, target, speed, dt) {
     const b = s.brain, pos = s.root.position;
     if (s.kneelT > 0) { this.stop(s); return false; }   // down on a knee from a leg wound

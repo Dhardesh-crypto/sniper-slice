@@ -76,7 +76,7 @@ export class Soldier {
   // Standing still with something to do (`activity`): looking around (alert: the legs and body
   // turn, the arms stay on the rifle) or kneeling at work (the rifle on his back).
   applyStance(fade = 0) {
-    if (this.reactT > 0) return;          // let the hit reaction finish
+    if (this.reactT > 0 || this.downed) return;          // let the hit reaction finish; down, he crawls (guards.js)
     const alert = this.stance === 'alert';
     const c = this.char;
     let clip = alert ? 'idleLegs' : 'idle', hold = alert ? 1 : 0, rate = 1;
@@ -109,6 +109,12 @@ export class Soldier {
       return { zone, killed: true, damage };
     }
     this.wounded = true;
+    // Badly hit in the body or a leg, he goes down: he crawls a little way and calls for help
+    // (guards.js), and bleeds out in three quarters of a minute unless someone gets to him.
+    if (!this.downed && (zone === 'torso' || zone === 'leg') && this.hp <= 40 && !this.riding && !this.manning && this.stance !== 'officer' && this.char.action('crawl')) {
+      this.goDown(bulletDir);
+      return { zone, killed: false, damage, downed: true };
+    }
     // Where it hit him tells for the rest of the fight: a leg and he goes down on a knee, then limps;
     // an arm and his aim is shaky; the body and he bleeds, and may bleed out a while later.
     if (zone === 'leg') { this.limp = true; this.kneelT = 1.4; }
@@ -125,7 +131,7 @@ export class Soldier {
 
   // A round cracked past him: he flinches and ducks for a moment.
   nearMiss() {
-    if (!this.alive || this.riding || this.manning) return;
+    if (!this.alive || this.riding || this.manning || this.downed) return;
     this.staggerT = Math.max(this.staggerT ?? 0, 0.45);
     this.duckT = 0.9 + Math.random() * 0.8;
   }
@@ -139,7 +145,7 @@ export class Soldier {
 
   // Awareness changed (from the stealth system): face the news, rifle up when wary.
   react(state, stimulus) {
-    if (!this.alive) return;
+    if (!this.alive || this.downed) return;
     if (state === 'calm') {
       this.targetYaw = this.homeYaw;
       if (this.stance !== this.baseStance) { this.stance = this.baseStance; this.applyStance(0.4); }
@@ -162,12 +168,34 @@ export class Soldier {
     this.grabClip = true;
   }
 
+  goDown(bulletDir) {
+    const away = new THREE.Vector3(bulletDir.x, 0, bulletDir.z);
+    if (away.lengthSq() < 0.02) away.set(-Math.sin(this.root.rotation.y), 0, -Math.cos(this.root.rotation.y));
+    away.normalize();
+    this.downed = { t: 0, away, crawled: 0, max: 3 + Math.random() * 4, callT: 1.5 + Math.random(), helper: null, crawling: false };
+    this.root.rotation.y = this.targetYaw = Math.atan2(away.x, away.z);   // he pitches forward, away from the shot
+    this.aimDir = null; this.gait = 'stand'; this.speed = 0; this.crouchTarget = 0; this.reactT = 0; this.staggerT = 0;
+    this.char.setHoldWeight(0);
+    if (this.char.rifle.visible) this.dropRifle(bulletDir);
+    this.char.play('deathFwd', { fade: 0.08, once: true, timeScale: 1.3 });
+    this.bleed = this.hp / 45;
+  }
+
   // He goes down the way the hit sends him. `zone`: where a bullet struck; `point`: where (off his
   // centre line it turns him: a shoulder hit spins him round); `power`: the round's punch (0–1.2);
   // `blast`: an explosion's force on him (0–1.5), which throws him through the air.
   die(bulletDir, { quiet = false, zone = 'torso', point = null, power = 1, blast = 0 } = {}) {
     this.alive = false;
     this.quietDeath = quiet;
+    if (this.downed) {
+      // Already on the ground: he goes still where he lies.
+      this.downed = null;
+      this.deathClip = 'deathFwd';
+      this.fallFrom = this.root.position.clone(); this.knock = new THREE.Vector3(); this.deathT = 1; this.fall = this.fly = null;
+      this.char.play('deathFwd', { fade: 0.5, once: true });
+      if (this.char.base) this.char.base.time = this.char.base.getClip().duration;
+      return;
+    }
     const yaw = this.root.rotation.y;
     const facing = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     // The way he's pushed, flat; straight down or up (a fall, a vehicle going up): back off his feet.
@@ -356,7 +384,8 @@ export class Soldier {
       this.hp -= this.bleed * dt;
       if (this.hp <= 0) { this.die(new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y)), { power: 0.2 }); this.bledOut = true; }   // he folds forward
     }
-    if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
+    if (this.downed) { /* on the ground: the clip has him */ }
+    else if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.manning) this.onGun(this.manning);
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
     else if (this.alive && this.aimDir && this.stance !== 'officer') this.keepRifleClear(this.aimDir);
@@ -412,6 +441,7 @@ export class Soldier {
     this.fallFrom = null;
     this.fall = this.fly = null;
     this.root.rotation.set(0, this.root.rotation.y, 0);
+    this.downed = null;
     if (this.drop) { this.root.add(this.char.rifle); this.drop = null; }
     this.hp = 100;
     this.alive = true;
