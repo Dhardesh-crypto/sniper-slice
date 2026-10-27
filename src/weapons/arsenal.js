@@ -426,7 +426,7 @@ export class Arsenal {
       return;
     }
     if (hit.soldier) {
-      const res = hit.soldier.applyHit(hit.zone, bullet.def, dir);
+      const res = hit.soldier.applyHit(hit.zone, bullet.def, dir, { point: hit.point });
       this.fx.blood(hit.point, dir.clone().negate());
       if (res.already) {
         this.fx.dust(hit.point, hit.normal, distance);

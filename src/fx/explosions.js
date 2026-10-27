@@ -37,7 +37,9 @@ export class Explosions {
       if (!s.alive || s.range) continue;
       const v = s.bodyPosition(new THREE.Vector3()).sub(at);
       if (v.length() < radius && (s.riding || this.clear(at, s.bodyPosition(new THREE.Vector3())))) {   // (a man in a vehicle isn't sheltered by it)
-        s.applyHit('torso', { damage: { torso: 999 } }, v.setY(0).normalize());
+        // Thrown by it: the nearer and the bigger the blast, the higher and farther he goes.
+        const blast = (1 - v.length() / radius) * (0.7 + 0.3 * size) * (heavy ? 1.2 : 1) + 0.1;
+        s.applyHit('torso', { damage: { torso: 999 } }, v.setY(0).normalize(), { blast });
         kills++;
       }
     }

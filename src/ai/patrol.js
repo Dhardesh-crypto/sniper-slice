@@ -59,7 +59,8 @@ export class CarPatrol {
     const c = this.car = { kind, model, x: outer, dir: 1, inner, outer, wait: 2, v: 0, stalled: false, crew: [], yaw: 0 };
     c.hotspot = hotspots.add({ kind: 'engine', title: kind.title, explosive: true, meshes: [engine], parts: [model.userData.mesh],
       onBreak: () => { c.stalled = true; this.dismount(); },
-      onExplode: () => { c.stalled = true; for (const s of c.crew) if (s.alive && s.riding) s.applyHit('torso', { damage: { torso: 999 } }, new THREE.Vector3(0, 1, 0)); this.dismount(); this.audio.loopSample('patrolCar', 'army_truck', 0); } });
+      // (blown up: the crew thrown out over the side each sat on)
+      onExplode: () => { c.stalled = true; for (const s of c.crew) if (s.alive && s.riding) s.applyHit('torso', { damage: { torso: 999 } }, s.seat.clone().setY(0).applyQuaternion(c.model.quaternion), { blast: 0.9 }); this.dismount(); this.audio.loopSample('patrolCar', 'army_truck', 0); } });
     addExhaust({ space: model, points: [new THREE.Vector3(...kind.exhaust)], dir: new THREE.Vector3(0, 0.3, -1), running: () => !c.stalled, speed: () => c.v });
     addGroundMarks({ object: model, wheels: kind.wheels.map(([x, z]) => ({ at: new THREE.Vector3(x, 0, z), kind: 'tyre' })) });
     this.place();

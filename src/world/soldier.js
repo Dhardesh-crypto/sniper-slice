@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { clearXray } from './anatomy.js';
 import { Character, buildHitZones, solveArmIK } from './characters.js';
 
+const UP = new THREE.Vector3(0, 1, 0), MIDDLE = new THREE.Vector3(0, 0.9, 0);
+
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
   // look: which character model ('guard', 'guardCamo', 'guardSergeant', 'officerLieutenant';
@@ -103,7 +105,7 @@ export class Soldier {
     const damage = weapon.damage[zone] ?? 50;
     this.hp -= damage;
     if (this.hp <= 0) {
-      this.die(bulletDir, opts);
+      this.die(bulletDir, { zone, power: THREE.MathUtils.clamp((weapon.damage.torso ?? damage) / 100, 0.3, 1.2), ...opts });
       return { zone, killed: true, damage };
     }
     this.wounded = true;
@@ -153,12 +155,20 @@ export class Soldier {
     this.grabClip = true;
   }
 
-  die(bulletDir, { quiet = false } = {}) {
+  // He goes down the way the hit sends him. `zone`: where a bullet struck; `point`: where (off his
+  // centre line it turns him: a shoulder hit spins him round); `power`: the round's punch (0–1.2);
+  // `blast`: an explosion's force on him (0–1.5), which throws him through the air.
+  die(bulletDir, { quiet = false, zone = 'torso', point = null, power = 1, blast = 0 } = {}) {
     this.alive = false;
     this.quietDeath = quiet;
+    const yaw = this.root.rotation.y;
+    const facing = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    // The way he's pushed, flat; straight down or up (a fall, a vehicle going up): back off his feet.
+    const push = new THREE.Vector3(bulletDir.x, 0, bulletDir.z);
+    if (push.lengthSq() < 0.02) push.copy(facing).negate().applyAxisAngle(UP, (Math.random() - 0.5) * 1.5);
+    push.normalize();
     // Shot from the front falls backward; from behind falls forward.
-    const facing = new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y));
-    let fallBack = bulletDir.dot(facing) < 0;
+    let fallBack = push.dot(facing) < 0;
     // He falls the way there's room: not backward through the wall he stood against.
     const room = (dir) => {
       if (!this.wallHit) return 1;
@@ -169,12 +179,109 @@ export class Soldier {
     if (fallBack ? behind < 0.9 && ahead > behind : ahead < 0.9 && behind > ahead) fallBack = !fallBack;
     this.char.setHoldWeight(0);
     this.deathClip = quiet && this.grabClip ? 'takedownVic' : fallBack ? 'deathBack' : 'deathFwd'; // for saving: the pose he ends in
-    if (!(quiet && this.grabClip)) this.char.play(this.deathClip, { fade: 0.08, once: true, timeScale: 1.15 });
     this.fallFrom = this.root.position.clone();
-    this.knock = new THREE.Vector3(bulletDir.x, 0, bulletDir.z).normalize().multiplyScalar(quiet ? 0 : 0.35);
-    if (this.knock.lengthSq() && room(this.knock.clone().normalize()) < 0.5) this.knock.set(0, 0, 0);   // (not into a wall)
+    this.knock = new THREE.Vector3();
+    this.deathT = 1;
+    this.fall = null; this.fly = null;
+    if (quiet) {
+      if (!this.grabClip) this.char.play(this.deathClip, { fade: 0.08, once: true, timeScale: 1.15 });
+      if (this.char.rifle.visible) this.dropRifle(bulletDir);
+      return;
+    }
+    // Turned as he goes: round to fall along the push (the clips fall straight ahead or straight
+    // back), and by the hit's leverage: struck off his centre line, that side is driven back.
+    const clipDir = fallBack ? facing.clone().negate() : facing;
+    const heading = (v) => Math.atan2(v.x, v.z);
+    let spin = heading(push) - heading(clipDir);
+    spin = Math.atan2(Math.sin(spin), Math.cos(spin));   // (about +y: from the way the clip falls to the push)
+    if (point) {
+      const r = point.clone().sub(this.root.position).setY(0);
+      const lever = THREE.MathUtils.clamp((r.z * push.x - r.x * push.z) / 0.25, -1, 1);   // (r × push).y, per 25 cm off centre
+      spin += lever * ({ arm: 1.1, torso: 0.45, leg: 0.6, head: 0.25 }[zone] ?? 0.4) * Math.min(1, power);
+    }
+    const steep = bulletDir.y < -0.55;                     // from high above: he folds where he stands
+    let rate = 1.15, shove = 0.4 * power, delay = 0;
+    if (blast > 0) { rate = 1.7; shove = 0; }
+    else if (steep) { rate = 1.4; shove = 0.06; spin *= 0.4; }
+    else if (zone === 'head') { rate = 1.6; shove = 0.12 * power; spin *= 0.5; }   // the strings cut: down at once
+    else if (zone === 'leg') { rate = 0.85; shove = 0.15; }                         // his legs go: he pitches over slowly
+    else if (zone === 'torso' && power > 0.7 && Math.random() < 0.4 && this.char.action('hitReact')) {
+      delay = 0.3 + Math.random() * 0.2;                   // he reels a step or two with it, then drops
+      shove = 0.75 * power;
+      this.char.play('hitReact', { fade: 0.05, once: true, timeScale: 1.8 });
+    }
+    this.fall = { yaw0: yaw, spin, t: 0, delay, rate, played: false, dur: blast > 0 ? 0.25 : 0.45 };
+    this.knock = push.clone().multiplyScalar(shove);
+    if (this.knock.lengthSq() && room(push) < 0.5) this.knock.set(0, 0, 0);   // (not into a wall)
     this.deathT = 0;
-    if (this.char.rifle.visible) this.dropRifle(bulletDir);
+    if (blast > 0) {
+      // Thrown: up and away along the push, tumbling over the way he flies, until he comes down.
+      const k = Math.min(1.5, blast);
+      this.fly = { pos: this.root.position.clone(), vel: push.clone().multiplyScalar(1.5 + 6.5 * k).setY(2 + 4.5 * k), tumble: 0.8 + 1.4 * k, t: 0, axis: new THREE.Vector3(push.z, 0, -push.x), landed: false, skid: 0 };
+      this.knock.set(0, 0, 0);
+      this.deathT = 1;
+    }
+    if (this.char.rifle.visible) this.dropRifle(bulletDir.clone().setY(0).add(blast > 0 ? new THREE.Vector3(0, 0.6, 0) : new THREE.Vector3()));
+    if (!delay) this.startFall();
+  }
+
+  startFall() {
+    this.fall.played = true;
+    this.char.play(this.deathClip, { fade: this.fall.delay ? 0.15 : 0.08, once: true, timeScale: this.fall.rate });
+  }
+
+  // The fall, after the death clip has posed him: the turn, the shove, or the flight through the air.
+  updateFall(dt) {
+    const f = this.fall;
+    if (f) {
+      f.t += dt;
+      if (!f.played && f.t >= f.delay) this.startFall();
+      const k = Math.min(1, f.t / (f.delay + f.dur)), e = k * k * (3 - 2 * k);
+      this.fallYaw = f.yaw0 + f.spin * e;
+      if (!this.fly) this.root.rotation.y = this.fallYaw;
+      if (k >= 1 && !this.fly) this.fall = null;
+    }
+    if (this.fly) this.updateFlight(dt);
+    else if (this.deathT < 1) {
+      // A short shove from the bullet on top of the fall animation (longer when he reels first).
+      this.deathT = Math.min(1, this.deathT + dt / (0.35 + (f?.delay ?? 0)));
+      const t = this.deathT;
+      this.root.position.copy(this.fallFrom).addScaledVector(this.knock, 1 - (1 - t) * (1 - t));
+    }
+  }
+
+  updateFlight(dt) {
+    const fl = this.fly, p = fl.pos;                  // (his feet's path; the root is posed about his middle)
+    fl.t += dt;
+    const from = p.clone();
+    if (!fl.landed) {
+      fl.vel.y -= 9.8 * dt;
+      p.addScaledVector(fl.vel, dt);
+      // Against a wall he stops dead and drops.
+      if (this.wallHit) {
+        const a = from.clone(), b = p.clone(); a.y += 0.9; b.y += 0.9;
+        if (this.wallHit(a, b) !== null) { p.x = from.x; p.z = from.z; fl.vel.x = fl.vel.z = 0; }
+      }
+      const floor = this.floorAt ? this.floorAt(p.x, p.z, Math.max(p.y, from.y) + 0.5) : this.fallFrom.y;
+      if (p.y <= floor && fl.vel.y < 0) { p.y = floor; fl.landed = true; fl.skid = Math.hypot(fl.vel.x, fl.vel.z) * 0.5; fl.landT = fl.t; }
+    } else {
+      // He skids on, slowing, and lies still.
+      fl.skid = Math.max(0, fl.skid - 8 * dt);
+      const next = p.clone().addScaledVector(fl.vel.clone().setY(0).normalize(), fl.skid * dt);
+      const a = p.clone(), b = next.clone(); a.y += 0.4; b.y += 0.4;
+      if (!this.wallHit || this.wallHit(a, b) === null) { p.x = next.x; p.z = next.z; }
+      if (this.floorAt) p.y = this.floorAt(p.x, p.z, p.y + 0.5);
+    }
+    // The tumble: tipped over the way he flies, and back by the time he lands (the clip leaves him lying).
+    const air = fl.landed ? Math.max(0, 1 - (fl.t - fl.landT) / 0.15) : Math.sin(Math.min(1, fl.t / 0.8) * Math.PI / 2);
+    const q = new THREE.Quaternion().setFromAxisAngle(fl.axis, fl.tumble * air);
+    this.root.quaternion.setFromEuler(new THREE.Euler(0, this.fallYaw, 0)).premultiply(q);
+    this.root.position.copy(p).add(MIDDLE).sub(MIDDLE.clone().applyQuaternion(q));
+    if (fl.landed && fl.skid <= 0 && air <= 0) {
+      this.root.rotation.set(0, this.fallYaw, 0);
+      this.root.position.copy(p);
+      this.fly = null; this.fall = null; this.fallFrom = p.clone();
+    }
   }
 
   // The rifle leaves his hands: it joins the scene, tumbles and comes to rest lying on
@@ -223,12 +330,7 @@ export class Soldier {
     }
     this.char.update(dt);
     if (this.drop) this.updateDrop(dt);
-    if (!this.alive && this.deathT < 1) {
-      // A short shove from the bullet on top of the fall animation.
-      this.deathT = Math.min(1, this.deathT + dt / 0.35);
-      const t = this.deathT;
-      this.root.position.copy(this.fallFrom).addScaledVector(this.knock, 1 - (1 - t) * (1 - t));
-    }
+    if (!this.alive && (this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
     if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.staggerT > 0) {
       this.staggerT = Math.max(0, this.staggerT - dt);
@@ -244,7 +346,7 @@ export class Soldier {
     // Bleeding from a body wound (applyHit).
     if (this.alive && this.bleed > 0) {
       this.hp -= this.bleed * dt;
-      if (this.hp <= 0) { this.die(new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y))); this.bledOut = true; }   // he folds forward
+      if (this.hp <= 0) { this.die(new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y)), { power: 0.2 }); this.bledOut = true; }   // he folds forward
     }
     if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.manning) this.onGun(this.manning);
@@ -300,6 +402,8 @@ export class Soldier {
     clearXray(this);
     if (this.fallFrom) this.root.position.copy(this.fallFrom);
     this.fallFrom = null;
+    this.fall = this.fly = null;
+    this.root.rotation.set(0, this.root.rotation.y, 0);
     if (this.drop) { this.root.add(this.char.rifle); this.drop = null; }
     this.hp = 100;
     this.alive = true;
