@@ -9,27 +9,33 @@ import { vehicleModel } from './vehicle-models.js';
 import { dressBlock } from './arch.js';
 import { M, Builder } from './kit.js';
 import { building, furniture } from './buildings.js';
-import { propModel, propGeometry, clipAbove } from './props.js';
-
-const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+import { propGeometry } from './props.js';
 
 // A watchtower. Its way up is a ladder on one face (`ladder`: +1 or -1, the side it hangs
 // on along z) or a straight stair flight running west from the platform (`stairs`).
 // Returns the platform top and, for a ladder, the climbing data the player uses.
 function tower(b, x, z, y, { ladder = 0, stairs = false } = {}) {
   const H = 8, S = 3.2, GAP = 0.9;
-  // The modelled tower (when loaded) gives the legs and bracing: it's cut off just under the
-  // platform (its generated cabin is solid where the picture had openings, and its deck sits
-  // higher than ours, so it hid the guard). The platform, railing, posts and roof above are ours.
-  const model = propModel('watchtower', { x: S + 0.8, y: (H + 0.2) / 0.6, z: S + 0.8 }, { stretch: true });
-  const wood = model ? HIDDEN : M.wood, dark = M.darkWood;
-  if (model) {
-    model.position.set(x, y, z); b.group.add(model);
-    clipAbove(model, y + H - 0.1);
-    for (const dx of [-S / 2, S / 2]) for (const dz of [-S / 2, S / 2]) b.box(0.2, 2.4, 0.2, M.wood, x + dx, y + H + 0.2, z + dz, { solid: false });
-  }
-  for (const dx of [-S / 2, S / 2]) for (const dz of [-S / 2, S / 2]) {
-    b.box(0.25, H + 2.6, 0.25, wood, x + dx, y, z + dz);
+  // Four squared posts from the ground through the platform to the roof, a girt halfway up and
+  // under the deck, and an X of braces on every face in each storey: one frame, all joined.
+  const dark = M.darkWood;
+  for (const dx of [-S / 2, S / 2]) for (const dz of [-S / 2, S / 2]) b.box(0.25, H + 2.6, 0.25, dark, x + dx, y, z + dz);
+  const mid = y + H / 2, levels = [[y + 0.3, mid], [mid, y + H - 0.1]];
+  const timber = (from, to, t = 0.12) => {
+    const len = from.distanceTo(to), geo = new THREE.BoxGeometry(t, len, t);
+    worldUVs(geo, dark.userData.tile);
+    const m = new THREE.Mesh(geo, dark);
+    m.position.copy(from).add(to).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+    m.castShadow = m.receiveShadow = true;
+    b.group.add(m);
+  };
+  for (const [ax, az, bx, bz, ox, oz] of [[-1, -1, 1, -1, 0, -1], [-1, 1, 1, 1, 0, 1], [-1, -1, -1, 1, -1, 0], [1, -1, 1, 1, 1, 0]]) {
+    // (each face's braces sit just outside the posts' faces, so they don't cut through them)
+    const off = new THREE.Vector3(ox * 0.17, 0, oz * 0.17);
+    const P = (sx, sz, py) => new THREE.Vector3(x + sx * S / 2, py, z + sz * S / 2).add(off);
+    b.box(Math.abs(bx - ax) * S / 2 + 0.3 + 0.05, 0.16, Math.abs(bz - az) * S / 2 + 0.3 + 0.05, dark, x + (ax + bx) * S / 4 + off.x, mid - 0.08, z + (az + bz) * S / 4 + off.z, { solid: false });
+    for (const [lo, hi] of levels) { timber(P(ax, az, lo), P(bx, bz, hi)); timber(P(bx, bz, lo), P(ax, az, hi)); }
   }
   b.box(S + 0.4, 0.2, S + 0.4, M.wood, x, y + H, z);                   // platform
   const top = y + H + 0.2;
@@ -47,7 +53,7 @@ function tower(b, x, z, y, { ladder = 0, stairs = false } = {}) {
   const out = { top: new THREE.Vector3(x, top, z) };
 
   if (ladder) {
-    const lz = z + ladder * (S / 2 + 0.25);
+    const lz = z + ladder * (S / 2 + 0.35);                    // (clear of the braces)
     for (const dx of [-0.3, 0.3]) b.box(0.07, H + 1.1, 0.07, M.wood, x + dx, y, lz, { solid: false }); // rails
     for (let i = 0; i < 10; i++) b.box(0.6, 0.05, 0.05, M.wood, x, y + 0.4 + i * 0.8, lz, { solid: false }); // rungs
     out.ladder = {

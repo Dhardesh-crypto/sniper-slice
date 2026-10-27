@@ -73,7 +73,7 @@ function dressing() {
 
 export default {
   id: 'vineyard',
-  props: ['generator', 'watchtower', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
+  props: ['generator', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
   map: {
     ...VINEYARD_MAP,
