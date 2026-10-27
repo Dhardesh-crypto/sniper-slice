@@ -639,6 +639,7 @@ export class Arsenal {
     const kr = 90, cr = 2 * Math.sqrt(kr) * 0.6;
     this.rollVel += (-kr * this.roll - cr * this.rollVel) * dt;
     this.roll += this.rollVel * dt;
+    if (this.player.jolt) { this.shake = Math.max(this.shake, this.player.jolt); this.player.jolt = 0; }   // (a near miss: player.js)
     this.shake *= Math.exp(-10 * dt);
     if (this.shake > 0.01) {
       const sh = this.shake * (this.scoped ? 0.004 : 0.008);

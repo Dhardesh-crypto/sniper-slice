@@ -276,6 +276,8 @@ export class Hud {
     hb.classList.toggle('low', player.health < 35);
     const hurt = el.hurt ?? (el.hurt = document.getElementById('hurt'));
     hurt.style.opacity = String(Math.max(player.dead ? 0.9 : 0, Math.max(0, 1 - player.hurtT / 0.9), player.health < 35 ? 0.35 : 0));
+    const sup = el.suppress ?? (el.suppress = document.getElementById('suppress'));
+    if (sup) sup.style.opacity = String(player.dead ? 0 : Math.min(0.85, (player.suppress ?? 0) * 0.85));   // under fire: sight closes in
     el.heartText.textContent = Math.round(player.heartRate);
     el.heart.style.animationDuration = `${(60 / player.heartRate).toFixed(3)}s`;
     el.breath.style.opacity = a.scoped ? 1 : 0;

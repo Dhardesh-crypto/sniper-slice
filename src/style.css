@@ -118,6 +118,8 @@ body.killcam #minimap { visibility: hidden; }
 #health { width: 160px; height: 6px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.18); }
 #health-fill { height: 100%; width: 100%; background: var(--ink); transition: width 0.15s; }
 #health.low #health-fill { background: var(--red); }
+#suppress { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 38%, rgba(12, 12, 10, 0.55) 72%, rgba(0, 0, 0, 0.9) 100%); }
 #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at center, transparent 45%, rgba(150, 12, 8, 0.75) 100%); }
 #death { position: fixed; inset: 0; display: none; place-content: center; text-align: center; cursor: pointer;

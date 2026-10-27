@@ -61,6 +61,15 @@ export class Player {
     if (this.health <= 0) { this.dead = true; this.climb = null; this.vel.set(0, 0, 0); }
   }
 
+  // An enemy round cracked past you: a flinch, the heart jumps, the edges of sight close in for a
+  // moment (suppression, building up under steady fire and fading in a couple of seconds).
+  nearMiss() {
+    if (this.dead) return;
+    this.heartRate = Math.min(165, this.heartRate + 7);
+    this.suppress = Math.min(1, (this.suppress ?? 0) + 0.35);
+    this.jolt = 0.45;
+  }
+
   look(dx, dy, sens, invertY) {
     const k = 0.0022 * sens;
     this.yaw -= dx * k;
@@ -77,6 +86,7 @@ export class Player {
 
   tick(dt, { aiming }) {
     const inp = this.input;
+    if (this.suppress > 0) this.suppress = Math.max(0, this.suppress - dt * 0.45);
     // Wounds close slowly once you're out of the fight for a while, but only up to the next
     // quarter of your health (25 / 50 / 75 / 100): bandages and medkits do the rest.
     this.hurtT += dt;

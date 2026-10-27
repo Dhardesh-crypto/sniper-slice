@@ -351,6 +351,7 @@ export class GuardAI {
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       this.world.decals?.scuff(miss);
       this.audio.bulletPast({ far: d > 450, impact: this.missLands(miss) });
+      if (d <= 450) p.nearMiss?.();
     }
   }
 
@@ -499,7 +500,7 @@ export class GuardAI {
       miss.y = this.world.floorAt(miss.x, miss.z, p.pos.y + 0.3);
       this.fx.dust(miss, new THREE.Vector3(0, 1, 0), d);
       this.world.decals?.scuff(miss);
-      if (Math.random() < 0.7) this.audio.bulletPast({ far: d > 450, impact: Math.random() < 0.5 ? this.missLands(miss) : null });
+      if (Math.random() < 0.7) { this.audio.bulletPast({ far: d > 450, impact: Math.random() < 0.5 ? this.missLands(miss) : null }); if (d <= 450) p.nearMiss?.(); }
     }
   }
 

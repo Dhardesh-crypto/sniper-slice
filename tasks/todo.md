@@ -838,3 +838,19 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       the ground to the roof (buildings.js timberFrame). Rendered all four.
 - [x] The corner lean shows on the body: the spine rolls to that side, the neck back level, undone
       each frame like the crouch. Checked from behind both ways; no drift over 5 s.
+
+## Hits, wounds, near misses (2026-10-27)
+- [x] Deaths follow the hit (soldier.js die): turned to fall along the round's path and by its
+      leverage (a shoulder hit spins him), head shots drop him, leg hits pitch him over, steep shots
+      fold him, a heavy body hit sometimes staggers him first. Blasts throw bodies in an arc by
+      distance and size, tumbling, stopped by walls, skidding on landing.
+- [x] Near misses on guards (arsenal.js nearMisses): a round within 1.6 m of his head and he
+      flinches, ducks, holds his fire, and is alerted (supersonic) or suspicious (subsonic).
+- [x] Wounded guards go down (≤40 hp from a body or leg hit): drop the rifle, crawl 3–7 m away
+      from the shot, call for a medic (vo_medic_1–4, ElevenLabs); the nearest free comrade on the
+      same level runs over and kneels by him 7 s, saving him; else he bleeds out in ~45 s. Saved.
+- [x] Enemy near misses on you: recorded cracks, whizz, dirt and ricochet strikes (bullet_*.mp3);
+      a flinch, the heart rate up, and sight closing in under steady fire (#suppress).
+- [x] Dusk torches sweep about what a wary guard is looking for; a downed man's goes out.
+- [x] The bridge engineers' hut on a levelled pad; a ground floor over falling ground gets a solid
+      plinth (every mission measured: the hut was the only one).
