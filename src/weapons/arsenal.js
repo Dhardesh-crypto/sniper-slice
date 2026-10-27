@@ -321,6 +321,12 @@ export class Arsenal {
     this.viewKick = 1;
     this.readyT = 1;
     if (!this.scoped) this.fx.flash(origin, dir);
+    // The spent case: out at once from an automatic or a semi-automatic, when the bolt's worked from a
+    // bolt rifle; none from a pistol (it lands at your feet unseen), a shotgun's comes with the pump.
+    if (!def.rocket && this.current !== 'pistol') {
+      const port = this.scoped ? cam.position.clone().addScaledVector(fwd, 0.5).addScaledVector(up, -0.12) : origin;
+      this.world.casings?.eject(port, dir, right, def.auto || def.semi || this.mount ? 0 : def.pellets ? 0.3 : 0.45, !!def.auto);
+    }
     if (!this.mount) this.player.heartRate = Math.min(180, this.player.heartRate + 3);   // (braced on a mounted gun: no)
     this.audio.weaponShot(def);           // each gun its own report; suppressed if one's fitted
     if (this.current === 'rifle' && !this.mount && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves

@@ -21,6 +21,7 @@ import { Carry } from './player/carry.js';
 import { MountedGuns } from './world/mgnest.js';
 import { SideJobs } from './mission/sidejobs.js';
 import { Decals } from './fx/decals.js';
+import { Casings } from './fx/casings.js';
 import { Dogs } from './ai/dogs.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
@@ -137,6 +138,7 @@ initExhaust({ fx, player });          // fumes from every running engine
 initGroundMarks(scene);               // tracks and tyre marks in the soft ground
 const weather = new Weather({ scene, camera, fx, audio, player, world });   // rain, mist, spray (per mission)
 world.decals = new Decals({ scene, world });   // bullet holes, blood
+world.casings = new Casings({ scene, world }); // spent brass
 for (const [kind, x, z, r, n] of activeMap().animals ?? []) addAnimals(scene, kind, x, z, r, n);   // cows, goats, deer
 { const heard = stealth.noise.bind(stealth); stealth.noise = (pos, radius, kind) => { startle(pos, Math.min(radius, 150)); return heard(pos, radius, kind); }; }   // shots and blasts scatter them
 const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots }) : null;   // not every map has one
@@ -459,6 +461,7 @@ function tick(dt) {
   tickGroundMarks();
   weather.tick(dt);
   world.decals.tick(dt);
+  world.casings.tick(dt);
   tickAnimals(dt, player);
   explosions.tick(dt);
   mission.tick(dt);

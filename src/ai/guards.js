@@ -287,6 +287,7 @@ export class GuardAI {
     s.kick = 1;
     this.fx.flash(muzzle, dir);
     this.audio.enemyShot(d);
+    this.world.casings?.eject(muzzle, dir, new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), 0.5);   // (when he works the bolt)
     // Something solid on his line of aim (a girder, the edge of the wall you hide behind) takes
     // the round instead. (He aims down the sights, so it's traced from his eye, a metre out: a
     // railing right at his elbow he shoots past.)
@@ -388,6 +389,7 @@ export class GuardAI {
     const d = muzzle.distanceTo(aim), dir = aim.clone().sub(muzzle).normalize();
     this.fx.flash(muzzle, dir);
     this.audio.enemyBurstShot(d);
+    this.world.casings?.eject(muzzle, dir, new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), 0, true);
     const block = this.world.raycastSegment(muzzle.clone().addScaledVector(dir, 0.3), aim);
     if (block && !block.soldier && block.point.distanceTo(aim) > 0.5) { this.fx.dust(block.point, block.normal, d); return; }
     let hit = 0.14 * Math.exp(-d / 110) * (s.armHit ? 0.5 : 1);

@@ -50,6 +50,15 @@ function arm(o, world, scene) {
   }
   // The guards' route map keeps a lane open through the gap at the back (ai/nav.js), as through a door.
 
+  // The floor inside (the model's trodden earth, a hand's breadth up): solid, so the gunner, the
+  // guards and the spent cases stand on it rather than sunk in it.
+  const down = new THREE.Raycaster(base.clone().add(new THREE.Vector3(0, top + 1, 0)), new THREE.Vector3(0, -1, 0));
+  const fh = (down.intersectObjects(o.userData.meshes, false)[0]?.point.y ?? base.y) - base.y;
+  if (fh > 0.02 && fh < 0.5) {
+    const f = 1.2 * (R - side / 2) / Math.SQRT2;            // a square inside the ring
+    world.boxes.push(new THREE.Box3(new THREE.Vector3(base.x - f, base.y - 0.3, base.z - f), new THREE.Vector3(base.x + f, base.y + fh, base.z + f)));
+  }
+
   // The gun: on its bipod on the front sandbags, the muzzle out over them.
   const pivot = new THREE.Vector3(R - 0.12, h + 0.17, 0);
   const yawG = new THREE.Group(), tilt = new THREE.Group(), gun = rifleModel('mg42');

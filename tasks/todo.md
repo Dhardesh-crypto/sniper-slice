@@ -746,3 +746,11 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       user picked: its last round (75 ms, levelled to the old one) and the echo after it.
 - [x] Deployed main 3e31a66 to sniper-slice.netlify.app (verified live: dogs, side jobs, model and
       barks load, no console errors).
+
+## Spent brass, and a floor in the nests (2026-10-27)
+- [x] src/fx/casings.js: every rifle and machine-gun round throws its case (a ring of 260 instanced
+      cases): flicked up and right from a rifle (when the bolt's worked on a bolt rifle), dropped out
+      of the bottom of an MG42 and off the parapet to the gunner's feet; they tumble, bounce and lie
+      where they land. No landing sound (no metallic pings in this game).
+- [x] The nests' floor (the model's trodden earth, 0.24 m up) is solid now: gunners, guards and cases
+      stood sunk in it before.
