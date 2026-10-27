@@ -604,11 +604,14 @@ model goes in through `tools/import-model.sh` (download, JPEG textures, weld + s
 ## Blender realism pass (2026-10-27): "improve all missions with the aid of Blender"
 Blender 5.2 runs headless (`tools/blender/*.py`, `blender -b -P`); it renders textures and exports GLBs.
 Rule from the crates: everything placed many times is instanced, and draw calls are counted per mission.
-- [ ] Textures rendered in Blender from modelled detail: fir needle sprays, beech and olive leaf
+- [x] Textures rendered in Blender from modelled detail: fir needle sprays, beech and olive leaf
       sprays (albedo with alpha + normal), seamless bark
-- [ ] Trees built in Blender: silver fir and beech (Black Pine), olive (the other seven missions),
+- [x] Trees built in Blender: silver fir and beech (Black Pine), olive (the other seven missions),
       each with a far version (crossed cards rendered from the tree itself)
-- [ ] Game: tree types from GLBs; near chunks draw the full tree, far chunks the cards
-- [ ] Ground detail made in Blender, instanced per chunk in every mission: stones, bushes,
+- [x] Game: tree types from GLBs; near chunks draw the full tree, far chunks the cards
+- [x] Ground detail made in Blender, instanced per chunk in every mission: stones, bushes,
       ferns and stumps and fallen branches in the forest
-- [ ] Check: screenshots per mission; draw calls, triangles and frame time before/after in all eight
+- [x] Check: screenshots per mission; draw calls, triangles and frame time before/after in all eight
+- [x] Forest floor and rocks: Poly Haven photo-scans (CC0; public/textures/CREDITS.md)
+- [x] Town: windows and shutters merged per material (3,559 → 1,121 draw calls, 15 → 5 ms)
+- [ ] Background music (AudioCraft/MusicGen weights are non-commercial: decide first)

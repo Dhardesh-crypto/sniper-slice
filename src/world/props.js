@@ -70,6 +70,7 @@ export const PROPS = {
   // The realism pass: vegetation (the vineyard's rows, cypresses, umbrella pines, rocks) and burnt-out wrecks.
   // (Leafy crowns don't come out of image-to-3D: the olives and oaks stay the drawn leaf-card trees.)
   // Trees built in Blender (tools/blender/trees.py): see treeParts().
+  groundDetail: { file: 'ground_detail', turn: 0 },
   treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
   vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 }, rock: { file: 'prop_rock', turn: 0 },
   wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
@@ -99,21 +100,21 @@ export async function loadProps(keys, onProgress = () => {}) {
 
 export const hasProp = (k) => !!assets.models[k];
 
-// A tree built in Blender, at its own size (metres, its foot at the origin): { trunk, crown, far },
-// each { geometry, material }. The crown's branch cards and the far cards (the whole tree drawn
-// front and side on two crossed cards) are cut out by alpha and seen from both sides.
-// shade: { trunk, crown, far } multipliers on the colour (a number, or [r, g, b]) (the rendered textures are albedo; in the
-// game's light they need taking down to sit with the rest of the forest).
-export function treeParts(k, shade = {}) {
+// A model built in Blender (tools/blender), at its own size (metres, its foot at the origin): its
+// meshes by name, each { geometry, material }. Cards (branches, fronds, litter) are cut out by
+// alpha and seen from both sides. shade: per mesh, a multiplier on the colour (a number, or
+// [r, g, b]): the textures are rendered albedo, and in the game's light they need taking down.
+const CARDS = new Set(['crown', 'far', 'fern', 'bush', 'litter']);
+export function modelParts(k, shade = {}) {
   const src = assets.models[k]?.scene;
   if (!src) return null;
   src.updateMatrixWorld(true);
   const parts = {};
   src.traverse(o => {
     if (!o.isMesh) return;
-    const m = o.material;
+    const m = o.material = o.material.clone();     // (meshes sharing a material get their own shade)
     if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-    if (o.name !== 'trunk') Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
+    if (CARDS.has(o.name)) Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
     // Matte: a sheen of sky on the cards turned the needles minty.
     Object.assign(m, { roughness: 1, metalness: 0, envMapIntensity: 0.15 });
     for (const t of [m.map, m.normalMap]) if (t) t.anisotropy = 8;
@@ -121,7 +122,14 @@ export function treeParts(k, shade = {}) {
     if (Array.isArray(s)) m.color.setRGB(...s); else m.color.setScalar(s);
     parts[o.name] = { geometry: o.geometry.clone().applyMatrix4(o.matrixWorld), material: m };
   });
-  return parts.trunk && parts.crown && parts.far ? parts : null;
+  return parts;
+}
+
+// A tree built in Blender: { trunk, crown, far } (the far cards: the whole tree drawn front and side
+// on two crossed cards), or null if it isn't loaded.
+export function treeParts(k, shade = {}) {
+  const parts = modelParts(k, shade);
+  return parts?.trunk && parts.crown && parts.far ? parts : null;
 }
 
 // A copy of prop `k` fitted into `size` ({ x, y, z } in metres; give one for a uniform scale, or

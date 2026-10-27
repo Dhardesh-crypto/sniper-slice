@@ -138,8 +138,8 @@ function shutters(b, sd, y0, c, t, side) {
   const bottom = c.sill ?? 1.0, hh = c.h ?? 1.2, out = (side === 'n' || side === 'w' ? -1 : 1) * (t / 2 + 0.04);
   for (const s of [-1, 1]) {
     const at = c.at + s * (c.w / 2 + 0.24);
-    if (sd.alongX) b.box(0.44, hh + 0.1, 0.05, M.shutter, sd.cx + at, y0 + bottom - 0.05, sd.cz + out, { solid: false });
-    else b.box(0.05, hh + 0.1, 0.44, M.shutter, sd.cx + out, y0 + bottom - 0.05, sd.cz + at, { solid: false });
+    if (sd.alongX) b.box(0.44, hh + 0.1, 0.05, M.shutter, sd.cx + at, y0 + bottom - 0.05, sd.cz + out, { solid: false, decor: true });
+    else b.box(0.05, hh + 0.1, 0.44, M.shutter, sd.cx + out, y0 + bottom - 0.05, sd.cz + at, { solid: false, decor: true });
   }
 }
 

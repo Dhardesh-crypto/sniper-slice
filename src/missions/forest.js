@@ -99,6 +99,10 @@ const map = {
       return (name === 'beech' ? beech : 1 - beech) * p;
     },
   },
+  // The forest floor (Blender, see world/ground.js): ferns in patches, fallen needles and branches,
+  // sawn stumps from the logging, a few stones; on a photo of real pine-forest ground (Poly Haven).
+  ground: { fern: 9000, litter: 7000, branch: 2600, stump: 520, rock1: 260, rock2: 520, rock3: 40 },
+  groundTexture: 'forestGround',
   // Grass in the open; under the trees, only a little, in patches.
   grassDensity(x, z) {
     const open = CLEAR.some(c => Math.hypot(x - c.x, z - c.z) < c.r + 4) || inFirebreak(x, z, 1);

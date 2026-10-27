@@ -13,8 +13,9 @@ export async function bench() {
     for (let i = 0; i < 90; i++) g.advance(1 / 60);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     const ms = (performance.now() - t0) / 90;
-    R.info.autoReset = false; R.info.reset(); g.advance(1 / 60);
-    const r = [+ms.toFixed(2), R.info.render.calls, Math.round(R.info.render.triangles / 1000)];
+    // Shadows are redrawn every other frame: count two frames and halve.
+    R.info.autoReset = false; R.info.reset(); g.advance(1 / 60); g.advance(1 / 60);
+    const r = [+ms.toFixed(2), Math.round(R.info.render.calls / 2), Math.round(R.info.render.triangles / 2000)];
     R.info.autoReset = true;
     return r;
   };

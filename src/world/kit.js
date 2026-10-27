@@ -2,6 +2,7 @@
 // each solid mesh for bullet raycasts (`solids`) and its box for collision (`boxes`).
 import * as THREE from 'three';
 import { textures, worldUVs } from './textures.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const T = textures();
 // `tile` = metres per texture repeat (see worldUVs).
@@ -32,8 +33,9 @@ export class Builder {
     this.group = new THREE.Group();
     scene.add(this.group);
   }
-  // Axis-aligned box at world position (x, z), bottom at y.
-  box(w, h, d, mat, x, y, z, { solid = true, rotY = 0 } = {}) {
+  // Axis-aligned box at world position (x, z), bottom at y. decor: a still, non-solid piece (a
+  // window, a shutter) that the world merges with all the others of its material (mergeDecor).
+  box(w, h, d, mat, x, y, z, { solid = true, rotY = 0, decor = false } = {}) {
     const geo = new THREE.BoxGeometry(w, h, d);
     if (mat.map) worldUVs(geo, mat.userData.tile);
     const mesh = new THREE.Mesh(geo, mat);
@@ -42,6 +44,7 @@ export class Builder {
     mesh.castShadow = mesh.receiveShadow = true;
     this.group.add(mesh);
     if (solid) this.addSolid(mesh);
+    else if (decor) mesh.userData.decor = true;
     return mesh;
   }
   addSolid(mesh) {
@@ -76,12 +79,26 @@ export class Builder {
       for (let i = -1; i <= 1; i++) {
         for (const side of [-1, 1]) {
           const x = cx + i * (w / 3.5), z = cz + side * (d / 2 + 0.03);
-          this.box(1.0, 1.4, 0.06, M.window, x, y, z, { solid: false });
-          this.box(0.45, 1.5, 0.08, M.shutter, x - 0.75, y - 0.05, z, { solid: false });
-          this.box(0.45, 1.5, 0.08, M.shutter, x + 0.75, y - 0.05, z, { solid: false });
+          this.box(1.0, 1.4, 0.06, M.window, x, y, z, { solid: false, decor: true });
+          this.box(0.45, 1.5, 0.08, M.shutter, x - 0.75, y - 0.05, z, { solid: false, decor: true });
+          this.box(0.45, 1.5, 0.08, M.shutter, x + 0.75, y - 0.05, z, { solid: false, decor: true });
         }
       }
     }
   }
 }
 
+// Merge every decor piece (see Builder.box) into one mesh per material: a town's windows and
+// shutters were some 2,300 meshes, each drawn three times a frame.
+export function mergeDecor(scene) {
+  scene.updateMatrixWorld(true);
+  const byMat = new Map();
+  scene.traverse(o => { if (o.isMesh && o.userData.decor && !o.children.length) { if (!byMat.has(o.material)) byMat.set(o.material, []); byMat.get(o.material).push(o); } });
+  for (const [mat, list] of byMat) {
+    if (list.length < 2) continue;
+    const merged = new THREE.Mesh(mergeGeometries(list.map(o => o.geometry.clone().applyMatrix4(o.matrixWorld))), mat);
+    merged.castShadow = merged.receiveShadow = true;
+    for (const o of list) o.removeFromParent();
+    scene.add(merged);
+  }
+}

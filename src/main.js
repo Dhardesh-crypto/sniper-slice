@@ -83,7 +83,7 @@ const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMiss
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
-await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'safe', 'siren', 'crates', 'cypress', 'pine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'safe', 'siren', 'crates', 'cypress', 'pine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 useMap(M.map);

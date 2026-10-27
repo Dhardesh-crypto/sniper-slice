@@ -116,10 +116,16 @@ export function buildTerrain() {
     const v = 0.92 + fbm(x * 0.4, z * 0.4, 1) * 0.16; // fine variation
     colors[i * 3] = c.r * v; colors[i * 3 + 1] = c.g * v; colors[i * 3 + 2] = c.b * v;
   }
+  // A map on a photographed ground (its own colour already): the painted colours only lighten and
+  // darken it (clearings, paths, slopes), around their average.
+  if (MAP.groundTexture) {
+    const avg = [0, 1, 2].map(k => { let s = 0; for (let i = k; i < colors.length; i += 3) s += colors[i]; return s / (colors.length / 3); });
+    for (let i = 0; i < colors.length; i++) colors[i] = Math.min(1.6, colors[i] / avg[i % 3]);
+  }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
   // Ground detail repeats every 4 m on top of the large-scale vertex colours.
-  const { map, normalMap } = textures().ground;
+  const { map, normalMap } = textures()[MAP.groundTexture ?? 'ground'];
   const detail = map.clone(), detailN = normalMap.clone();
   for (const t of [detail, detailN]) t.repeat.set(MAP_HALF / 2, MAP_HALF / 2);
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({

@@ -95,3 +95,11 @@ The rebuilt pickups (7–15 merged meshes each, ~37 of them) doubled the harbour
 (656 → 1404): every mesh is drawn three times a frame (picture, shadow, AO pass), and the game
 went sluggish. Anything placed many times over gets instanced per (kind, material); measure
 `renderer.info.render.calls` (autoReset off) with the new things shown and hidden before shipping.
+
+## Draw-call counts flip between frames (2026-10-27)
+Shadows are redrawn every other frame, so one frame's `renderer.info.render.calls` is either the
+shadow frame or not: a before/after taken on different parities looked like the harbour had doubled.
+Count two frames and halve (tools/bench.js), and compare against the old commit served from a
+worktree, not against numbers noted earlier. Fire page-reloading benchmarks one per message: sent
+together they ran in each other's pages and filed results under the wrong mission.
+

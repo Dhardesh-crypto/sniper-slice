@@ -195,6 +195,7 @@ export function textures() {
     wood: wood(41),
     darkWood: wood(42, '#3f2c1c'),
     ground: groundDetail(51),
+    forestGround: groundDetail(53),   // (replaced by the photo: Poly Haven's Forest Ground 04)
   };
   return cache;
 }
@@ -219,7 +220,7 @@ export function worldUVs(geometry, metres = 2) {
 // Swap the drawn textures for the photographs, with normal maps built from the photos' light and
 // dark. Copies of a texture (the terrain's ground, the trees' bark) share its image and are
 // refreshed too.
-const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0 };
+const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0, forestGround: 1.4 };
 export async function usePhotoTextures(scene) {
   const T = textures(), loader = new THREE.ImageLoader(), sources = new Set();
   await Promise.all(Object.keys(T).map(async (key) => {

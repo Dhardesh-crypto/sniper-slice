@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
+import { buildGround, cullGround } from './ground.js';
+import { mergeDecor } from './kit.js';
 
 import { buildHorizon } from './horizon.js';
 
@@ -58,6 +60,18 @@ export class World {
     this.staffCar = b.staffCar ?? null;
     this.villa = b.villa ?? null;
     this.site = b;
+    mergeDecor(scene);
+    // Ground detail (Blender): stones and scrub, or ferns, needles, stumps and branches in a forest.
+    // Stumps are solid: they join the trees for walking into and the solids for bullets.
+    const ground = buildGround(scene, { boxes: b.boxes, water: activeMap().waterLevel ?? null });
+    this.groundChunks = ground.chunks;
+    this.solids.push(...ground.solids);
+    for (const t of ground.trees) {
+      this.trees.push(t);
+      const k = `${Math.floor(t.x / 8)},${Math.floor(t.z / 8)}`;
+      if (!this.treeGrid.has(k)) this.treeGrid.set(k, []);
+      this.treeGrid.get(k).push(t);
+    }
     this.doors = b.doors ?? [];
     this.doorBoxes = new Set(this.doors.map(d => d.box));     // the guards' paths go through doors
     // Where a guard kneels to restart it: in front of the shed's open side.
@@ -252,6 +266,7 @@ export class World {
   // the trees near the viewer whole, the rest as far cards (zoom: how much a scope magnifies).
   cullTrees(viewer, zoom = 1) {
     cullTreeChunks(this.treeChunks, viewer, activeMap().forest?.viewDistance ?? Infinity, zoom);
+    cullGround(this.groundChunks, viewer, zoom);
   }
 
   // Trees within about 8 m of (x, z).
