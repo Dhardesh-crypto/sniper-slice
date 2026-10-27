@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ, activeMap } from './terrain.js';
 import { CATALOG, HEAVY_AMMO, partById } from '../weapons/defs.js';
 import { takeSupplies } from '../player/supplies.js';
+import { pickupModel, showDetail } from './pickup-models.js';
 
 // What each kind of supply cache holds (rolled when you open it).
 const SUPPLY = {
@@ -21,85 +22,9 @@ const SUPPLY = {
   heavy: { name: 'HEAVY AMMUNITION', roll: (r, n) => ({ heavy: { trenchgun: n(6, 10), mg42: n(50, 100), panzerschreck: n(1, 2), panzerfaust: 1, piat: n(1, 2) } }) },
 };
 const SEEN_RANGE = 35;          // a cache shows on your map once you've been this close
+const DETAIL_RANGE = 80;        // m: closer than this, a box shows its fittings, lettering and contents
 
 const REACH = 1.6, OPEN_TIME = 1.4;
-const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, ...extra });
-
-function toolboxModel() {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.24), mat(0x3d4a35, { metalness: 0.4 }));
-  body.position.y = 0.11;
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.24), mat(0x46543d, { metalness: 0.4 }));
-  lid.position.set(0, 0.245, 0);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.03), mat(0x222222, { metalness: 0.6 }));
-  handle.position.set(0, 0.29, 0);
-  lid.add(handle); handle.position.y = 0.045;
-  g.add(body, lid);
-  g.userData.lid = lid;
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return g;
-}
-
-function weaponCrateModel() {
-  const g = new THREE.Group();
-  const wood = mat(0x6f5a3a);
-  const box = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.3, 0.42), wood);
-  box.position.y = 0.15;
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.05, 0.42), mat(0x7d6644));
-  lid.position.y = 0.325;
-  for (const x of [-0.45, 0.45]) { const band = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.31, 0.44), mat(0x2a2a26, { metalness: 0.5 })); band.position.set(x, 0.16, 0); g.add(band); }
-  g.add(box, lid);
-  g.userData.lid = lid;
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return g;
-}
-
-function supplyModel(type) {
-  const g = new THREE.Group();
-  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
-  let lid;
-  if (type === 'ammo') {
-    const olive = mat(0x4b5233, { metalness: 0.45 });
-    add(new THREE.BoxGeometry(0.42, 0.22, 0.2), olive, 0, 0.11, 0);
-    add(new THREE.BoxGeometry(0.42, 0.2, 0.2), olive, 0.02, 0.1, 0.24).rotation.y = 0.1;    // a second can beside it
-    lid = add(new THREE.BoxGeometry(0.44, 0.04, 0.21), mat(0x3f4529, { metalness: 0.45 }), 0, 0.24, 0);
-  } else if (type === 'medical') {
-    add(new THREE.BoxGeometry(0.5, 0.26, 0.3), mat(0xd9d6c8), 0, 0.13, 0);
-    add(new THREE.BoxGeometry(0.51, 0.06, 0.31), mat(0x3d5a3a), 0, 0.15, 0);                // green band
-    lid = add(new THREE.BoxGeometry(0.5, 0.04, 0.3), mat(0xcfccbe), 0, 0.28, 0);
-  } else if (type === 'heavy') {
-    // A long olive crate with yellow stencilled bands: belts, shells, rockets.
-    add(new THREE.BoxGeometry(0.95, 0.32, 0.42), mat(0x4a5132, { metalness: 0.3 }), 0, 0.16, 0);
-    for (const x of [-0.3, 0.3]) add(new THREE.BoxGeometry(0.06, 0.33, 0.43), mat(0xb59a3a), x, 0.165, 0);
-    lid = add(new THREE.BoxGeometry(0.95, 0.04, 0.42), mat(0x434a2d, { metalness: 0.3 }), 0, 0.34, 0);
-  } else if (type === 'explosives') {
-    add(new THREE.BoxGeometry(0.75, 0.34, 0.45), mat(0x6f5a3a), 0, 0.17, 0);
-    add(new THREE.BoxGeometry(0.76, 0.07, 0.46), mat(0x8e2a1e), 0, 0.22, 0);                // red stripe
-    lid = add(new THREE.BoxGeometry(0.75, 0.04, 0.45), mat(0x7d6644), 0, 0.36, 0);
-  } else {
-    add(new THREE.BoxGeometry(0.56, 0.24, 0.38), mat(0x7a6142), 0, 0.12, 0);
-    const glass = mat(0x2f5a2a, { roughness: 0.2 });
-    for (let i = 0; i < 6; i++) add(new THREE.CylinderGeometry(0.012, 0.02, 0.1, 8), glass, -0.17 + (i % 3) * 0.17, 0.29, i < 3 ? -0.09 : 0.09); // bottle necks
-    lid = new THREE.Group(); g.add(lid);
-  }
-  g.userData.lid = lid;
-  return g;
-}
-
-function workbenchModel() {
-  const g = new THREE.Group();
-  const wood = mat(0x7a6040), dark = mat(0x2b2b28, { metalness: 0.5 });
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 0.7), wood); top.position.y = 0.9;
-  g.add(top);
-  for (const [x, z] of [[-0.72, -0.28], [0.72, -0.28], [-0.72, 0.28], [0.72, 0.28]]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), wood); leg.position.set(x, 0.45, z); g.add(leg); }
-  const vise = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.12), dark); vise.position.set(0.6, 1.0, 0.2); g.add(vise);
-  const rack = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.6, 0.04), wood); rack.position.set(0, 1.25, -0.33); g.add(rack);
-  for (const x of [-0.5, -0.15, 0.2]) { const tool = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.03), dark); tool.position.set(x, 1.3, -0.3); g.add(tool); }
-  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.12, 10), mat(0x8a7a3a, { emissive: 0x332a10 })); lamp.position.set(-0.6, 1.0, -0.1); g.add(lamp);
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  return g;
-}
-
 // The vineyard's layout.
 function vineyardPickups({ world, on, SUPPLY }) {
     const cx = COMPOUND.x, cz = COMPOUND.z, y = H_COMPOUND, [swTower, neTower] = world.towerTops;
@@ -148,7 +73,7 @@ export class Pickups {
     const layout = (activeMap().pickups ?? vineyardPickups)({ world, on, SUPPLY });
     this.boxes = layout.boxes;
     for (const b of this.boxes) {
-      b.mesh = b.kind === 'supply' ? supplyModel(b.type) : b.kind === 'weapon' ? weaponCrateModel() : toolboxModel();
+      b.mesh = pickupModel(b.kind === 'supply' ? b.type : b.kind === 'weapon' ? 'weapon' : 'toolbox');
       // An unopened explosives crate goes up when it's shot (or caught in another blast).
       if (b.type === 'explosives') {
         const trap = { detonate: () => this.blowCrate(b) };
@@ -161,13 +86,14 @@ export class Pickups {
     }
     this.benches = layout.benches;
     for (const b of this.benches) {
-      b.mesh = workbenchModel();
+      b.mesh = pickupModel('bench');
       b.mesh.position.copy(b.at);
       b.mesh.rotation.y = Math.PI / 2;
       scene.add(b.mesh);
     }
     this.target = null;
     this.progress = 0;
+    this.swinging = [];          // lids on their way open
     this.onBench = null;          // () => void: open the workbench screen
     this.onPart = null;           // (part) => void, for the mission stats
   }
@@ -188,7 +114,14 @@ export class Pickups {
     if ((this.seenT = (this.seenT ?? 0) - dt) <= 0) {
       this.seenT = 0.5;
       for (const c of this.boxes) if (c.kind === 'supply' && !c.seen && c.at.distanceTo(p.pos) < SEEN_RANGE) c.seen = true;
+      for (const c of [...this.boxes, ...this.benches]) showDetail(c.mesh, c.at.distanceTo(p.pos) < DETAIL_RANGE);
     }
+    // Lids swing open (and fall back a little past upright).
+    this.swinging = this.swinging.filter(m => {
+      const lid = m.userData.lid, to = m.userData.openAngle;
+      lid.rotation.x = Math.max(to, lid.rotation.x - dt * 5);
+      return lid.rotation.x > to;
+    });
     const b = this.near();
     if (b !== this.target) { this.target = b; this.progress = 0; }
     if (!b || p.dead || p.climb || p.carrying || p.locked) { this.progress = 0; return; }
@@ -209,7 +142,7 @@ export class Pickups {
       const got = takeSupplies({ arsenal: this.arsenal, items: this.items }, loot);
       if (!got.length) { this.hud.message(`${SUPPLY[b.type].name} · YOU CAN'T CARRY ANY MORE: COME BACK LATER`, 'wound'); return; }
       b.opened = true;
-      b.mesh.userData.lid.rotation.x = -1.2;
+      this.lift(b);
       if (b.type === 'explosives') { b.mesh.traverse(o => { delete o.userData.trap; }); if (b.hotspot) b.hotspot.broken = true; } // emptied: nothing left to go off
       this.stealth.noise(b.at.clone(), 4, 'rustle');
       this.audio.pickup();
@@ -217,8 +150,7 @@ export class Pickups {
       return;
     }
     b.opened = true;
-    b.mesh.userData.lid.rotation.x = -1.2;
-    b.mesh.userData.lid.position.z -= 0.1;
+    this.lift(b);
     this.stealth.noise(b.at.clone(), 4, 'rustle');
     this.audio.pickup();
     if (b.kind === 'weapon') {
@@ -242,6 +174,12 @@ export class Pickups {
     this.profile.addPart(part.id);
     this.onPart?.(part);
     this.hud.message(`PART FOUND · ${part.name.toUpperCase()} · ${part.info.toUpperCase()}`, 'head');
+  }
+
+  // Open the lid (it swings up in tick) and take out what you took.
+  lift(b) {
+    this.swinging.push(b.mesh);
+    if (b.mesh.userData.taken) b.mesh.userData.taken.visible = false;
   }
 
   // Explosives crates are weak spots too: the binoculars can tag them (an orange triangle on
