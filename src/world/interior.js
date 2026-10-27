@@ -2,8 +2,9 @@
 // (tools/blender/interior.py → interior_kit.glb) and the architecture kit's materials. Each storey
 // gets a plastered ceiling on rough-hewn beams, skirting and (in a plastered house) a painted dado,
 // casements opened into the room and, in a home, curtains. Each room (the storey split by its
-// interior walls) is then furnished by what it is: a family's kitchen and bedrooms, or the
-// occupiers' offices, with maps, notices, coats and helmets, papers and telephones on the tables.
+// interior walls) is then furnished by what it is: a family's kitchen table and bedrooms (a bed,
+// a wardrobe, a washstand), or the occupiers' offices, with maps, notices, coats and helmets,
+// ammunition boxes, a map table, papers, telephones and radios.
 // buildings.js registers each building; world.js calls dressInteriors() once the mission has put
 // in its own furniture, so nothing is put where a table, a cabinet or the stairs already stand,
 // in front of a door, or over a stairwell. All of it is decoration (nothing solid), merged per
@@ -221,6 +222,8 @@ function furnish(b, e, room, ctx) {
     if (rnd() < 0.6) onWall('shelf', 1.1, 1.45, 1.8, 0, { at: 1.5 });
     if (rnd() < 0.5) onWall('clock', 0.4, 2.0, 2.4, 0, { at: 2.15 });
     if (rnd() < 0.35) onWall('sacks', 1.0, 0, 0.9, 0.7);
+    if (rnd() < 0.65) onWall('crates', 1.2, 0, 0.65, 0.5);            // the occupiers' stores
+    if (rnd() < 0.5) onWall('jerrycans', 0.7, 0, 0.55, 0.3);
   } else if (f === 0) {
     onWall('fireplace', 1.7, 0, 2.3, 0.6, { prefer: 1 });
     onWall('credenza', 1.5, 0, 1.25, 0.55);
@@ -229,11 +232,64 @@ function furnish(b, e, room, ctx) {
     if (rnd() < 0.6) onWall('clock', 0.4, 1.95, 2.4, 0, { at: 2.15 });
     if (rnd() < 0.6) onWall('demijohn', 0.5, 0, 0.6, 0.5);
     if (rnd() < 0.5) onWall('sacks', 1.0, 0, 0.9, 0.7);
+    if (rnd() < 0.3) onWall('jerrycans', 0.7, 0, 0.55, 0.3);          // (requisitioned, or hoarded)
   } else {
+    // A bedroom: the bed's head to a wall, a chest at its foot; a wardrobe, a washstand.
+    const big = rw * rd > 40;                    // (a big room's a billet: two beds)
+    let bed = null;
+    for (let i = 0; i < (big ? 2 : 1); i++) {
+      const s2 = slot(1.05, 0, 1.1, 2.0);
+      if (!s2) break;
+      bed = s2;
+      put(b, 'bed', bed.x, floorY, bed.z, bed.rot, { shadow: false });
+      const [px, pz] = onFace(bed.fc.cx, bed.fc.cz, bed.fc.rot, bed.u, 2.02);
+      if (rnd() < 0.6 && clear(px - 0.6, pz - 0.3, px + 0.6, pz + 0.3)) {
+        put(b, 'chest', px, floorY, pz, bed.rot, { shadow: false });
+        blocks.push([px - 0.6, pz - 0.3, px + 0.6, pz + 0.3]);
+      }
+    }
+    if (rnd() < 0.8) onWall('wardrobe', 1.1, 0, 2.2, 0.6);
+    if (rnd() < 0.7) onWall('washstand', 0.75, 0, 1.6, 0.45);
     for (let i = 0; i < 1 + Math.floor(rnd() * 2); i++) onWall(`picture_${Math.floor(rnd() * 3)}`, 0.85, 1.45, 2.0, 0, { at: 1.5 });
-    if (rnd() < 0.6) onWall('credenza', 1.5, 0, 1.25, 0.55);
+    if (!bed && rnd() < 0.6) onWall('credenza', 1.5, 0, 1.25, 0.55);
     if (rnd() < 0.55) onWall('coat_rack', 1.05, 0, 1.75, 0.35);   // a soldier billeted here
     if (rnd() < 0.4) onWall('clock', 0.4, 1.95, 2.4, 0, { at: 2.15 });
+  }
+  // A table in the middle where the mission didn't put one: the family's, with chairs and a bench,
+  // or the occupiers' map table. Along the room's long way, nudged off centre if it has to be.
+  if (!tables.length && (office || f === 0 || rw * rd > 40) && rw > 3.0 && rd > 2.6) {
+    const turn = rw >= rd ? 0 : Math.PI / 2, c = Math.cos(turn), s = Math.sin(turn);
+    const at = (ox, oz, lx, lz) => [ox + lx * c + lz * s, oz - lx * s + lz * c];
+    const hx = 0.8 + 0.55, hz = 0.425 + 0.55;                            // its footprint, chairs and all
+    const ext = (ox, oz) => { const ex = turn ? hz : hx, ez = turn ? hx : hz; return [ox - ex, oz - ez, ox + ex, oz + ez]; };
+    const spot = [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]].map(([dx, dz]) => [cx + dx, cz + dz])
+      .find(([ox, oz]) => { const [a, q, p2, r] = ext(ox, oz); return a > room.x0 + 0.1 && p2 < room.x1 - 0.1 && q > room.z0 + 0.1 && r < room.z1 - 0.1 && clear(a, q, p2, r); });
+    if (spot) {
+      const [ox, oz] = spot;
+      put(b, 'table', ox, floorY, oz, turn, { shadow: false });
+      blocks.push(ext(ox, oz));
+      const top = floorY + 0.762;
+      if (office) {
+        const [mx, mz] = at(ox, oz, -0.15, 0);
+        put(b, 'map_table', mx, top, mz, turn + (rnd() - 0.5) * 0.2, { shadow: false });
+        const [ax, az] = at(ox, oz, 0, -0.25);
+        put(b, rnd() < 0.5 ? 'radio' : 'phone', ax, top, az, turn + Math.PI, { shadow: false });
+      } else {
+        const [bx, bz] = at(ox, oz, (rnd() - 0.5) * 0.6, (rnd() - 0.5) * 0.2);
+        put(b, 'bottles', bx, top, bz, rnd() * 6, { shadow: false });
+      }
+      // Chairs on the long sides (a bench on one of them, in a home), one at an end.
+      const bench = !office && rnd() < 0.5;
+      for (const side of [1, -1]) {
+        if (bench && side < 0) { const [px, pz] = at(ox, oz, 0, side * 0.62); put(b, 'bench', px, floorY, pz, turn, { shadow: false }); continue; }
+        for (const lx of [-0.4, 0.4]) {
+          if (rnd() < 0.25) continue;
+          const [px, pz] = at(ox, oz, lx + (rnd() - 0.5) * 0.1, side * 0.68);
+          put(b, 'chair', px, floorY, pz, turn + (side > 0 ? Math.PI : 0) + (rnd() - 0.5) * 0.35, { shadow: false });
+        }
+      }
+      if (rnd() < 0.5) { const [px, pz] = at(ox, oz, 1.1, 0); put(b, office ? 'stool' : 'chair', px, floorY, pz, turn - Math.PI / 2, { shadow: false }); }
+    }
   }
   // A chair or two against the walls.
   for (let i = 0; i < (office ? 2 : 1); i++) {
@@ -245,7 +301,7 @@ function furnish(b, e, room, ctx) {
     const tx = (t.min.x + t.max.x) / 2, tz = (t.min.z + t.max.z) / 2, top = t.max.y + 0.002, turn = rnd() * Math.PI * 2;
     if (office) {
       put(b, 'papers', tx + (rnd() - 0.5) * 0.4, top, tz + (rnd() - 0.5) * 0.2, turn, { shadow: false });
-      if (rnd() < 0.7) put(b, rnd() < 0.5 ? 'phone' : 'typewriter', tx + (rnd() < 0.5 ? -1 : 1) * Math.min(0.45, (t.max.x - t.min.x) / 2 - 0.2), top, tz, turn, { shadow: false });
+      if (rnd() < 0.7) put(b, ['phone', 'typewriter', 'radio'][Math.floor(rnd() * 3)], tx + (rnd() < 0.5 ? -1 : 1) * Math.min(0.45, (t.max.x - t.min.x) / 2 - 0.2), top, tz, turn, { shadow: false });
     } else put(b, 'bottles', tx, top, tz, turn, { shadow: false });
     // A chair drawn up to it, where there's floor.
     for (const [dx, dz, rot] of [[0, 1, Math.PI], [0, -1, 0], [1, 0, -Math.PI / 2], [-1, 0, Math.PI / 2]]) {
@@ -257,9 +313,10 @@ function furnish(b, e, room, ctx) {
     }
   }
   // A rug in the middle (under the table is fine), papers dropped on an office floor, the lamp.
-  if (rw * rd > 9 && !holeBelow) {
-    const along = rw >= rd, k = Math.min(1.7, Math.min(rw, rd) / 2.2);
-    put(b, 'rug', cx, floorY, cz, along ? 0 : Math.PI / 2, { sx: k * 1.15, sz: k, shadow: false });
+  if (rw * rd > 9) {
+    const along = rw >= rd, k = Math.min(1.7, Math.min(rw, rd) / 2.2), hx = (along ? 1.15 : 0.65) * k, hz = (along ? 0.65 : 1.15) * k;
+    const off = (h) => !h || cx + hx < h[0] - 0.1 || cx - hx > h[2] + 0.1 || cz + hz < h[1] - 0.1 || cz - hz > h[3] + 0.1;
+    if (off(holeBelow)) put(b, 'rug', cx, floorY, cz, along ? 0 : Math.PI / 2, { sx: k * 1.15, sz: k, shadow: false });
   }
   if (office && rnd() < 0.5 && clear(cx + 0.6, cz - 0.3, cx + 1.2, cz + 0.3)) put(b, 'papers', cx + 0.9, floorY, cz, rnd() * 6, { shadow: false });
   if (!holeAbove || cx < holeAbove[0] || cx > holeAbove[2] || cz < holeAbove[1] || cz > holeAbove[3]) put(b, 'pendant', cx, ceilY - 0.2, cz, 0, { shadow: false });

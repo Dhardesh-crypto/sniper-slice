@@ -5,7 +5,9 @@
 #   beam (1 m, stretched along x; its top at y = 0, under the ceiling), skirting (1 m), leaf (an
 #   inward-opening casement leaf, 1 x 1, hinged at x = 0), curtain (1 m tall), picture_0..2, clock,
 #   notice, map_board, shelf, credenza, fireplace, coat_rack, rug, pendant (hangs from y = 0), chair,
-#   papers, bottles, phone, typewriter, sacks, demijohn.
+#   papers, bottles, phone, typewriter, sacks, demijohn; standing in the room: table (1.6 x 0.85,
+#   top at 0.76), bench, stool, bed (headboard at z = 0), wardrobe, washstand, chest, crates,
+#   jerrycans; and for a table top: radio, map_table.
 # Wall pieces stand on the wall's face at z = 0 and come out along +z (into the room); floor and
 # table pieces stand on y = 0, facing +z.
 import bpy, math, os, random, sys
@@ -240,6 +242,115 @@ p = Part()                                    # a demijohn in its wicker
 p.blob((0, 0.24, 0), 0.22, J(0x8a6a3a, 0.05), (1, 1.05, 1), segs=12, rings=8)
 p.cylinder((0, 0.44, 0), 0.04, 0.12, 'y', srgb(0x3a5a3a), segs=8)
 parts.append(p.obj('demijohn', 'cloth'))
+
+# ---- furniture standing in the room ----
+p = Part()                                    # a farmhouse table, 1.6 x 0.85, its top at 0.76
+p.box(-0.8, 0.8, 0.72, 0.76, -0.425, 0.425, J(OAK, 0.04), skip=())
+for sx in (-0.72, 0.66):
+    for sz in (-0.36, 0.3): p.box(sx, sx + 0.06, 0, 0.72, sz, sz + 0.06, J(DARK), skip=('top',))
+for sz in (-0.36, 0.3): p.box(-0.66, 0.66, 0.6, 0.68, sz + 0.01, sz + 0.05, J(DARK), skip=())      # aprons
+p.box(-0.66, 0.66, 0.1, 0.14, -0.02, 0.02, J(DARK), skip=())                                        # the stretcher
+parts.append(p.obj('table', 'wood', 0.006))
+
+p = Part()                                    # a bench to go with it
+p.box(-0.7, 0.7, 0.42, 0.46, -0.14, 0.14, J(OAK, 0.05), skip=())
+for sx in (-0.6, 0.55): p.box(sx, sx + 0.05, 0, 0.42, -0.1, 0.1, J(DARK), skip=('top',))
+parts.append(p.obj('bench', 'wood'))
+
+p = Part()                                    # a three-legged stool
+p.cylinder((0, 0.42, 0), 0.16, 0.04, 'y', J(OAK), segs=10)
+for k in range(3):
+    a = 2 * math.pi * k / 3
+    x, z = 0.1 * math.cos(a), 0.1 * math.sin(a)
+    p.box(x - 0.015, x + 0.015, 0, 0.42, z - 0.015, z + 0.015, J(DARK), skip=('top',))
+parts.append(p.obj('stool', 'wood'))
+
+p = Part()                                    # an iron bedstead: headboard at z = 0 (the wall), 0.95 x 1.95
+for sx in (-0.47, 0.44):
+    p.cylinder((sx + 0.015, 0, 0.02), 0.018, 1.05, 'y', srgb(IRON), segs=6)                       # head posts
+    p.cylinder((sx + 0.015, 0, 1.93), 0.018, 0.75, 'y', srgb(IRON), segs=6)                       # foot posts
+for y in (0.55, 0.98): p.cylinder((-0.47, y, 0.02), 0.012, 0.94, 'x', srgb(IRON), segs=5)
+for y in (0.5, 0.7): p.cylinder((-0.47, y, 1.93), 0.012, 0.94, 'x', srgb(IRON), segs=5)
+for k in range(7):                                                                                   # the headboard's rails
+    x = -0.39 + k * 0.13
+    p.box(x - 0.006, x + 0.006, 0.55, 0.98, 0.014, 0.026, srgb(IRON), skip=())
+p.box(-0.46, 0.46, 0.3, 0.5, 0.05, 1.9, J(0xd8d0bc, 0.03), skip=('bottom', 'back'))                # the mattress
+p.box(-0.48, 0.48, 0.36, 0.53, 0.55, 1.92, J(0x6a3a2a, 0.05), skip=('bottom', 'back'))             # the blanket
+p.box(-0.48, 0.48, 0.1, 0.36, 1.9, 1.92, J(0x6a3a2a, 0.05), skip=('back',))                        # its fall at the foot
+p.blob((0, 0.56, 0.3), 0.2, srgb(0xe8e4d8), (1.6, 0.35, 0.8), segs=10, rings=5)                     # the pillow
+parts.append(p.obj('bed', 'cloth'))
+
+p = Part()                                    # a wardrobe: two panelled doors, a cornice, a suitcase on top
+p.box(-0.5, 0.5, 0.06, 1.9, 0, 0.55, J(OAK, 0.04), skip=('back',))
+p.box(-0.55, 0.55, 1.9, 1.98, 0, 0.6, J(DARK), skip=('back',))
+p.box(-0.5, 0.5, 0, 0.06, 0.02, 0.53, J(DARK), skip=('back',))
+for sx in (-1, 1):
+    p.box(min(sx * 0.03, sx * 0.44), max(sx * 0.03, sx * 0.44), 0.2, 1.05, 0.55, 0.57, J(DARK, 0.03), skip=('back',))
+    p.box(min(sx * 0.03, sx * 0.44), max(sx * 0.03, sx * 0.44), 1.12, 1.78, 0.55, 0.57, J(DARK, 0.03), skip=('back',))
+    p.box(sx * 0.05 - 0.01, sx * 0.05 + 0.01, 1.0, 1.12, 0.57, 0.59, srgb(0x9c8a4a), skip=('back',))
+p.box(-0.35, 0.25, 1.98, 2.2, 0.1, 0.48, J(0x6a4a2a, 0.06), skip=('bottom',))                       # the suitcase
+parts.append(p.obj('wardrobe', 'wood'))
+
+p = Part()                                    # a washstand: basin and jug, a towel, a little mirror
+p.box(-0.35, 0.35, 0.74, 0.78, 0, 0.42, srgb(0xd8d2c6), skip=('back',))
+for sx in (-0.32, 0.28):
+    for sz in (0.02, 0.36): p.box(sx, sx + 0.04, 0, 0.74, sz, sz + 0.04, J(OAK), skip=('top',))
+p.box(-0.32, 0.32, 0.12, 0.15, 0.02, 0.4, J(OAK), skip=())
+p.cylinder((-0.05, 0.78, 0.22), 0.16, 0.08, 'y', srgb(0xe8e4da), segs=12)
+p.cylinder((0.2, 0.78, 0.18), 0.06, 0.2, 'y', srgb(0xe8e4da), segs=10)
+p.box(0.33, 0.37, 0.4, 0.72, 0.08, 0.34, srgb(0xe6e0d0), skip=())                                   # the towel
+p.box(-0.18, 0.18, 1.15, 1.6, 0, 0.02, J(DARK), skip=('back',))
+p.quad([(-0.15, 1.18, 0.021), (0.15, 1.18, 0.021), (0.15, 1.57, 0.021), (-0.15, 1.57, 0.021)], srgb(0x9aa8b0))
+parts.append(p.obj('washstand', 'ceramic'))
+
+p = Part()                                    # a cassone: a chest for the foot of a bed or under a window
+p.box(-0.55, 0.55, 0.06, 0.5, 0, 0.48, J(0x6a4a2a, 0.05), skip=('back',))
+p.box(-0.58, 0.58, 0.5, 0.56, 0, 0.51, J(DARK), skip=('back',))
+p.box(-0.55, 0.55, 0, 0.06, 0.02, 0.46, J(DARK), skip=('back',))
+for sx in (-0.3, 0.3): p.box(sx - 0.18, sx + 0.18, 0.14, 0.42, 0.48, 0.495, J(0x5a3a22, 0.04), skip=('back',))
+parts.append(p.obj('chest', 'wood'))
+
+def turned(turn):
+    c, s = math.cos(turn), math.sin(turn)
+    return Matrix(((c, 0, s), (0, 1, 0), (-s, 0, c)))
+
+p = Part()                                    # ammunition boxes, stacked, stencilled, rope handles
+for (x, y, z, turn) in ((-0.3, 0, 0, 0), (0.28, 0, 0.02, 0), (-0.02, 0.3, 0.0, 0.12)):
+    w, h, d, rot = 0.55, 0.3, 0.38, turned(turn)
+    p.box(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2, J(0x5a5c44, 0.08), rot=rot, pivot=(x, 0, z), skip=('bottom',))
+    p.box(x - 0.12, x + 0.12, y + h, y + h + 0.003, z - 0.06, z + 0.06, srgb(0xd8d0b0), rot=rot, pivot=(x, 0, z), skip=('bottom',))
+    for sx in (-1, 1): p.box(x + sx * w / 2 - 0.02, x + sx * w / 2 + 0.02, y + h * 0.55, y + h * 0.7, z - 0.06, z + 0.06, srgb(IRON), rot=rot, pivot=(x, 0, z), skip=())
+parts.append(p.obj('crates', 'wood'))
+
+p = Part()                                    # jerrycans
+for (x, z, turn) in ((-0.17, 0, 0.0), (0.17, 0.02, 0.15)):
+    rot = turned(turn)
+    p.box(x - 0.17, x + 0.17, 0, 0.47, z - 0.08, z + 0.08, J(0x4e5444, 0.05), rot=rot, pivot=(x, 0, z), skip=('bottom',))
+    p.box(x - 0.12, x + 0.04, 0.47, 0.51, z - 0.02, z + 0.02, J(0x3e4436, 0.05), rot=rot, pivot=(x, 0, z), skip=('bottom',))
+    p.box(x - 0.13, x + 0.13, 0.16, 0.3, z + 0.08, z + 0.086, J(0x5a6050, 0.05), rot=rot, pivot=(x, 0, z), skip=('back',))   # the X pressing
+parts.append(p.obj('jerrycans', 'iron'))
+
+p = Part()                                    # a field radio for a table: the set, its dials, the handset, a whip aerial
+p.box(-0.2, 0.2, 0, 0.3, -0.13, 0.13, J(0x4e5444, 0.04), skip=('bottom',))
+p.quad([(-0.17, 0.04, 0.131), (0.17, 0.04, 0.131), (0.17, 0.27, 0.131), (-0.17, 0.27, 0.131)], srgb(0x2a2a26))
+for (x, y) in ((-0.1, 0.2), (0.0, 0.2), (0.1, 0.2), (-0.06, 0.1), (0.06, 0.1)):
+    p.box(x - 0.016, x + 0.016, y - 0.016, y + 0.016, 0.131, 0.15, srgb(0xc8c0a8), skip=('back',))
+p.box(0.1, 0.16, 0.3, 0.33, -0.08, 0.08, srgb(0x1a1a18), skip=('bottom',))
+p.cylinder((0.16, 0.3, -0.1), 0.004, 0.9, 'y', srgb(IRON), segs=4)
+parts.append(p.obj('radio', 'iron'))
+
+p = Part()                                    # a staff map spread on a table, a river and an arrow on it, and a lamp
+r2 = random.Random(12)                        # (its own, so the cotto below keeps its tiles)
+p.quad([(-0.45, 0.003, 0.32), (0.45, 0.003, 0.32), (0.45, 0.003, -0.32), (-0.45, 0.003, -0.32)], srgb(0xd9cfa8))
+for _ in range(9):
+    x, z, w, d = r2.uniform(-0.42, 0.25), r2.uniform(-0.3, 0.15), r2.uniform(0.08, 0.2), r2.uniform(0.06, 0.15)
+    p.quad([(x, 0.004, z + d), (x + w, 0.004, z + d), (x + w, 0.004, z), (x, 0.004, z)], srgb(r2.choice([0xc8d0a0, 0xb8c89a, 0xdcd4b4])))
+p.quad([(-0.45, 0.005, 0.065), (0.45, 0.005, -0.105), (0.45, 0.005, -0.12), (-0.45, 0.005, 0.05)], srgb(0x4a7aa8))
+p.quad([(0.05, 0.006, 0.02), (0.2, 0.006, 0.12), (0.2, 0.006, 0.1), (0.05, 0.006, 0.0)], srgb(0xb02020))
+p.cylinder((0.6, 0, 0.0), 0.08, 0.02, 'y', srgb(IRON), segs=8)
+p.cylinder((0.6, 0.02, 0.0), 0.01, 0.32, 'y', srgb(IRON), segs=4)
+p.blob((0.6, 0.36, 0.0), 0.08, srgb(0x3a4a3a), (1, 0.6, 1), segs=8, rings=4)
+parts.append(p.obj('map_table', 'paper'))
 
 os.makedirs(MODELS, exist_ok=True)
 export(parts, os.path.join(MODELS, 'interior_kit.glb'))

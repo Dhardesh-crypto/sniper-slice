@@ -647,3 +647,13 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
       (map board, notices, coat rack with greatcoat and helmet, papers, telephone, typewriter),
       chairs, rugs and a hanging lamp; nothing over doors, stairs, stairwells or the mission's furniture
 - [x] Town: the kit is ~300k triangles in 10 merged meshes
+
+## Interiors pass 4 (2026-10-27): "keep the improvements coming"
+- [x] New kit pieces (tools/blender/interior.py): farmhouse table, bench, stool, iron bedstead,
+      wardrobe with a suitcase on top, washstand, cassone, ammunition boxes, jerrycans, field radio,
+      a map spread on a table with a lamp
+- [x] Rooms furnished in the middle, not only round the walls: a table with chairs (or a bench)
+      where the mission put none: the family's, a billet's, or the occupiers' map table with a radio
+      or telephone; bedrooms upstairs (one bed, two in a big room, a chest at the foot, wardrobe,
+      washstand); stores of ammunition boxes and jerrycans in the offices; radios on desks; rugs
+      upstairs too, kept off the stairwell. Still decoration (walk-through), like the rest of the kit.
