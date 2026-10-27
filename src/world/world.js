@@ -248,10 +248,10 @@ export class World {
     pos.z = THREE.MathUtils.clamp(pos.z, -PLAY_HALF, PLAY_HALF);
   }
 
-  // Each frame: on a map that says how far you can see (mist), skip the trees beyond it.
-  cullTrees(viewer) {
-    const far = activeMap().forest?.viewDistance;
-    if (far) cullTreeChunks(this.treeChunks, viewer, far);
+  // Each frame: on a map that says how far you can see (mist), skip the trees beyond it; and draw
+  // the trees near the viewer whole, the rest as far cards (zoom: how much a scope magnifies).
+  cullTrees(viewer, zoom = 1) {
+    cullTreeChunks(this.treeChunks, viewer, activeMap().forest?.viewDistance ?? Infinity, zoom);
   }
 
   // Trees within about 8 m of (x, z).

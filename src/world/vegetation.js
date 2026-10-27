@@ -5,7 +5,7 @@ import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
-import { propGeometry } from './props.js';
+import { propGeometry, treeParts } from './props.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
@@ -137,13 +137,13 @@ function makeTreeTypes() {
   });
   return [
     { // silver fir (the mountain forests; only on maps that ask for it)
-      name: 'fir', count: 0,
+      name: 'fir', count: 0, blender: 'treeFir', shade: { trunk: 0.32, crown: [0.46, 0.55, 0.52], far: [0.46, 0.55, 0.52] },
       trunk: new THREE.CylinderGeometry(0.14, 0.34, 16, 8).translate(0, 8, 0), trunkR: 0.34,
       crown: canopy(firTiers, 0x2f4a2b, 0x7a9763, { cards: 220, cardSize: 2.1, seed: 4 }),
       coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.75, 1.3],
     },
     { // beech: a tall grey trunk and a broad crown
-      name: 'beech', count: 0,
+      name: 'beech', count: 0, blender: 'treeBeech', shade: { trunk: 0.45, crown: 0.62, far: 0.62 },
       trunk: new THREE.CylinderGeometry(0.2, 0.32, 8, 9).translate(0, 4, 0), trunkR: 0.32,
       crown: canopy([
         [blob(2.6, 1.2, 0.9, 1.2, 8, 0.25), 0, 9.0, 0],
@@ -170,7 +170,7 @@ function makeTreeTypes() {
       coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.8, 1.2],
     },
     { // olive: silvery, clumpy and low
-      name: 'olive', count: 520,
+      name: 'olive', count: 520, blender: 'treeOlive', shade: { trunk: 0.45, crown: 0.75, far: 0.75 },
       trunk: new THREE.CylinderGeometry(0.18, 0.28, 1.8, 10).translate(0, 0.9, 0), trunkR: 0.3,
       crown: canopy([
         [blob(1.3, 1.2, 0.85, 1.2, 5, 0.3), 0, 2.6, 0],
@@ -184,6 +184,7 @@ function makeTreeTypes() {
 
 const CHUNK = 125;
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+const LOD_NEAR = 55;     // m: closer chunks draw a Blender tree whole, farther ones its far cards
 
 export function buildTrees(scene) {
   const rng = makeRng(1944);
@@ -236,33 +237,48 @@ export function buildTrees(scene) {
       if (!byChunk.has(k)) byChunk.set(k, []);
       byChunk.get(k).push(t);
     }
+    // A tree built in Blender: the whole tree near by, its far cards beyond (see cullTreeChunks).
+    const built = type.blender && treeParts(type.blender, type.shade);
     for (const [k, list] of byChunk) {
-      // A modelled tree draws itself whole; its trunk stays, undrawn, for bullets.
-      const parts = type.model ? [[type.trunk, HIDDEN], [type.model.geometry, type.model.material]]
-        : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
-      const meshes = parts.map(([geo, mat]) => {
+      const instanced = ([geo, mat]) => {
         const im = new THREE.InstancedMesh(geo, mat, list.length);
         list.forEach((t, j) => im.setMatrixAt(j, t.m));
         im.castShadow = im.receiveShadow = true;
         im.computeBoundingSphere();
         scene.add(im);
         return im;
-      });
+      };
+      // A modelled tree draws itself whole; its trunk stays, undrawn, for bullets.
+      const parts = type.model || built ? [[type.trunk, HIDDEN]]
+        : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
+      if (type.model && !built) parts.push([type.model.geometry, type.model.material]);
+      const meshes = parts.map(instanced);
       trunks.push(meshes[0]);
       const [cx, cz] = k.split(',').map(Number);
-      if (!chunks.has(k)) chunks.set(k, { x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK, meshes: [] });
-      chunks.get(k).meshes.push(...meshes);
+      if (!chunks.has(k)) chunks.set(k, { x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK, meshes: [], near: [], far: [] });
+      const c = chunks.get(k);
+      c.meshes.push(...meshes);
+      if (built) {
+        c.near.push(instanced([built.trunk.geometry, built.trunk.material]), instanced([built.crown.geometry, built.crown.material]));
+        c.far.push(instanced([built.far.geometry, built.far.material]));
+      }
     }
   }
   return { trees, trunks, chunks: [...chunks.values()] };
 }
 
-// Hide the tree chunks beyond `far` metres of the viewer (a misty map can't see them anyway).
-export function cullTreeChunks(chunks, viewer, far) {
-  const r = far + CHUNK * 0.71;
+// Hide the tree chunks beyond `far` metres of the viewer (a misty map can't see them anyway), and
+// pick each chunk's detail: the whole Blender trees within `near` m (more through a scope: `zoom`),
+// their far cards beyond.
+export function cullTreeChunks(chunks, viewer, far = Infinity, zoom = 1) {
+  const r = far + CHUNK * 0.71, near = LOD_NEAR * zoom;
   for (const c of chunks) {
     const v = (c.x - viewer.x) ** 2 + (c.z - viewer.z) ** 2 < r * r;
+    const dx = Math.max(0, Math.abs(c.x - viewer.x) - CHUNK / 2), dz = Math.max(0, Math.abs(c.z - viewer.z) - CHUNK / 2);
+    const close = dx * dx + dz * dz < near * near;
     for (const m of c.meshes) m.visible = v;
+    for (const m of c.near) m.visible = v && close;
+    for (const m of c.far) m.visible = v && !close;
   }
 }
 

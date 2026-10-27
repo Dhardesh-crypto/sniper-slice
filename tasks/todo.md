@@ -600,3 +600,15 @@ model goes in through `tools/import-model.sh` (download, JPEG textures, weld + s
       so a shot meeting the block first now goes to a charge within 0.8 m behind it (raycastSegment).
 - [x] Verified: TNT thrown, landed, K detonated it; satchels placed with 6 s and 20 s; a shot set off one
       on the ground and one on the staff car (the car went up with it).
+
+## Blender realism pass (2026-10-27): "improve all missions with the aid of Blender"
+Blender 5.2 runs headless (`tools/blender/*.py`, `blender -b -P`); it renders textures and exports GLBs.
+Rule from the crates: everything placed many times is instanced, and draw calls are counted per mission.
+- [ ] Textures rendered in Blender from modelled detail: fir needle sprays, beech and olive leaf
+      sprays (albedo with alpha + normal), seamless bark
+- [ ] Trees built in Blender: silver fir and beech (Black Pine), olive (the other seven missions),
+      each with a far version (crossed cards rendered from the tree itself)
+- [ ] Game: tree types from GLBs; near chunks draw the full tree, far chunks the cards
+- [ ] Ground detail made in Blender, instanced per chunk in every mission: stones, bushes,
+      ferns and stumps and fallen branches in the forest
+- [ ] Check: screenshots per mission; draw calls, triangles and frame time before/after in all eight

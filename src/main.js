@@ -83,7 +83,7 @@ const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMiss
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
-await loadProps(['safe', 'siren', 'crates', 'cypress', 'pine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'safe', 'siren', 'crates', 'cypress', 'pine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 useMap(M.map);
@@ -504,6 +504,7 @@ function step(realDt, draw = true) {
     avatar.root.visible = false;
     if (!draw) return;
     renderer.shadowMap.needsUpdate = (shadowFrame++ & 1) === 0;
+    world.cullTrees(camera.position, Math.tan(THREE.MathUtils.degToRad(settings.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
     killCam.render(renderer, post);
     hud.update(realDt, { camera, player, arsenal, world, fps });
     return;
@@ -565,7 +566,7 @@ function step(realDt, draw = true) {
   world.focusShadows(lookAhead);
   world.nearGrass.update(player.pos.x, player.pos.z);
   world.viewer = camera.position;
-  world.cullTrees(camera.position);
+  world.cullTrees(camera.position, Math.tan(THREE.MathUtils.degToRad(settings.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
 
   fx.update(dt);
   hotspots.highlight(dt, camera);

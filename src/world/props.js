@@ -69,6 +69,8 @@ export const PROPS = {
   fishingBoat: { file: 'prop_fishing_boat', turn: 0 },
   // The realism pass: vegetation (the vineyard's rows, cypresses, umbrella pines, rocks) and burnt-out wrecks.
   // (Leafy crowns don't come out of image-to-3D: the olives and oaks stay the drawn leaf-card trees.)
+  // Trees built in Blender (tools/blender/trees.py): see treeParts().
+  treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
   vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 }, rock: { file: 'prop_rock', turn: 0 },
   wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
   wreckCar: { file: 'wreck_car', turn: 3 }, wreckHalftrack: { file: 'wreck_halftrack', turn: 3 },
@@ -96,6 +98,31 @@ export async function loadProps(keys, onProgress = () => {}) {
 }
 
 export const hasProp = (k) => !!assets.models[k];
+
+// A tree built in Blender, at its own size (metres, its foot at the origin): { trunk, crown, far },
+// each { geometry, material }. The crown's branch cards and the far cards (the whole tree drawn
+// front and side on two crossed cards) are cut out by alpha and seen from both sides.
+// shade: { trunk, crown, far } multipliers on the colour (a number, or [r, g, b]) (the rendered textures are albedo; in the
+// game's light they need taking down to sit with the rest of the forest).
+export function treeParts(k, shade = {}) {
+  const src = assets.models[k]?.scene;
+  if (!src) return null;
+  src.updateMatrixWorld(true);
+  const parts = {};
+  src.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material;
+    if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+    if (o.name !== 'trunk') Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
+    // Matte: a sheen of sky on the cards turned the needles minty.
+    Object.assign(m, { roughness: 1, metalness: 0, envMapIntensity: 0.15 });
+    for (const t of [m.map, m.normalMap]) if (t) t.anisotropy = 8;
+    const s = shade[o.name] ?? 1;
+    if (Array.isArray(s)) m.color.setRGB(...s); else m.color.setScalar(s);
+    parts[o.name] = { geometry: o.geometry.clone().applyMatrix4(o.matrixWorld), material: m };
+  });
+  return parts.trunk && parts.crown && parts.far ? parts : null;
+}
 
 // A copy of prop `k` fitted into `size` ({ x, y, z } in metres; give one for a uniform scale, or
 // several with stretch: true to fill a box exactly). own: its own materials (a wreck blackens it).
