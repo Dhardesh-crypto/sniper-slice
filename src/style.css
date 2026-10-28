@@ -59,11 +59,15 @@ canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block;
 h1 { margin: 0; font-weight: 300; letter-spacing: 0.4em; font-size: 30px; }
 .sub { margin: 4px 0 20px; color: var(--dim); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; }
 h2 { font-size: 12px; letter-spacing: 0.25em; color: var(--dim); font-weight: 500; margin: 0 0 12px; }
-#play, #restart, #again, #save-btn, #load-btn { font: inherit; font-size: 15px; letter-spacing: 0.25em; text-transform: uppercase; color: #111; background: var(--ink); border: 0; padding: 12px 26px; cursor: pointer; margin-bottom: 18px; }
+#play, #restart, #again, #next, #save-btn, #load-btn { font: inherit; font-size: 15px; letter-spacing: 0.25em; text-transform: uppercase; color: #111; background: var(--ink); border: 0; padding: 12px 26px; cursor: pointer; margin-bottom: 18px; }
 #save-btn, #load-btn, #restart { font-size: 12px; padding: 12px 18px; }
-#play:hover, #again:hover { background: #fff; }
+#play:hover, #again:hover, #next:hover { background: #fff; }
 #restart.ghost, #save-btn.ghost, #load-btn.ghost { background: transparent; color: var(--ink); border: 1px solid rgba(242, 237, 225, 0.4); }
-#again { margin-bottom: 0; }
+#again, #next { margin-bottom: 0; }
+#again.ghost { background: transparent; color: var(--ink); border: 1px solid rgba(242, 237, 225, 0.4); font-size: 12px; padding: 12px 18px; }
+#again.ghost:hover { background: rgba(242, 237, 225, 0.12); }
+.end-buttons { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+#next[hidden] { display: none; }
 /* Menu tabs: Mission / Settings / Controls. The tab body scrolls if the window is small. */
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 16px; flex: none; }
 .tabs button { font: inherit; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); background: none; border: 0;

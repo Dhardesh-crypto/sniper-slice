@@ -297,6 +297,13 @@ mission.onComplete = (sum) => {
   document.getElementById('end-stats').innerHTML = sum.rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   // Ellis's report: what it's bought, and where it leads.
   if (story) { document.getElementById('report').innerHTML = `<p class="from">${HANDLER} · to Kestrel</p><p>${story.outro}</p>`; playVoice(`story_${missionId}_outro`); }
+  // On to the next mission in the campaign (the last one: only playing it again).
+  const next = CAMPAIGN.slice(CAMPAIGN.findIndex(m => m.id === missionId) + 1).find(m => m.ready);
+  const nextBtn = document.getElementById('next'), againBtn = document.getElementById('again');
+  nextBtn.hidden = !next;
+  againBtn.classList.toggle('ghost', !!next);
+  if (next) nextBtn.textContent = `Next mission · ${next.name}`;
+  nextBtn.onclick = next ? () => chooseMission(next.id) : null;
   endScreen.classList.add('on');
   menu.classList.add('hidden');
   audio.setSiren(0);
