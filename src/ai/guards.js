@@ -578,6 +578,7 @@ export class GuardAI {
     this.reinforced = true;
     // It drives in along the map's road, from the west, and stops short of the target area.
     const road = activeMap().truck ?? { from: -230, stop: -46 };
+    if (!Number.isFinite(roadCenterZ(COMPOUND.x + road.stop))) return this.sendOnFoot({ quiet });   // (no road: they come on foot)
     const t = { model: truckModel(), x: COMPOUND.x + road.from, stopX: COMPOUND.x + road.stop, speed: 13, unloaded: false, parkT: 0, stalled: false };
     this.scene.add(t.model);
     this.truck = t;
@@ -665,14 +666,32 @@ export class GuardAI {
       const at = t.model.position.clone().addScaledVector(back, 4.2).addScaledVector(side, (i - 1.5) * 0.9);
       at.y = this.world.groundAt(at.x, at.z);
       s.root.position.copy(at); s.crouchTarget = 0;
-      s.root.rotation.y = s.targetYaw = Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z);
-      s.brain.path = null;                   // (his post: the yard, as spawnReinforcement set it)
-      const known = this.guards().reduce((k, o) => (o.brain.lastSeenT > (k?.t ?? -1) && o.brain.lastSeen ? { t: o.brain.lastSeenT, at: o.brain.lastSeen } : k), null)?.at;
-      const guess = (known ?? this.player.pos).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
-      this.stealth.raise(s, 'alerted', guess, 'shout');
-      s.brain.lastSeen = guess;
+      this.rushIn(s);
     }
     this.hud.message(t.stalled ? 'REINFORCEMENTS COMING ON FOOT' : 'REINFORCEMENTS HAVE ARRIVED', 'wound');
+  }
+
+  // On a map with no road for the truck: five men come in on foot from the map's `reinforceFrom`
+  // (out of sight behind the target area), running for where the player was last seen.
+  sendOnFoot({ quiet = false } = {}) {
+    const [fx, fz] = activeMap().reinforceFrom ?? [COMPOUND.x, COMPOUND.z - COMPOUND.r - 60];
+    for (let i = 0; i < TRUCK_SEATS.length; i++) {
+      const x = fx + (i - 2) * 1.6, z = fz + (i % 2) * 1.4;
+      const s = this.spawnReinforcement(new THREE.Vector3(x, this.world.groundAt(x, z), z), 0, i);
+      this.rushIn(s);
+    }
+    if (!quiet) this.hud.message('ENEMY REINFORCEMENTS COMING ON FOOT', 'wound');
+  }
+
+  // A reinforcement just arrived: alerted, facing in, heading for where the player was last seen.
+  rushIn(s) {
+    const at = s.root.position;
+    s.root.rotation.y = s.targetYaw = Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z);
+    s.brain.path = null;                     // (his post: the yard, as spawnReinforcement set it)
+    const known = this.guards().reduce((k, o) => (o.brain.lastSeenT > (k?.t ?? -1) && o.brain.lastSeen ? { t: o.brain.lastSeenT, at: o.brain.lastSeen } : k), null)?.at;
+    const guess = (known ?? this.player.pos).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
+    this.stealth.raise(s, 'alerted', guess, 'shout');
+    s.brain.lastSeen = guess;
   }
 
   // Send the nearest calm guard to fix something at `at`; `done` runs when he has.

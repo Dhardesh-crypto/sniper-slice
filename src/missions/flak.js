@@ -85,6 +85,7 @@ const map = {
     if (slopeAt(x, z) > 0.9) c.lerp(rock, 0.6);
   },
   reinforceHome: [POST.x, POST.z + 20],
+  reinforceFrom: [AMMO.x, AMMO.z - 90],               // (no road: they come over the crest from behind the battery)
   flee: [AMMO.x, AMMO.z],
   routes: {
     'Trench sentry': FIRE.slice(0, 7).map(([x, z]) => [x, z]).concat([[...FIRE[0], 8]]),
