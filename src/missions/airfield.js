@@ -18,6 +18,7 @@ import { building, furniture, ladder, timberFrame } from '../world/buildings.js'
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { propModel, dressProps } from '../world/props.js';
+import { trenchSystem, dressTrenches, besideTrench } from '../world/trenches.js';
 
 const Y = 20;                                    // the airfield's level
 const START = { x: 330, z: 345 };
@@ -25,7 +26,10 @@ const RADAR = { x: 60, z: -150 };
 const FENCE = { x0: -400, x1: 400, z0: -200, z1: 200 };
 const TAXI_Z = 70;
 const ROAD_Z = 250;
-const RUNUP_EVERY = 95, RUNUP_FOR = 22;          // an engine run-up on the apron: how often, how long
+const RUNUP_EVERY = 95, RUNUP_FOR = 22;
+// A trench line across the south-east approach, outside the fence, with a dugout and wire in front.
+const TRENCH = [[150, 228], [190, 238], [230, 226], [270, 240], [310, 228], [350, 240], [395, 230]];
+const SYS = trenchSystem([TRENCH], { depth: 1.8, half: 0.85, bank: 0.8, dugouts: [besideTrench(TRENCH, 140, -1)] });          // an engine run-up on the apron: how often, how long
 
 // How far (x, z) is outside the field's flat ground (the radar's rise is flat on top too).
 function fieldDist(x, z) {
@@ -40,7 +44,7 @@ function heightAt(x, z) {
   // The radar's rise: a low mound with a flat top.
   const dr = Math.hypot(x - RADAR.x, z - RADAR.z);
   y += 6 * (1 - smoothstep(24, 60, dr));
-  return y;
+  return y - SYS.carve(x, z);
 }
 const inRunway = (x, z) => Math.abs(z) < 22 && Math.abs(x) < 385;
 const inTaxi = (x, z) => (Math.abs(z - TAXI_Z) < 8 && x > -268 && x < 208) || ((Math.abs(x + 260) < 8 || Math.abs(x - 200) < 8) && z > 0 && z < TAXI_Z);
@@ -55,6 +59,8 @@ const map = {
   heightAt,
   roadCenterZ: (x) => (x <= 10 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
+    if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m)) return true;
+    if (x > 140 - m && z > 244 - m && z < 258 + m) return true;            // (the wire belt)
     if (x > FENCE.x0 - 8 - m && x < FENCE.x1 + 8 + m && z > FENCE.z0 - 8 - m && z < FENCE.z1 + 8 + m) return true;
     if (Math.hypot(x - RADAR.x, z - RADAR.z) < 40 + m) return true;
     if (x <= 10 && Math.abs(z - ROAD_Z) < 5 + m) return true;
@@ -62,6 +68,7 @@ const map = {
     return Math.hypot(x - START.x, z - START.z) < 12 + m;
   },
   paint(c, x, z, { road, rock, dirt, mowed }) {
+    if (SYS.dist(x, z) < 2.2) c.lerp(dirt, 0.85);
     if (x > FENCE.x0 && x < FENCE.x1 && z > FENCE.z0 && z < FENCE.z1) c.lerp(mowed, 0.5);   // the field's mown grass
     if (inRunway(x, z) || inTaxi(x, z) || inApron(x, z)) c.lerp(rock, 0.85);               // concrete
     if ((x <= 10 && Math.abs(z - ROAD_Z) < 3) || (Math.abs(x) < 3 && z > FENCE.z1 - 30 && z < ROAD_Z)) c.lerp(road, 1);
@@ -71,6 +78,7 @@ const map = {
   reinforceHome: [0, 150],
   flee: [-40, 140],
   routes: {
+    'Trench sentry': TRENCH.map(([x, z]) => [x, z]).concat([[...TRENCH[0], 8]]),
     Major: [[40, 98, 20], [41, 108, 25], [40, 98], [-40, 98, 15], [-100, 98, 10], [40, 98]],
     'Apron patrol': [[-130, 92], [120, 92, 6], [120, 170], [-130, 170, 6], [-130, 92]],
     'Pen patrol': [[-250, 90], [-150, 90, 8], [-250, 90, 8]],
@@ -233,8 +241,13 @@ function site(scene, world) {
     const fy = heightAt(fx, fz);
     for (let a = 0; a < 8; a++) { const ang = a / 8 * Math.PI * 2; if (a === 2) continue; b.box(1.6, 0.9, 0.6, M.sandbag, fx + Math.cos(ang) * 3.2, fy, fz + Math.sin(ang) * 3.2, { rotY: -ang }); }
     place(propModel('flak', { y: 2.9 }), fx, fy, fz, Math.PI / 2);
-    b.box(1.4, 1.2, 1.4, hidden, fx, fy, fz);
+    const core = b.box(1.4, 1.2, 1.4, hidden, fx, fy, fz);
+    hotspotDefs.push({ kind: 'flak20', title: '2 CM FLAK GUN', explosive: true, armored: true, hitsToExplode: 2, meshes: [core], parts: [core],   // (AP rounds or a charge)
+      blast: { radius: 6, hurt: 12, size: 1.4, burn: true, heavy: true, label: 'FLAK GUN DESTROYED' } });
   }
+
+  // ---- the trench line across the south-east approach, a dugout let into it ----
+  const dug = dressTrenches(b, SYS, heightAt);
 
   // ---- a watchtower at the north-east corner ----
   const [wx, wz] = [380, -180], wy = heightAt(wx, wz), wtop = wy + 7;
@@ -278,6 +291,9 @@ function site(scene, world) {
   add(RADAR.x - 18, RADAR.z - 18, 0, { name: 'Radar sentry', stance: 'alert' });
   add(RADAR.x + 2.5, RADAR.z + 3, Math.PI, { name: 'Radar operator', look: 'guardLuftwaffe' });
   for (const [fx, fz] of flak) add(fx + 1.5, fz + 1.5, Math.PI, { y: heightAt(fx, fz), name: 'Flak crew', look: 'guardSergeant' });
+  add(...TRENCH[0], -Math.PI / 2, { name: 'Trench sentry', look: 'guardLuftwaffe' });
+  add(TRENCH[4][0], TRENCH[4][1], Math.PI, { name: 'Trench guard', stance: 'alert' });
+  for (const g of dug) add(g.inside.x, g.inside.z, g.yaw, { y: g.floor, name: 'Off-duty guard' });
   add(wx, wz - 0.3, Math.PI * 0.75, { y: wtop, name: 'Tower lookout', stance: 'alert', look: 'guardCamo' });
   add(-150, 162, 0, { name: 'Mess guard', look: 'guardLuftwaffe' });
 
@@ -298,6 +314,8 @@ function site(scene, world) {
 function dressing() {
   const poles = [-400, -360, -320, -280, -240, -200, -160, -120, -80].map(x => ['pole', x, ROAD_Z + 6]);
   return [
+    ...Array.from({ length: 48 }, (_, i) => ['wire', 146 + i * 5.3, 250 + Math.sin(i * 0.9) * 1.2, 0]),   // (the wire belt in front of the trench)
+    ['mgNest', 230, 232, Math.PI], ['mgNest', 350, 246, Math.PI],
     ...poles, ['signpost', -8, ROAD_Z - 6, 0.3],
     ['truck', -20, 165, 0], ['truck', 112, 166, 0], ['car', 56, 98, 0], ['motorcycle', 30, 100, 0.4], ['motorcycle', 33, 103, 0.2],
     ['tent', -200, 150], ['tent', -212, 165], ['tent', -190, 172, 0.3], ['kitchen', -133, 182, 0],
@@ -364,11 +382,13 @@ const def = {
     { id: 'radar', text: 'Wreck the Würzburg radar on the rise north of the runway' },
     { id: 'safe', text: 'Take the flight plans from the control tower safe' },
     { id: 'officer', text: 'Eliminate Major Kessler, the Gruppe commander', optional: true },
+    { id: 'flak', text: 'Destroy the three flak guns', optional: true },
     { id: 'papers', text: "Take Kessler's papers", optional: true },
     { id: 'extract', text: 'Get back to the hill you came from', hidden: true },
   ],
   tick(m, dt) {
     const w = m.world, site = w.site, hs = w.hotspots;
+    if (hs.filter(h => h.kind === 'flak20').every(h => h.exploded)) m.complete('flak', 'ALL THREE FLAK GUNS DESTROYED');
     const planesLeft = hs.filter(h => h.kind === 'plane' && !h.exploded).length;
     if (!m.obj('planes').done) {
       if (planesLeft === 0) m.complete('planes', 'ALL FOUR NIGHT FIGHTERS DESTROYED');

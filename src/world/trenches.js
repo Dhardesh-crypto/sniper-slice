@@ -13,6 +13,20 @@ function segDist(x, z, [x0, z0], [x1, z1]) {
   return Math.hypot(x - (x0 + t * dx), z - (z0 + t * dz));
 }
 
+// Where a dugout goes `along` metres down a trench line, let into its wall on `side` (+1 / −1,
+// left / right of the way the line runs), its doorway facing the trench: { x, z, yaw, w, d }.
+export function besideTrench(line, along, side = 1, { w = 4, d = 3, half = 0.85 } = {}) {
+  let left = along;
+  for (let i = 1; i < line.length; i++) {
+    const [x0, z0] = line[i - 1], [x1, z1] = line[i], len = Math.hypot(x1 - x0, z1 - z0);
+    if (left > len && i < line.length - 1) { left -= len; continue; }
+    const ux = (x1 - x0) / len, uz = (z1 - z0) / len, nx = -uz * side, nz = ux * side;
+    const k = Math.min(left, len), off = half + d / 2 + 0.15;
+    return { x: x0 + ux * k + nx * off, z: z0 + uz * k + nz * off, yaw: Math.atan2(-nx, -nz), w, d };
+  }
+  return null;
+}
+
 // lines: [[x, z], ...] per trench; dugouts: [{ x, z, yaw, w, d }] (yaw: the doorway faces +z turned by it).
 export function trenchSystem(lines, { depth = 1.9, half = 0.9, bank = 0.9, dugouts = [] } = {}) {
   const dist = (x, z) => {

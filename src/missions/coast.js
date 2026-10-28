@@ -16,6 +16,8 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { propModel, dressProps } from '../world/props.js';
+import { trenchSystem, dressTrenches, besideTrench } from '../world/trenches.js';
+import { Tunnels } from '../world/tunnels.js';
 
 const Y = 45, BEACH = 3, WATER = 0;
 const GULLY_X = -260, LADDER_X = 120;
@@ -29,12 +31,12 @@ const TRENCHES = [
 const RADARS = [{ key: 'freya', x: 20, z: -40, title: 'FREYA RADAR' }, { key: 'radar', x: -25, z: -52, title: 'WÜRZBURG RADAR' }];
 const CASEMATES = [-170, -110, 50].map(x => ({ x, z: zc(x) + 12 }));
 const LIGHT = { x: 200, z: zc(200) + 9 };
+// The trenches walled and duckboarded (world/trenches.js), with a dugout let into each; a tunnel
+// from a cave at the foot of the cliffs up into the west trench.
+const SYS = trenchSystem(TRENCHES, { depth: 1.8, half: 0.85, bank: 0.9, dugouts: [besideTrench(TRENCHES[0], 70, 1), besideTrench(TRENCHES[1], 60, 1)] });
+const CAVE = { x: -75, z: zc(-75) - 12 };
 
-function segDist(x, z, [x0, z0], [x1, z1]) {
-  const dx = x1 - x0, dz = z1 - z0, t = Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz)));
-  return Math.hypot(x - (x0 + t * dx), z - (z0 + t * dz));
-}
-const trenchDist = (x, z) => Math.min(...TRENCHES.flatMap(t => t.slice(1).map((p, i) => segDist(x, z, t[i], p))));
+const trenchDist = (x, z) => SYS.dist(x, z);
 
 function plateau(x, z) {
   let h = Y + (fbm(x * 0.004 + 2, z * 0.004 - 7, 3) - 0.5) * 10 + Math.max(0, z - 150) * 0.08;
@@ -52,8 +54,8 @@ function heightAt(x, z) {
   const gw = 1 - smoothstep(6, 12, Math.abs(x - GULLY_X));
   if (gw > 0 && d < 90) h = lerp(h, lerp(shore(Math.min(d, -10)), top, smoothstep(-30, 85, d)), gw);
   // Trenches across the top.
-  // (Their sides stay under the cliff rule's slope, so you can climb in and out anywhere.)
-  if (d > 4) { const t = trenchDist(x, z); if (t < 3.4) h -= 1.5 * (1 - smoothstep(0.6, 3.4, t)); }
+  // (Steep walls; every 32 m a way out: world/trenches.js.)
+  if (d > 4) h -= SYS.carve(x, z);
   return h;
 }
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
@@ -190,14 +192,12 @@ function site(scene, world) {
   const boat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 5), new THREE.MeshStandardMaterial({ color: 0x3a3c33, roughness: 0.9 }));
   boat.position.set(START.x - 4, heightAt(START.x - 4, START.z - 8) + 0.3, START.z - 8); boat.rotation.y = 0.5; b.group.add(boat);
 
-  // ---- sandbags along the trenches' rims ----
-  for (const t of TRENCHES) for (let i = 1; i < t.length; i++) {
-    const [x0, z0] = t[i - 1], [x1, z1] = t[i], len = Math.hypot(x1 - x0, z1 - z0), ang = Math.atan2(-(z1 - z0), x1 - x0);
-    for (let k = 0; k < len; k += 6) {
-      const x = lerp(x0, x1, k / len), z = lerp(z0, z1, k / len), nx = -(z1 - z0) / len * 1.6, nz = (x1 - x0) / len * 1.6;
-      b.box(1.6, 0.5, 0.6, M.sandbag, x + nx, heightAt(x + nx, z + nz), z + nz, { rotY: ang, solid: false });
-    }
-  }
+  // ---- the trenches: plank walls, duckboards, sandbags on the lips, the dugouts ----
+  const dug = dressTrenches(b, SYS, heightAt);
+  // The flak gun by the radars: armoured (AP rounds or a charge at its breech).
+  const flakCore = b.box(1.4, 1.2, 1.4, hidden, 60, heightAt(60, -20), -20);
+  hotspotDefs.push({ kind: 'flak20', title: '2 CM FLAK GUN', explosive: true, armored: true, hitsToExplode: 2, meshes: [flakCore], parts: [flakCore],
+    blast: { radius: 6, hurt: 12, size: 1.4, burn: true, heavy: true, label: 'FLAK GUN DESTROYED' } });
 
   // The siren by the bunker.
   const [sx, sz] = [-10, 20], sy = heightAt(sx, sz);
@@ -229,6 +229,7 @@ function site(scene, world) {
   add(-220, zc(-220) - 20, -Math.PI / 2, { name: 'Beach patrol' });
   add(-20, zc(-20) - 20, -Math.PI / 2, { name: 'East beach patrol', look: 'guardCamo' });
   add(GULLY_X, zc(GULLY_X) + 88, Math.PI, { name: 'Gully guard', stance: 'alert' });
+  for (const g of dug) add(g.inside.x, g.inside.z, g.yaw, { y: g.floor, name: 'Off-duty gunner' });
   add(60, 64, 0, { name: 'Barracks guard' });
   add(-60, ROAD_Z - 4, Math.PI / 2, { name: 'Road guard', stance: 'alert' });
 
@@ -239,7 +240,7 @@ function site(scene, world) {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
-    hotspotDefs, radars, casemates, bunker, hut,
+    hotspotDefs, radars, casemates, bunker, hut, dug,
   };
 }
 
@@ -254,6 +255,7 @@ function dressing() {
     ...CASEMATES.map(c => ['supplies', c.x - 4, c.z + 10, 0.4]),
     ...[-200, -80, 20, 140].map(x => ['sandbags', x, zc(x) + 5, 0]),
     ...[-200, -170, -140, -110, -80, -50, -20, 10, 40, 70].map(x => ['wire', x, zc(x) - 30, 0]),
+    ...TRENCHES.flatMap(tr => tr.slice(1).flatMap(([x1, z1], i) => { const [x0, z0] = tr[i], n = Math.max(1, Math.floor(Math.hypot(x1 - x0, z1 - z0) / 5.4)); return Array.from({ length: n }, (_, k) => { const x = x0 + (x1 - x0) * (k + 0.5) / n, z = z0 + (z1 - z0) * (k + 0.5) / n; return ['wire', x, Math.min(z, zc(x) + 16) - 3.5, Math.abs(z1 - z0) > Math.abs(x1 - x0) ? Math.PI / 2 : 0]; }); })),   // (a belt of wire on the seaward side of the trenches)
     ['kitchen', 40, 82, 0], ['tent', 86, 92], ['tent', 98, 96, 0.3], ['pak40', -60, 0, Math.PI / 2],
     ['mgNest', GULLY_X + 10, zc(GULLY_X) + 100], ['searchlight', -100, zc(-100) + 7, 0.4],
     ['fishingBoat', START.x + 9, START.z + 5, 0.4], ['fishingBoat', START.x - 12, START.z + 2, -0.3],
@@ -285,7 +287,8 @@ function layout({ world, on }) {
 // ---- documents, the safe, the objectives ----
 const SAFE = { id: 'bunker-safe', name: 'THE BUNKER SAFE', combination: '06 – 06 – 44' };
 
-function intel(it, world, { pickups, arsenal, mission }) {
+function intel(it, world, extras) {
+  const { pickups, arsenal, mission } = extras;
   const { bunker, hut, radars } = world.site;
   it.addSafe({ ...SAFE, at: bunker.safe.at, yaw: bunker.safe.yaw, objective: 'safe', objectiveText: 'THE CODEBOOKS TAKEN',
     docs: [{ id: 'coast-codebooks', title: 'Codebooks, Kriegsmarine coastal command',
@@ -302,6 +305,10 @@ function intel(it, world, { pickups, arsenal, mission }) {
   mission.papersDoc = { id: 'coast-papers', title: "Major Stoltz's papers", reveals: SAFE.id,
     text: `Pay book of Major F. Stoltz, Heeres-Küstenartillerie. On the inside cover, in ink: ${SAFE.combination}.` };
   mission.documentsTotal = 6;
+  // A smugglers' passage from a cave at the foot of the cliffs up into the west trench's dugout.
+  const dg = world.site.dug?.[0];
+  if (dg && extras?.scene) world.tunnels = new Tunnels({ scene: extras.scene, world, player: extras.player, interactions: it, audio: extras.audio, hud: extras.hud,
+    pairs: [[{ x: CAVE.x, z: CAVE.z }, { x: dg.entrance.x, z: dg.entrance.z, y: dg.floor }]] });
 }
 
 const def = {
@@ -316,6 +323,7 @@ const def = {
     { id: 'guns', text: 'Destroy the three coastal guns (AP rounds, or a satchel at a magazine door)' },
     { id: 'safe', text: 'Take the codebooks from the command bunker safe' },
     { id: 'officer', text: 'Eliminate Major Stoltz, the battery commander', optional: true },
+    { id: 'flak', text: 'Destroy the flak gun by the radars', optional: true },
     { id: 'papers', text: "Take Stoltz's papers", optional: true },
     { id: 'extract', text: 'Get back down to the cove', hidden: true },
   ],
@@ -325,6 +333,7 @@ const def = {
     if (radarsLeft === 0) m.complete('radar', 'BOTH RADARS WRECKED');
     const gunsLeft = hs.filter(h => h.kind === 'gun' && !h.exploded).length;
     if (gunsLeft === 0) m.complete('guns', 'ALL THREE GUNS DESTROYED');
+    if (hs.some(h => h.kind === 'flak20' && h.exploded)) m.complete('flak', 'THE FLAK GUN IS DESTROYED');
     else if (site.gunsLeft !== undefined && gunsLeft < site.gunsLeft) m.hud.message(`COASTAL GUN DESTROYED · ${gunsLeft} LEFT`, '');
     site.gunsLeft = gunsLeft;
     for (const r of site.radars) if (r.model && !r.down && hs.find(h => h.meshes[0] === r.cabin)?.exploded) { r.down = true; r.model.rotation.z = 0.45; r.model.position.y -= 0.8; }

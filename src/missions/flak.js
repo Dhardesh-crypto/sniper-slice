@@ -17,7 +17,7 @@ import { building, furniture } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { hasProp, propModel, dressProps } from '../world/props.js';
-import { trenchSystem, dressTrenches } from '../world/trenches.js';
+import { trenchSystem, dressTrenches, besideTrench } from '../world/trenches.js';
 import { Tunnels } from '../world/tunnels.js';
 
 const START = { x: -20, z: 300 };
@@ -32,10 +32,10 @@ const FIRE = [[-220, 120], [-180, 108], [-150, 124], [-110, 110], [-75, 126], [-
 const COMM = [[[-75, 122], [-70, 80], [-60, 40], [-55, 0], [-48, -18]], [[100, 112], [90, 70], [80, 30], [70, -2], [62, -14]]];
 const LINES = [FIRE, ...COMM];
 const DUGOUTS = [
-  { x: -128, z: 102, yaw: 0, w: 4, d: 3 },             // in the fire trench (doorways face the trench)
-  { x: 48, z: 104, yaw: 0, w: 4, d: 3 },
-  { x: 160, z: 102, yaw: 0, w: 3.6, d: 3 },
-  { x: -63, z: 10, yaw: Math.PI / 2, w: 4, d: 3 },     // up at the battery: crew quarters
+  besideTrench(FIRE, 96, -1),                          // let into the back wall of the fire trench (doorways onto it)
+  besideTrench(FIRE, 272, -1),
+  besideTrench(FIRE, 388, -1, { w: 3.6 }),
+  besideTrench(COMM[0], 120, 1),                       // up at the battery: crew quarters off the west communication trench
   { x: POST.x, z: POST.z + 6, yaw: Math.PI, w: 5, d: 3.6, command: true },   // the command dugout (the safe)
 ];
 const SYS = trenchSystem(LINES, { depth: 1.9, half: 0.85, bank: 0.8, dugouts: DUGOUTS });
