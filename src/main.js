@@ -586,7 +586,7 @@ function step(realDt, draw = true) {
 
   // Kill slow-mo: drop to 25% speed, then ease back to full speed.
   if (slowmoT > 0) slowmoT = Math.max(0, slowmoT - realDt);
-  const targetScale = items.wheelOpen ? 0.2 : slowmoT > 0.2 ? 0.25 : 1; // the item wheel slows time too
+  const targetScale = items.wheelOpen || arsenal.wwheelOpen ? 0.2 : slowmoT > 0.2 ? 0.25 : 1; // the item wheel slows time too
   timeScale += (targetScale - timeScale) * (1 - Math.exp(-(slowmoT > 0.2 ? 30 : 6) * realDt));
   const dt = realDt * timeScale;
 
@@ -603,9 +603,11 @@ function step(realDt, draw = true) {
   const m = input.takeMouse();
   const zoomScale = Math.tan(THREE.MathUtils.degToRad(arsenal.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(settings.fov) / 2);
   if (items.wheelOpen) items.wheelMouse(m);   // the mouse picks from the wheel instead of turning you
+  else if (arsenal.wwheelOpen) arsenal.wheelMouse(m);
   else player.look(m.x, m.y, settings.sensitivity * zoomScale, settings.invertY);
   guns.frame();          // on a nest's gun: the view held to its arc, the gun laid on it
   items.drawWheel();
+  arsenal.drawWeaponWheel();
   arsenal.frame(dt);
 
   // Third person while moving; the rifle scope and binoculars go to the eye.

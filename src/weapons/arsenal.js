@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
 import { throughCover } from './penetration.js';
 import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
+import { weaponPicture } from '../ui/weapon-pictures.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -137,6 +138,88 @@ export class Arsenal {
     return out;
   }
 
+  // ---- the weapon wheel: hold X ----
+  // The rifle once for each kind of round (its count beside it), the pistol, the heavy weapon if you
+  // carry one. Point with the mouse, let go of X: the weapon comes up, loaded with that ammunition.
+  // A quick tap of X still just loads the next kind of round.
+  wheelSlots() {
+    const r = this.weapons.rifle, slots = Object.entries(AMMO).map(([k, a]) => ({ id: `rifle:${k}`, weapon: 'rifle', ammo: k, name: a.name, sub: r.def.name, count: (r.ammo[k] ?? 0) + (r.loaded === k ? r.mag : 0) }));
+    slots.push({ id: 'pistol', weapon: 'pistol', name: this.weapons.pistol.def.name, sub: 'Pistol', count: this.weapons.pistol.mag + this.weapons.pistol.reserve });
+    if (this.loadout?.heavy) slots.push({ id: 'heavy', weapon: 'heavy', name: this.weapons.heavy.def.name, sub: 'Heavy weapon', count: this.weapons.heavy.mag + this.weapons.heavy.reserve });
+    return slots;
+  }
+
+  buildWeaponWheel() {
+    const slots = this.wheelSlots(), el = this.wwheelEl ?? document.createElement('div');
+    el.id = 'wwheel';
+    const pic = (s) => { try { return weaponPicture(this.weapons[s.weapon].def.id); } catch { return ''; } };
+    el.innerHTML = '<div class="hub"><b></b><span></span></div>' + slots.map((s, i) => {
+      const a = (i / slots.length) * Math.PI * 2 - Math.PI / 2, src = pic(s);
+      return `<div class="slot" data-id="${s.id}" style="left:${50 + Math.cos(a) * 38}%;top:${50 + Math.sin(a) * 38}%">${src ? `<img class="gun" src="${src}" alt="">` : ''}<b>${s.name}</b><span></span></div>`;
+    }).join('');
+    if (!el.parentNode) document.body.appendChild(el);
+    this.wwheelEl = el;
+    this.wwheelKey = slots.map(s => s.id + this.weapons[s.weapon].def.id).join();
+  }
+
+  drawWeaponWheel() {
+    if (!this.wwheelEl && !this.wwheelOpen) return;
+    const slots = this.wheelSlots();
+    if (this.wwheelOpen && this.wwheelKey !== slots.map(s => s.id + this.weapons[s.weapon].def.id).join()) this.buildWeaponWheel();   // (a new gun picked up)
+    this.wwheelEl.classList.toggle('on', !!this.wwheelOpen);
+    if (!this.wwheelOpen) return;
+    const now = this.current === 'rifle' ? `rifle:${this.weapons.rifle.pendingAmmo ?? this.weapons.rifle.loaded}` : this.current;
+    for (const el of this.wwheelEl.querySelectorAll('.slot')) {
+      const s = slots.find(x => x.id === el.dataset.id);
+      el.querySelector('span').textContent = s ? `${s.sub} · ${s.count}` : '';
+      el.classList.toggle('hover', el.dataset.id === this.wwHover);
+      el.classList.toggle('sel', el.dataset.id === now);
+      el.classList.toggle('empty', !s?.count);
+    }
+    const s = slots.find(x => x.id === (this.wwHover ?? now)) ?? slots[0];
+    this.wwheelEl.querySelector('.hub b').textContent = s.name;
+    this.wwheelEl.querySelector('.hub span').textContent = s.ammo ? `${s.sub} · ${s.count} rounds` : `${s.sub} · ${s.count}`;
+  }
+
+  wheelMouse(m) {
+    const c = this.wwCursor;
+    c.x += m.x; c.y += m.y;
+    if (c.length() > 140) c.setLength(140);
+    if (c.length() < 25) return;
+    const slots = this.wheelSlots(), a = Math.atan2(c.y, c.x) + Math.PI / 2;
+    this.wwHover = slots[((Math.round(a / (Math.PI * 2 / slots.length)) % slots.length) + slots.length) % slots.length].id;
+  }
+
+  tickWeaponWheel(dt) {
+    const inp = this.input;
+    if (inp.down('KeyX') && !this.player.dead && !this.mount && !this.handsTied) {
+      this.wwHeld = (this.wwHeld ?? 0) + dt;
+      if (!this.wwheelOpen && this.wwHeld > 0.18) {
+        this.wwheelOpen = true; this.wwHover = null; (this.wwCursor ??= new THREE.Vector2()).set(0, 0);
+        if (!this.wwheelEl) this.buildWeaponWheel();
+      }
+      return;
+    }
+    if (this.wwHeld === undefined || this.wwHeld === null) return;
+    const tapped = !this.wwheelOpen, pick = this.wheelSlots().find(s => s.id === this.wwHover);
+    this.wwHeld = null; this.wwheelOpen = false;
+    if (tapped) { if (this.current === 'rifle' && this.switchT <= 0) this.switchAmmo(); return; }   // (a tap: the next kind of round)
+    if (!pick || !pick.count) return;
+    this.audio.click(0, 1100, 0.15);
+    if (pick.weapon !== this.current && this.pendingSwitch === null && !this.reloadT) this.beginSwitch(pick.weapon);
+    if (pick.ammo) this.queuedAmmo = pick.ammo;                // (loaded once the rifle's up: tick)
+  }
+
+  // Load a chosen kind of round in the rifle (a reload), if it isn't loaded already.
+  loadAmmo(kind) {
+    const w = this.weapons.rifle;
+    if ((w.pendingAmmo ?? w.loaded) === kind) return;
+    if (kind !== w.loaded && !(w.ammo[kind] > 0)) return;
+    w.pendingAmmo = kind === w.loaded ? null : kind;
+    if (w.pendingAmmo) this.beginReload();
+    this.onAmmo?.(AMMO[kind].name);
+  }
+
   // X: load the next ammunition type you have rounds of (a reload).
   switchAmmo() {
     const w = this.weapons.rifle, types = Object.keys(AMMO);
@@ -180,7 +263,8 @@ export class Arsenal {
     this.binoculars = inp.down('KeyB') && !this.aiming && !this.busy;
 
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
-    if (inp.wasPressed('KeyX') && this.current === 'rifle' && !this.mount && this.switchT <= 0 && !this.handsTied) this.switchAmmo();
+    this.tickWeaponWheel(dt);
+    if (this.queuedAmmo && this.current === 'rifle' && this.pendingSwitch === null && this.switchT <= 0 && !this.reloadT) { this.loadAmmo(this.queuedAmmo); this.queuedAmmo = null; }
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) {

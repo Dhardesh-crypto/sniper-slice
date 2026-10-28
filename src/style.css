@@ -131,16 +131,18 @@ body.killcam #minimap { visibility: hidden; }
 @keyframes blink { 50% { opacity: 0.35; } }
 
 #compass { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 420px; height: 34px; }
-#objectives { position: absolute; top: 18px; left: 24px; font-size: 12px; line-height: 1.7; max-width: 300px;
+#objectives { display: none; position: fixed; z-index: 6; padding: 12px 16px; background: rgba(12, 14, 12, 0.72); border: 1px solid rgba(242, 237, 225, 0.15); top: 18px; left: 24px; font-size: 12px; line-height: 1.7; max-width: 300px;
   padding: 8px 12px; background: linear-gradient(90deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0)); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
 #objectives h3 { margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.25em; color: var(--dim); }
 #objectives div { color: var(--ink); }
 #objectives div.optional { color: rgba(242, 237, 225, 0.75); }
 #objectives div.done { color: #9fe0a8; text-decoration: line-through; text-decoration-color: rgba(159, 224, 168, 0.6); }
 #objectives div.new { animation: blink 0.9s 4; }
+body.mapopen #objectives, #objectives.flash { display: block; visibility: visible; }   /* on the map; over the game only when one changes */
+body.killcam #objectives { display: none; }
 @media (max-width: 1000px) { #objectives { top: 104px; max-width: 240px; font-size: 11px; } }
 @media (max-width: 760px) { #compass { width: 280px; } }
-@media (max-width: 520px) { #objectives { display: none; } }
+@media (max-width: 520px) { #objectives { max-width: 70vw; } }
 
 .brief { font-size: 13px; line-height: 1.55; color: var(--dim); max-width: 640px; margin: 0 0 14px; }
 .buttons { display: flex; gap: 10px; }
@@ -169,21 +171,22 @@ body.killcam #hidden-edge, body.mapopen #hidden-edge { opacity: 0; }
 #item b { display: block; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; }
 #item span { color: var(--ink); }
 #item small { display: block; color: var(--dim); font-size: 10px; letter-spacing: 0.12em; }
-#wheel { position: fixed; left: 50%; top: 50%; width: 420px; height: 420px; margin: -210px 0 0 -210px; display: none; pointer-events: none;
+#wheel, #wwheel { position: fixed; left: 50%; top: 50%; width: 420px; height: 420px; margin: -210px 0 0 -210px; display: none; pointer-events: none;
   border-radius: 50%; background: radial-gradient(circle, rgba(10,12,10,0.25) 0 28%, rgba(10,12,10,0.6) 29% 70%, rgba(10,12,10,0) 71%); }
-#wheel.on { display: block; }
-#wheel .slot { position: absolute; transform: translate(-50%, -50%); text-align: center; width: 104px; padding: 8px 4px; border-radius: 8px; color: var(--ink); font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-#wheel .slot .icon { display: block; width: 40px; height: 40px; margin: 0 auto 4px; color: var(--ink); }
-#wheel .slot.hover .icon { color: #ffcf6a; }
-#wheel .slot b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-#wheel .slot span { color: var(--dim); }
-#wheel .slot.sel { box-shadow: inset 0 0 0 1px rgba(242,237,225,0.35); }
-#wheel .slot.hover { background: rgba(255, 207, 106, 0.22); box-shadow: inset 0 0 0 1px rgba(255, 207, 106, 0.8); }
-#wheel .slot.empty { opacity: 0.35; }
-#wheel .hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 150px; text-align: center; color: var(--ink); }
-#wheel .hub b { display: block; font-size: 14px; letter-spacing: 0.15em; text-transform: uppercase; }
-#wheel .hub span { display: block; margin-top: 6px; font-size: 11px; color: var(--dim); }
-body.killcam #wheel, body.mapopen #wheel { display: none; }
+#wheel.on, #wwheel.on { display: block; }
+#wheel .slot, #wwheel .slot { position: absolute; transform: translate(-50%, -50%); text-align: center; width: 104px; padding: 8px 4px; border-radius: 8px; color: var(--ink); font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+#wheel .slot .icon, #wwheel .slot .icon { display: block; width: 40px; height: 40px; margin: 0 auto 4px; color: var(--ink); }
+#wheel .slot.hover .icon, #wwheel .slot.hover .icon { color: #ffcf6a; }
+#wheel .slot b, #wwheel .slot b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+#wheel .slot span, #wwheel .slot span { color: var(--dim); }
+#wheel .slot.sel, #wwheel .slot.sel { box-shadow: inset 0 0 0 1px rgba(242,237,225,0.35); }
+#wheel .slot.hover, #wwheel .slot.hover { background: rgba(255, 207, 106, 0.22); box-shadow: inset 0 0 0 1px rgba(255, 207, 106, 0.8); }
+#wheel .slot.empty, #wwheel .slot.empty { opacity: 0.35; }
+#wheel .hub, #wwheel .hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 150px; text-align: center; color: var(--ink); }
+#wheel .hub b, #wwheel .hub b { display: block; font-size: 14px; letter-spacing: 0.15em; text-transform: uppercase; }
+#wheel .hub span, #wwheel .hub span { display: block; margin-top: 6px; font-size: 11px; color: var(--dim); }
+#wwheel .slot img.gun { display: block; width: 92px; height: 36px; object-fit: contain; margin: 0 auto 4px; }
+body.killcam #wheel, body.mapopen #wheel, body.killcam #wwheel, body.mapopen #wwheel { display: none; }
 @media (max-width: 520px) { #wheel { transform: scale(0.75); } }
 
 #slots { display: none; margin: -8px 0 22px; max-width: 640px; }

@@ -175,13 +175,19 @@ export class Hud {
     g.stroke();
   }
 
-  // Objectives in the top-left corner (rebuilt only when they change).
+  // Objectives: shown on the map (M), and for a few seconds over the game when one is added or
+  // done (rebuilt only when they change).
   drawObjectives(mission) {
     const el = this.el.objectives ?? (this.el.objectives = document.getElementById('objectives'));
     const key = mission.objectives.map(o => `${o.id}${o.done}${o.hidden}${o.failed}`).join();
     if (key === this.objKey) return;
     const fresh = this.objKey ? mission.objectives.filter(o => !o.hidden && !this.objKey.includes(`${o.id}${o.done}false`)) : [];
     this.objKey = key;
+    if (fresh.length) {
+      el.classList.add('flash');
+      clearTimeout(this.objFlash);
+      this.objFlash = setTimeout(() => el.classList.remove('flash'), 6500);
+    }
     el.innerHTML = `<h3>${(mission.title ?? 'Operation Vineyard').toUpperCase()}</h3>` + mission.objectives.filter(o => !o.hidden).map(o =>
       `<div class="${o.optional ? 'optional' : ''} ${o.done ? 'done' : ''} ${fresh.includes(o) ? 'new' : ''}">${o.done ? '✓' : o.optional ? '◇' : '◆'} ${o.text}${o.optional ? ' <small>(optional)</small>' : ''}</div>`).join('');
   }
