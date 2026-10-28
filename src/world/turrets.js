@@ -161,9 +161,16 @@ export function tickTurrets(dt) {
     // The crew sees like the guards do, with better optics, only once the compound is fighting you.
     let canSee = false;
     if (fighting && !p.dead && !stealth.concealed && target.distanceTo(at) < range) {
-      const eye = at.clone().setY(at.y + 1);
-      const hit = world.raycastSegment(eye, target);
-      canSee = !hit || hit.distance > eye.distanceTo(target) - 0.6 || c.own.includes(hit.object);
+      // A clear line from the crew's eye to you. The eye sits inside the tank's own armour, so a
+      // hit on its own hull is looked past (on to the next thing), never taken for a clear view.
+      let from = at.clone().setY(at.y + 1);
+      const dir = target.clone().sub(from).normalize();
+      for (let i = 0; i < 4; i++) {
+        const hit = world.raycastSegment(from, target);
+        if (!hit || hit.distance > from.distanceTo(target) - 0.6) { canSee = true; break; }
+        if (!c.own.includes(hit.object)) break;
+        from = hit.point.clone().addScaledVector(dir, 0.05);
+      }
     }
     if (canSee) { c.lastSeen = target.clone(); c.lostT = 0; } else c.lostT += dt;
     // Where the gun is laid: on you, or on the cover you went behind (it knows you're there).
