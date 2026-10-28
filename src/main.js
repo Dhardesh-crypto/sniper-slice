@@ -26,6 +26,7 @@ import { Dogs } from './ai/dogs.js';
 import { CarPatrol } from './ai/patrol.js';
 import { Searchlights } from './world/searchlights.js';
 import { Birds } from './fx/birds.js';
+import { BurnBarrels } from './world/burnbarrels.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
@@ -115,6 +116,7 @@ const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);
 const fx = new Particles(scene, 600);   // (tank exhausts keep a few dozen in the air)
+world.barrels = new BurnBarrels({ scene, world, fx, seed: runSeed });   // fires in oil drums by the guard posts (before the guards' map is drawn)
 const arsenal = new Arsenal({ world, player, input, audio, fx, settings });
 arsenal.camera = camera;
 arsenal.avatar = avatar;
@@ -479,6 +481,7 @@ function tick(dt) {
   patrol.tick(dt);
   searchlights.tick(dt);
   birds.tick(dt);
+  world.barrels.tick(dt, player.pos);
   flashlights.tick(dt);
   tickTurrets(dt);
   tickExhaust(dt);

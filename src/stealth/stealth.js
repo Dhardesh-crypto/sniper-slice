@@ -58,6 +58,8 @@ export class Stealth {
     if (this.inGrass) v *= GRASS_VIS[p.stance];
     // In a forest's shade (maps that have one): each tree close by hides you a little more.
     if (activeMap().canopyShade && p.pos.y - this.world.groundAt(p.pos.x, p.pos.z) < 1) v *= 1 - 0.1 * Math.min(4, this.world.canopyAt(p.pos.x, p.pos.z));
+    const lit = this.world.barrels?.litAt(p.pos) ?? 0;              // by a fire at dusk, you're lit up
+    if (lit) v *= 1 + 1.5 * lit;
     if (p.sprinting) v *= 1.8;
     else if (p.moving) v *= 1 + p.speed / 5;
     return v;

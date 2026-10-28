@@ -396,6 +396,25 @@ export class GuardAI {
     }
     for (const c of chats.filter(c => c.over)) { c.a.chatWith = c.b.chatWith = null; c.a.chatCool = c.b.chatCool = 40 + Math.random() * 60; }
     this.chats = chats.filter(c => !c.over);
+    // Warming his hands: now and then a calm guard at a post near a burn barrel goes and stands at
+    // it a while (more often in winter); back to his post when that's done, or the moment he's wary.
+    const bar = this.world.barrels;
+    if (bar?.list.length) for (const s of gs) {
+      s.warmCool = (s.warmCool ?? 10 + Math.random() * 40) - dt;
+      if (s.warm) {
+        const calm = s.aware.state === 'calm' && s.brain.mode === 'post';   // (walking over there is fine)
+        if (!calm || (s.warm.t -= dt) <= 0) { s.home.copy(s.warm.home); s.homeYaw = s.warm.yaw; s.warm = null; }
+        continue;
+      }
+      if (s.warmCool > 0 || !idle(s) || s.brain.route || s.brain.fixed || s.chatWith) continue;
+      s.warmCool = (activeMap().winter ? 40 : 100) + Math.random() * 60;
+      const b = bar.near(s.home);
+      if (!b) continue;
+      const a = Math.random() * Math.PI * 2, spot = b.at.clone().add(new THREE.Vector3(Math.cos(a) * 1.2, 0, Math.sin(a) * 1.2));
+      s.warm = { t: 20 + Math.random() * 25, home: s.home.clone(), yaw: s.homeYaw };
+      s.home.copy(spot);
+      s.homeYaw = Math.atan2(b.at.x - spot.x, b.at.z - spot.z);
+    }
     // Smoking: a few minutes apart, a quarter of a minute at a time, a puff every few seconds.
     for (const s of gs) {
       if (!idle(s) || s.chatWith) { s.smoking = 0; continue; }

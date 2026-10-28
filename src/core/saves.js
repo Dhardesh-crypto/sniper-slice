@@ -100,7 +100,7 @@ export class Saves {
       },
       soldiers: world.soldiers.filter(s => !s.range).map(s => ({
         name: s.name, reinforcement: s.name === 'Reinforcement', alive: s.alive, hp: s.hp,
-        pos: v3(s.root.position), yaw: s.root.rotation.y, homeYaw: s.homeYaw, home: v3(s.home),
+        pos: v3(s.root.position), yaw: s.root.rotation.y, homeYaw: s.warm?.yaw ?? s.homeYaw, home: v3(s.warm?.home ?? s.home),   // (warming his hands at a barrel: his post is where he came from)
         searched: !!s.searched, hidden: !!s.hidden, found: !!s.found, tagged: !!s.tagged, quietDeath: !!s.quietDeath,
         deathClip: s.deathClip ?? null,
         rifle: s.drop ? { pos: s.char.rifle.position.toArray(), quat: s.char.rifle.quaternion.toArray() } : null,
