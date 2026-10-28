@@ -25,6 +25,7 @@ export const PROPS = {
   ship: { file: 'prop_ship', turn: 1 },
   crane: { file: 'prop_crane', turn: 0 },
   flak: { file: 'prop_flak', turn: 0 },
+  flak88: { file: 'prop_flak88', turn: 0 },   // (an 8.8 cm Flak 36: Higgsfield picture → Tripo H3.1)
   eboat: { file: 'prop_eboat', turn: 1 },
   fuelTank: { file: 'prop_fuel_tank', turn: 0 },
   huntingStand: { file: 'prop_hunting_stand', turn: 3 },   // ladder turned from +x to +z (south)

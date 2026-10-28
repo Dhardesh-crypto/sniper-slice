@@ -93,6 +93,7 @@ const MISSION_MODULES = {
   bridge: () => import('./missions/bridge.js'),
   airfield: () => import('./missions/airfield.js'),
   radar: () => import('./missions/coast.js'),
+  flak: () => import('./missions/flak.js'),
 };
 const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
@@ -194,7 +195,7 @@ const interactions = new Interactions({ scene, world, player, input, hud, audio,
 const guns = new MountedGuns({ world, player, input, arsenal, audio });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
-M.intel?.(interactions, world, { pickups, items, arsenal, mission });
+M.intel?.(interactions, world, { pickups, items, arsenal, mission, scene, player, audio, hud });
 const wire = new Wire({ scene, world, interactions, stealth, audio, hud, pickups });   // barbed wire: hold E to cut a gap (after the mission's own levers, so saves keep their order)
 interactions.onSafe = (safe) => { if (safe.objective) mission.complete(safe.objective, safe.objectiveText ?? 'SAFE OPENED'); };
 search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
@@ -422,7 +423,7 @@ document.getElementById('set-season')?.addEventListener('change', () => setTimeo
 
 document.getElementById('play').addEventListener('click', () => {
   audio.start();
-  audio.startMusic(missionId);
+  audio.startMusic(M.map.music ?? missionId);
   input.lock();
 });
 // The menu doubles as the pause screen once the mission has started (`started`, declared above).
@@ -477,6 +478,7 @@ function tick(dt) {
   search.tick(dt);
   pickups.tick(dt);
   wire.tick(player);
+  world.tunnels?.tick(dt);
   interactions.tick(dt);
   guns.tick(dt, !!(pickups.state() || interactions.state() || search.state()?.label));
   takedown.tick(dt);   // before the body drag: F takes down a living guard first

@@ -1,4 +1,4 @@
-// The campaign: eight missions in different places, played in order (finishing one unlocks
+// The campaign: nine missions in different places, played in order (finishing one unlocks
 // the next; the test armoury opens them all). `ready` marks the ones built so far.
 export const CAMPAIGN = [
   { id: 'vineyard', name: 'Operation Vineyard', place: 'A farm compound in the Tuscan hills', ready: true,
@@ -9,6 +9,8 @@ export const CAMPAIGN = [
     brief: 'A supply ship is loading fuel for the U-boats. Sink it at its moorings, blow the fuel depot, and steal the convoy schedule from the harbourmaster.' },
   { id: 'forest', ready: true, name: 'Operation Black Pine', place: 'Pine forest in the mountains: a logging camp and a hunting lodge',
     brief: 'A counter-sniper unit hunts partisans from a hunting lodge deep in the forest. Find their commander, destroy the fuel dump at the logging camp.' },
+  { id: 'flak', ready: true, name: 'Operation Flak Line', place: 'A flak battery on a ridge, behind a trench line',
+    brief: 'The bombers sent against the rail junction must cross a ridge held by an 8.8 cm battery. Get through the trench line and the wire, destroy the four guns and take the fire plan.' },
   { id: 'railway', ready: true, name: 'Operation Iron Road', place: 'A railway junction: station, sidings, water tower',
     brief: 'A rail gun is being moved by train through the junction. Stop the train, destroy the gun, and take the timetables from the stationmaster.' },
   { id: 'bridge', ready: true, name: 'Operation Broken Span', place: 'A river gorge and its stone road bridge',

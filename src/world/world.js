@@ -31,7 +31,7 @@ export class World {
     this.setupSkyAndLight(renderer);
     this.terrain = buildTerrain();
     scene.add(this.terrain);
-    if (!activeMap().fog?.density) buildHorizon(scene, activeMap().id);      // (in thick mist the far hills don't show)
+    if (!activeMap().fog?.density) buildHorizon(scene, activeMap().horizon ?? activeMap().id);      // (in thick mist the far hills don't show)
     const { trees, trunks, chunks } = buildTrees(scene);
     this.trees = trees;
     this.treeChunks = chunks;
