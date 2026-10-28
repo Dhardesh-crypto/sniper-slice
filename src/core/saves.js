@@ -127,6 +127,7 @@ export class Saves {
       destroyed: this.g.pickups ? this.g.pickups.boxes.map(b => !!b.destroyed) : [],
       beltGrenades: this.g.beltGrenades?.state() ?? [],
       interactions: this.g.interactions?.snapshot() ?? null,
+      wire: this.g.wire?.snapshot() ?? [],
       missionId: this.g.missionId ?? 'vineyard',
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
@@ -234,6 +235,7 @@ export class Saves {
     (d.seen ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) b.seen = true; });
     this.g.beltGrenades?.restore(d.beltGrenades);
     this.g.interactions?.restore(d.interactions);
+    this.g.wire?.restore(d.wire);
     (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) this.g.pickups.restore(b, { destroyed: true }); });
     (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (b && o) this.g.pickups.restore(b, { opened: true }); });
   }

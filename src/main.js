@@ -27,6 +27,7 @@ import { CarPatrol } from './ai/patrol.js';
 import { Searchlights } from './world/searchlights.js';
 import { Birds } from './fx/birds.js';
 import { BurnBarrels } from './world/burnbarrels.js';
+import { Wire } from './world/wire.js';
 import { applyWinter } from './world/winter.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
@@ -194,6 +195,7 @@ const guns = new MountedGuns({ world, player, input, arsenal, audio });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
 M.intel?.(interactions, world, { pickups, items, arsenal, mission });
+const wire = new Wire({ scene, world, interactions, stealth, audio, hud, pickups });   // barbed wire: hold E to cut a gap (after the mission's own levers, so saves keep their order)
 interactions.onSafe = (safe) => { if (safe.objective) mission.complete(safe.objective, safe.objectiveText ?? 'SAFE OPENED'); };
 search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
 const loadoutUI = new LoadoutUI({ profile, apply: applyLoadout });
@@ -246,7 +248,7 @@ document.getElementById('sound-check').append(...SOUND_CHECK.map(([label, name, 
   b.addEventListener('click', async () => { b.classList.add('playing'); await audio.check(name, gain); setTimeout(() => b.classList.remove('playing'), 600); });
   return b;
 }));
-const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, interactions, missionId, applyLoadout });
+const saves = new Saves({ world, player, arsenal, items, stealth, masking, ai, hotspots, tank, explosions, mission, search, mapView, hud, audio, pickups, beltGrenades, interactions, wire, missionId, applyLoadout });
 const jobs = new SideJobs({ world, mission, ai, interactions, hud, saves });   // two side jobs drawn for this run
 // Checkpoints: an autosave each time an objective is done (not the last one: the mission's over).
 const completeObjective = mission.complete.bind(mission);
@@ -474,6 +476,7 @@ function tick(dt) {
   arsenal.tick(dt);
   search.tick(dt);
   pickups.tick(dt);
+  wire.tick(player);
   interactions.tick(dt);
   guns.tick(dt, !!(pickups.state() || interactions.state() || search.state()?.label));
   takedown.tick(dt);   // before the body drag: F takes down a living guard first

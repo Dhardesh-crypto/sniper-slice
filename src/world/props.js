@@ -339,6 +339,7 @@ export function dressProps(scene, items, heightAt, avoid = [], vehicleModel = nu
     group.add(model);
     if (!spec.block) continue;
     boxes.push(box);
+    model.userData.block = box;                  // (wire.js cuts a gap in it)
     if (spec.bullets === false) continue;
     const m = new THREE.Mesh(new THREE.BoxGeometry(bw, h, bd), hidden);
     m.position.set(x, y + h / 2, z);

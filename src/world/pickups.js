@@ -5,6 +5,8 @@
 //   supply caches  hold E: ammo boxes, medical boxes, explosives crates, bottle crates (what you
 //                  can carry; if you're full they stay for later)
 //   workbenches    press E: change weapons and fit parts mid-mission (opens the loadout screen)
+//   tools          press E: wire cutters (wire.js: a quick, quiet cut) and a crowbar (lids pried
+//                  off in a moment, quietly), lying beside two of the supply caches
 // Opening makes a little noise. Toolboxes, crates and benches show on the map; supply caches
 // once you've been near them.
 import * as THREE from 'three';
@@ -23,7 +25,12 @@ const SUPPLY = {
 };
 const SEEN_RANGE = 35;          // a cache shows on your map once you've been this close
 
-const REACH = 1.6, OPEN_TIME = 1.4;
+const REACH = 1.6, OPEN_TIME = 2.4, CROWBAR_TIME = 0.8;   // (prying a lid by hand; with a crowbar)
+// Tools lying about (one of each, beside a supply cache): kept for the mission.
+export const TOOLS = {
+  cutters: { name: 'WIRE CUTTERS', info: 'CUT BARBED WIRE QUICKLY AND QUIETLY' },
+  crowbar: { name: 'CROWBAR', info: 'OPEN CRATES AND BOXES FASTER AND QUIETER' },
+};
 // The vineyard's layout.
 function vineyardPickups({ world, on, SUPPLY }) {
     const cx = COMPOUND.x, cz = COMPOUND.z, y = H_COMPOUND, [swTower, neTower] = world.towerTops;
@@ -88,6 +95,18 @@ export class Pickups {
       }
       b.opened = false;
     }
+    // The two tools, beside two of the supply caches (the same two for the run: loaded games agree).
+    this.tools = new Set();
+    const caches = this.boxes.filter(b => b.kind === 'supply'), rnd = seededRandom(caches.length * 7919 + (layout.boxes.length * 31));
+    for (const [i, tool] of ['cutters', 'crowbar'].entries()) {
+      if (!caches.length) break;
+      const c = caches.splice(Math.floor(rnd() * caches.length), 1)[0];
+      const a = rnd() * Math.PI * 2, at = on(c.at.x + Math.cos(a) * 0.8, c.at.z + Math.sin(a) * 0.8, c.at.y);
+      const b = { kind: 'tool', tool, where: `by the ${SUPPLY[c.type].name.toLowerCase()}`, at, opened: false, model: toolModel(tool) };
+      b.model.position.copy(at); b.model.rotation.y = a + i;
+      scene.add(b.model);
+      this.boxes.push(b);
+    }
     this.benches = layout.benches;
     for (const b of this.benches) b.model = this.models.add('bench', b.at, Math.PI / 2);
     this.models.finish();
@@ -112,7 +131,7 @@ export class Pickups {
     // Caches you've come near show on your map from then on.
     if ((this.seenT = (this.seenT ?? 0) - dt) <= 0) {
       this.seenT = 0.5;
-      for (const c of this.boxes) if (c.kind === 'supply' && !c.seen && c.at.distanceTo(p.pos) < SEEN_RANGE) c.seen = true;
+      for (const c of this.boxes) if ((c.kind === 'supply' || c.kind === 'tool') && !c.seen && c.at.distanceTo(p.pos) < SEEN_RANGE) c.seen = true;
     }
     this.models.tick(dt);   // lids swinging open
     const b = this.near();
@@ -122,14 +141,23 @@ export class Pickups {
       if (this.input.wasPressed('KeyE')) this.onBench?.();
       return;
     }
+    if (b.kind === 'tool') { if (this.input.wasPressed('KeyE')) this.open(b); return; }
     if (this.input.down('KeyE') && !p.moving) {
-      this.progress += dt / OPEN_TIME;
+      this.progress += dt / (this.tools.has('crowbar') ? CROWBAR_TIME : OPEN_TIME);
       if (this.progress >= 1) this.open(b);
     } else this.progress = 0;
   }
 
   open(b) {
     this.progress = 0;
+    if (b.kind === 'tool') {
+      b.opened = true; b.model.visible = false;
+      this.tools.add(b.tool);
+      this.audio.pickup();
+      this.hud.message(`${TOOLS[b.tool].name} · ${TOOLS[b.tool].info}`, 'head');
+      return;
+    }
+    const quiet = this.tools.has('crowbar') ? 2 : 4;
     if (b.kind === 'supply') {
       const loot = SUPPLY[b.type].roll(Math.random, (a, c) => a + Math.floor(Math.random() * (c - a + 1)));
       const got = takeSupplies({ arsenal: this.arsenal, items: this.items }, loot);
@@ -137,14 +165,14 @@ export class Pickups {
       b.opened = true;
       this.models.open(b.model);
       if (b.type === 'explosives') { delete b.proxy.userData.trap; if (b.hotspot) b.hotspot.broken = true; } // emptied: nothing left to go off
-      this.stealth.noise(b.at.clone(), 4, 'rustle');
+      this.stealth.noise(b.at.clone(), quiet, 'rustle');
       this.audio.pickup();
       this.hud.message(`${SUPPLY[b.type].name} · ${got.join(' · ').toUpperCase()}`, '');
       return;
     }
     b.opened = true;
     this.models.open(b.model);
-    this.stealth.noise(b.at.clone(), 4, 'rustle');
+    this.stealth.noise(b.at.clone(), quiet, 'rustle');
     this.audio.pickup();
     if (b.kind === 'weapon') {
       const w = CATALOG[b.weapon];
@@ -175,6 +203,8 @@ export class Pickups {
       b.destroyed = b.opened = true;
       this.models.hide(b.model);
       this.dropProxy(b);
+    } else if (opened && !b.opened && b.kind === 'tool') {
+      b.opened = true; b.model.visible = false; this.tools.add(b.tool);
     } else if (opened && !b.opened) {
       b.opened = true;
       this.models.open(b.model, true);
@@ -239,10 +269,37 @@ export class Pickups {
   // For the map: unopened boxes and the benches.
   markers() {
     return [
-      ...this.boxes.filter(b => !b.opened && (b.kind !== 'supply' || b.seen)).map(b => ({ pos: b.at, kind: b.kind === 'supply' ? 'supply' : b.kind === 'weapon' ? 'crate' : 'toolbox' })),
+      ...this.boxes.filter(b => !b.opened && ((b.kind !== 'supply' && b.kind !== 'tool') || b.seen)).map(b => ({ pos: b.at, kind: b.kind === 'supply' || b.kind === 'tool' ? 'supply' : b.kind === 'weapon' ? 'crate' : 'toolbox' })),
       ...this.benches.map(b => ({ pos: b.at, kind: 'bench' })),
     ];
   }
 }
 
 export { partById };
+
+function seededRandom(seed) {
+  return () => { seed = (seed + 0x6D2B79F5) >>> 0; let x = seed; x = Math.imul(x ^ x >>> 15, x | 1); x ^= x + Math.imul(x ^ x >>> 7, x | 61); return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+}
+
+// The tools themselves, lying on the ground: a crowbar (a bent bar, the hook end flattened) and
+// wire cutters (two red-handled arms). Small, so a faint glint ring marks where they lie.
+function toolModel(tool) {
+  const g = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: 0x4a4c50, metalness: 0.8, roughness: 0.45 });
+  if (tool === 'crowbar') {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.75, 8).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7a1e14, metalness: 0.6, roughness: 0.5 }));
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.014, 6, 10, Math.PI), steel);
+    hook.position.set(0.39, 0.05, 0); hook.rotation.z = -Math.PI / 2;
+    bar.position.y = 0.015;
+    g.add(bar, hook);
+  } else {
+    const handle = new THREE.MeshStandardMaterial({ color: 0xb02a1c, roughness: 0.7 });
+    for (const s of [-1, 1]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.018, 0.024), handle);
+      arm.position.set(-0.08, 0.012, s * 0.03); arm.rotation.y = s * 0.12;
+      const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.022), steel);
+      jaw.position.set(0.14, 0.012, s * 0.008); g.add(arm, jaw);
+    }
+  }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
