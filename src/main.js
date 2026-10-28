@@ -423,7 +423,7 @@ const bind = (id, key, fmt = (v) => v) => {
   });
 };
 // Menu tabs (the last one you had open is remembered, on this device only).
-const tabButtons = [...document.querySelectorAll('.tabs button')];
+const tabButtons = [...document.querySelectorAll('#menu .tabs button')];
 function showTab(name) {
   for (const b of tabButtons) b.setAttribute('aria-selected', String(b.dataset.tab === name));
   for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t.dataset.tab === name);
@@ -512,9 +512,18 @@ let shadowFrame = 0;
 let menuPaused = true;   // the world waits behind the menu until you click play
 let forceRun = false;    // window.game.advance() steps even behind the menu
 
+// The map's side panel: Objectives / Orders tabs.
+for (const b of document.querySelectorAll('#mapside .tabs button')) b.addEventListener('click', (e) => {
+  e.stopPropagation();
+  for (const x of document.querySelectorAll('#mapside [data-mtab]')) {
+    if (x.tagName === 'BUTTON') x.setAttribute('aria-selected', String(x === b));
+    else x.classList.toggle('on', x.dataset.mtab === b.dataset.mtab);
+  }
+});
 // Map (M): pauses the game and frees the cursor so you can click a waypoint.
 function setMap(open, relock = true) {
   mapView.open = open;
+  if (open) document.getElementById('mapside-orders').innerHTML = document.getElementById('briefing').innerHTML;   // (the Orders tab: the briefing as it stands)
   document.body.classList.toggle('mapopen', open);
   if (open) document.exitPointerLock?.();
   else if (relock) input.lock();

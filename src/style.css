@@ -144,7 +144,23 @@ body.killcam #minimap { visibility: hidden; }
 #objectives div.optional { color: rgba(242, 237, 225, 0.75); }
 #objectives div.done { color: #9fe0a8; text-decoration: line-through; text-decoration-color: rgba(159, 224, 168, 0.6); }
 #objectives div.new { animation: blink 0.9s 4; }
-body.mapopen #objectives, #objectives.flash { display: block; visibility: visible; }   /* on the map; over the game only when one changes */
+#objectives.flash { display: block; }   /* over the game only when one changes (on the map: #mapside) */
+/* Beside the full map (M): a panel with tabs, the objectives and the orders. Docked in the margin left
+   of the map where there's room (the map is a square 86% of the shorter side), over its corner if not. */
+#mapside { display: none; position: fixed; z-index: 7; width: 300px; left: max(16px, calc((100vw - 0.86 * min(100vw, 100vh)) / 2 - 324px));
+  top: calc((100vh - 0.86 * min(100vw, 100vh)) / 2 + 10px); max-height: calc(100vh - 2 * ((100vh - 0.86 * min(100vw, 100vh)) / 2 + 10px));
+  flex-direction: column; background: rgba(12, 14, 12, 0.9); border: 1px solid rgba(242, 237, 225, 0.15); padding: 4px 14px 12px; }
+body.mapopen #mapside { display: flex; }
+#mapside .tabs { margin-bottom: 10px; }
+#mapside .mpane { display: none; overflow-y: auto; min-height: 0; font-size: 12px; line-height: 1.7; padding-right: 4px; }
+#mapside .mpane.on { display: block; }
+#mapside h3 { margin: 4px 0 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.25em; color: var(--dim); }
+#mapside .o { color: var(--ink); margin-bottom: 4px; }
+#mapside .o.optional { color: rgba(242, 237, 225, 0.75); }
+#mapside .o.done { color: #9fe0a8; text-decoration: line-through; text-decoration-color: rgba(159, 224, 168, 0.6); }
+#mapside .o.failed { color: rgba(255, 140, 120, 0.8); }
+#mapside-orders p { margin: 0 0 10px; color: rgba(242, 237, 225, 0.85); }
+#mapside-orders ul { margin: 0 0 10px; padding-left: 18px; color: rgba(242, 237, 225, 0.85); }
 body.killcam #objectives { display: none; }
 @media (max-width: 1000px) { #objectives { top: 104px; max-width: 240px; font-size: 11px; } }
 @media (max-width: 760px) { #compass { width: 280px; } }

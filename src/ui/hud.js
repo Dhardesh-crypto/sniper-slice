@@ -192,6 +192,15 @@ export class Hud {
     }
     el.innerHTML = `<h3>${(mission.title ?? 'Operation Vineyard').toUpperCase()}</h3>` + mission.objectives.filter(o => !o.hidden).map(o =>
       `<div class="${o.optional ? 'optional' : ''} ${o.done ? 'done' : ''} ${fresh.includes(o) ? 'new' : ''}">${o.done ? '✓' : o.optional ? '◇' : '◆'} ${o.text}${o.optional ? ' <small>(optional)</small>' : ''}</div>`).join('');
+    // The map's Objectives tab: the same, the musts first, then the optional ones and side jobs.
+    const side = this.el.mapObj ?? (this.el.mapObj = document.getElementById('mapside-obj'));
+    if (side) {
+      const shown = mission.objectives.filter(o => !o.hidden), row = o =>
+        `<div class="o ${o.optional ? 'optional' : ''} ${o.done ? 'done' : ''} ${o.failed ? 'failed' : ''}">${o.done ? '✓' : o.failed ? '✗' : o.optional ? '◇' : '◆'} ${o.text}</div>`;
+      const must = shown.filter(o => !o.optional), opt = shown.filter(o => o.optional);
+      side.innerHTML = `<h3>${(mission.title ?? 'Operation Vineyard').toUpperCase()} · ${shown.filter(o => o.done).length} / ${shown.length} DONE</h3>` + must.map(row).join('') +
+        (opt.length ? `<h3 style="margin-top:12px">OPTIONAL</h3>` + opt.map(row).join('') : '');
+    }
   }
 
   // Compass strip: heading ticks, and markers for objectives, the waypoint and tagged enemies.

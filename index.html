@@ -49,6 +49,11 @@
   <div id="dispatch"><div class="paper"><p class="date"></p><h2></h2><p class="from"></p><p class="body"></p><p class="go">Click or Space to begin</p></div></div>
   <div id="death"><h2>KILLED IN ACTION</h2><p>Click to restart the mission</p></div>
   <canvas id="mapview"></canvas>
+  <div id="mapside">
+    <div class="tabs" role="tablist"><button role="tab" data-mtab="obj" aria-selected="true">Objectives</button><button role="tab" data-mtab="orders">Orders</button></div>
+    <div class="mpane on" data-mtab="obj" id="mapside-obj"></div>
+    <div class="mpane" data-mtab="orders" id="mapside-orders"></div>
+  </div>
   <div id="letterbox"><div></div><div><span>CLICK TO SKIP</span></div></div>
 
   <div id="menu">
