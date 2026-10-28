@@ -10,6 +10,7 @@
 // through who's close in front of you, whatever he knows: a lunge and a thrust, face to face. Not
 // quiet: he cries out.
 import * as THREE from 'three';
+import { animalsNear, killAnimal } from '../world/animals.js';
 
 const REACH = 1.7;
 const AMBUSH_REACH = 2.8;    // from hiding you can spring a little further
@@ -18,7 +19,7 @@ const STEP_IN = 0.22;        // seconds to slide into place behind him
 const STAND_OFF = 1.45;      // metres behind him: the thrust clip lunges ~0.8 m and reaches 1.6 m
 const STRIKE_AT = 0.7;       // seconds: the thrust's hand peaks at 0.9 s of the clip, played 1.3× fast
 const DURATION = 0.96;
-const BAYONET_REACH = 2.4, BAYONET_ARC = Math.cos(THREE.MathUtils.degToRad(60));   // m, and how far off straight ahead
+const BAYONET_REACH = 2.4;   // m (any side: you turn to it as you lunge)
 const DOG_REACH = 2.2, DOG_STRIKE = 0.22, DOG_TIME = 0.55;   // m; s to the blade going in; s before you're your own again
 const LUNGE = 0.22, BAYONET_TIME = 0.5;   // s to close in and strike; s before you're your own again       // seconds: the clip's lunge ends at 1.25 s (after that it slashes again)
 
@@ -64,19 +65,20 @@ export class Takedown {
     return best;
   }
 
-  // With a bayonet fitted and the rifle up: the guard close in front of you, whatever he knows.
+  // With a bayonet fitted and the rifle out: whatever's nearest within reach, from any side (you
+  // turn to it as you lunge): a guard, whatever he knows, a guard dog, a farm animal.
+  // { kind: 'soldier' | 'dog' | 'animal', ref, pos }.
   bayonetCandidate() {
     const p = this.player, a = this.arsenal;
-    if (this.active || this.bayo || p.dead || p.climb || p.carrying || p.mounted || p.stance === 'prone' || !a || a.current !== 'rifle' || a.mount || !a.def.bayonet || a.reloadT > 0 || a.pendingSwitch) return null;
-    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    if (this.active || this.bayo || this.dogStab || p.dead || p.climb || p.carrying || p.mounted || p.driving || p.stance === 'prone' || !a || a.current !== 'rifle' || a.mount || !a.def.bayonet || a.reloadT > 0 || a.pendingSwitch) return null;
     let best = null, bestD = BAYONET_REACH;
-    for (const s of this.world.soldiers) {
-      if (!s.alive || s.range || s.downed || s.riding || s.manning) continue;
-      const dx = s.root.position.x - p.pos.x, dz = s.root.position.z - p.pos.z, d = Math.hypot(dx, dz);
-      if (d > bestD || Math.abs(p.pos.y - s.root.position.y) > 0.8) continue;
-      if ((dx * fx + dz * fz) / Math.max(d, 1e-3) < BAYONET_ARC) continue;
-      best = s; bestD = d;
-    }
+    const consider = (kind, ref, pos, dy = 0.8) => {
+      const d = Math.hypot(pos.x - p.pos.x, pos.z - p.pos.z);
+      if (d < bestD && Math.abs(p.pos.y - pos.y) < dy) { best = { kind, ref, pos }; bestD = d; }
+    };
+    for (const s of this.world.soldiers) if (s.alive && !s.range && !s.downed && !s.riding && !s.manning) consider('soldier', s, s.root.position);
+    for (const dog of this.dogs?.dogs ?? []) if (dog.mode !== 'dead') consider('dog', dog, dog.a.root.position, 1);
+    for (const an of animalsNear(p.pos, BAYONET_REACH + 1)) consider('animal', an, an.root.position, 1.5);
     return best;
   }
 
@@ -95,9 +97,10 @@ export class Takedown {
 
   state() {
     if (this.active || this.bayo || this.dogStab) return null;
+    const b = this.bayonetCandidate();                  // (the bayonet, when it's fixed and the rifle's out)
+    if (b) return { label: b.kind === 'dog' ? 'F · BAYONET THE DOG' : b.kind === 'animal' ? `F · BAYONET THE ${b.ref.kind.toUpperCase()}` : 'F · BAYONET', progress: 0 };
     if (this.dogCandidate()) return { label: 'F · KNIFE THE DOG', progress: 0 };
-    if (this.candidate()) return { label: 'F · TAKEDOWN', progress: 0 };
-    return this.bayonetCandidate() ? { label: 'F · BAYONET', progress: 0 } : null;
+    return this.candidate() ? { label: 'F · TAKEDOWN', progress: 0 } : null;
   }
 
   tick(dt) {
@@ -105,14 +108,12 @@ export class Takedown {
     if (this.bayo) { this.runBayonet(dt); return; }
     if (this.dogStab) { this.runDog(dt); return; }
     if (!this.input.wasPressed('KeyF')) return;
+    const b = this.bayonetCandidate();
+    if (b) { this.input.pressed.delete('KeyF'); this.startBayonet(b); return; }
     const dog = this.dogCandidate();
     if (dog) { this.input.pressed.delete('KeyF'); this.startDog(dog); return; }
     const s = this.candidate();
-    if (!s) {
-      const b = this.bayonetCandidate();
-      if (b) { this.input.pressed.delete('KeyF'); this.startBayonet(b); }
-      return;
-    }
+    if (!s) return;
     this.input.pressed.delete('KeyF'); // don't let the same press start a body drag
     this.start(s);
   }
@@ -234,10 +235,10 @@ export class Takedown {
   }
 
   // The charge: you close in over a fifth of a second, the blade goes in, he goes down backward.
-  startBayonet(s) {
-    const p = this.player, to = new THREE.Vector3(s.root.position.x - p.pos.x, 0, s.root.position.z - p.pos.z);
+  startBayonet(target) {
+    const p = this.player, to = new THREE.Vector3(target.pos.x - p.pos.x, 0, target.pos.z - p.pos.z);
     const d = to.length(), dir = to.normalize();
-    this.bayo = { s, t: 0, struck: false, dir, from: p.pos.clone(), to: p.pos.clone().addScaledVector(dir, Math.max(0, d - 1.05)) };
+    this.bayo = { target, t: 0, struck: false, dir, from: p.pos.clone(), to: p.pos.clone().addScaledVector(dir, Math.max(0, d - 1.05)) };
     p.locked = true;
     p.yaw = Math.atan2(-dir.x, -dir.z);
     this.audio.rustle?.();
@@ -252,8 +253,17 @@ export class Takedown {
     this.arsenal.viewKick = b.t < LUNGE ? -2.5 * k : this.arsenal.viewKick;   // (the rifle thrust forward)
     if (!b.struck && b.t >= LUNGE) {
       b.struck = true;
-      const s = b.s;
-      if (s.alive) {
+      const { kind, ref } = b.target;
+      if (kind !== 'soldier') {                           // a dog or a farm animal
+        const at = (kind === 'dog' ? ref.a.root.position : ref.root.position).clone();
+        at.y += kind === 'dog' ? 0.45 : 0.9;
+        if (kind === 'dog') this.dogs.kill(ref); else killAnimal(ref);
+        this.fx.blood(at, b.dir.clone().negate());
+        this.audio.thump?.({ freq: 120, dur: 0.18, gain: 0.6 });
+        this.stealth.noise(at, 16, 'shout');
+      }
+      const s = kind === 'soldier' ? ref : null;
+      if (s?.alive) {
         const chest = s.char.bones.Spine02?.getWorldPosition(new THREE.Vector3()) ?? s.bodyPosition(new THREE.Vector3());
         s.applyHit('torso', { damage: { torso: 999 } }, b.dir.clone().setY(-0.05), { point: chest, power: 1.1 });
         this.fx.blood(chest, b.dir.clone().negate());

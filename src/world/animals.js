@@ -177,7 +177,7 @@ export const poseAnimal = (a, dt) => pose(a, dt);
 // Something loud at `at` (heard up to `radius` m): animals within it bolt away.
 export function startle(at, radius) {
   for (const a of herd) {
-    if (a.root.position.distanceTo(at) > radius) continue;
+    if (a.dead || a.root.position.distanceTo(at) > radius) continue;
     const away = a.root.position.clone().sub(at).setY(0).normalize();
     a.goal = a.root.position.clone().addScaledVector(away, 25 + Math.random() * 20);
     a.state = 'flee';
@@ -185,10 +185,26 @@ export function startle(at, radius) {
   }
 }
 
+// The farm animals alive within r m of p (a bayonet's reach: takedown.js).
+export function animalsNear(p, r) {
+  return herd.filter(a => !a.dead && Math.hypot(a.root.position.x - p.x, a.root.position.z - p.z) < r && Math.abs(a.root.position.y - p.y) < 1.5);
+}
+
+// Killed: it goes down on its side and lies there; the rest of the herd bolts.
+export function killAnimal(a) {
+  if (a.dead) return;
+  a.dead = true; a.fall = 0; a.v = 0;
+  startle(a.root.position, 30);
+}
+
 const _d = new THREE.Vector3();
 export function tickAnimals(dt, player) {
   for (const a of herd) {
     const p = a.root.position;
+    if (a.dead) {                                  // (rolling onto its side, then still)
+      if (a.fall < 1) { a.fall = Math.min(1, a.fall + dt / 0.6); a.body.rotation.z = a.fall * a.fall * Math.PI / 2 * 0.92; a.body.position.y = 0.3 * a.fall * (1 - a.fall); }
+      continue;
+    }
     a.phase += dt;
     if (a.state !== 'flee' && player && p.distanceTo(player.pos) < a.spec.shy) startle(player.pos, a.spec.shy + 1);
     if (a.state === 'graze' && (a.t -= dt) <= 0) {
