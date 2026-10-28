@@ -869,14 +869,19 @@ Rule from the crates: everything placed many times is instanced, and draw calls 
 The user asked for: burn barrels; a mission to blow up AA guns through trenches with barbed wire and
 manholes (both tunnel hatches and dugouts); the same in the airfield and coast missions, the coast
 also with casemate guns over the beach; winter as a random season and a menu switch.
-- [ ] Burn barrels in every mission: by the guard posts, burning (flames, smoke, sparks), a
+- [x] Burn barrels in every mission: by the guard posts, burning (flames, smoke, sparks), a
       flickering light at dusk and in winter, guards warming their hands; a shot sends sparks up.
-- [ ] Winter: a season drawn per run (and a menu switch: summer / winter / random): snow on the
+- [x] Winter: a season drawn per run (and a menu switch: summer / winter / random): snow on the
       ground and roofs, bare deciduous trees, snow falling, breath clouding, cold light.
-- [ ] Kit, shared by the missions: trenches cut in the terrain with plank and sandbag revetments;
+- [x] Kit, shared by the missions: trenches cut in the terrain with plank and sandbag revetments;
       barbed wire (concertina coils that block, cut a gap with E, noisy); dugouts in trench walls;
       tunnel hatches (E: down, a crawl, up at the paired hatch); flak guns as weak spots (AP or a
       charge); casemate gun bunkers with a big gun at the embrasure (a charge in the breech).
-- [ ] A ninth mission: a flak battery on a ridge behind a trench line with wire in front.
-- [ ] The airfield: its flak guns destructible (an objective), a trench line with wire.
-- [ ] The coast: its trenches wired, flak by the radar, two casemate guns over the beach.
+- [x] A ninth mission (fifth in the campaign, Operation Flak Line): a flak battery on a ridge behind a trench line with wire in front.
+- [x] The airfield: its flak guns destructible (an objective), a trench line with wire.
+- [x] The coast: its trenches wired, flak by the radar, two casemate guns over the beach.
+- [x] Also asked for and done: objectives on the map (M), shown a moment when one changes; hold X
+      for a weapon and ammunition wheel; reloads start themselves when dry, R in the gold mark for
+      a quick one; wire cutters and a crowbar to find; a bayonet (its own slot, F face to face).
+- [x] A story (missions/story.js): Kestrel and Major Ellis, each mission's take leading to the next,
+      a dispatch card before each (read out), Ellis's report on the end screen (read out).
