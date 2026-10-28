@@ -257,7 +257,7 @@ mission.complete = (id, message) => {
   completeObjective(id, message);
   if (!was && !mission.done) setTimeout(() => { if (saves.save('auto').ok) hud.message('CHECKPOINT SAVED', ''); }, 1500);
 };
-const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud });
+const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud, arsenal });
 takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;

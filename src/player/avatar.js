@@ -2,7 +2,7 @@
 // animated by stance and speed (idle, walk, rifle sprint, crouch walk, crawl), with the
 // arms holding the rifle on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
-import { Character, pistolModelFor, fitMuzzle, solveArmIK } from '../world/characters.js';
+import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK } from '../world/characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
@@ -81,6 +81,7 @@ export class Avatar {
     const rdef = arsenal.weapons.rifle.def, pdef = arsenal.weapons.pistol.def;
     this.rifleKind = CATALOG[loadout.rifle].model;
     this.rifleDevice = rdef.suppressor && !rdef.integralSuppressor ? 'suppressor' : rdef.brake ? 'brake' : null;
+    this.rifleBayonet = !!rdef.bayonet;
     this.heavyKind = loadout.heavy ? CATALOG[loadout.heavy].model : null;
     this.char.rifle.userData.kind = null;     // refit on the next holdLongGun
     this.holdLongGun(arsenal.current);
@@ -101,7 +102,7 @@ export class Avatar {
     const kind = weapon === 'heavy' && this.heavyKind ? this.heavyKind : this.rifleKind;
     if (!kind || this.char.rifle.userData.kind === kind) return;
     this.char.setRifle(kind);
-    if (kind === this.rifleKind) fitMuzzle(this.char.rifle, this.rifleDevice, 1);
+    if (kind === this.rifleKind) { fitMuzzle(this.char.rifle, this.rifleDevice, 1); fitBayonet(this.char.rifle, this.rifleBayonet, 1); }
     if (this.concealParts) this.char.rifle.traverse(o => { if (o.isMesh && !this.fadeMats.includes(o.material)) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });
   }
 

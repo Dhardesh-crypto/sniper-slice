@@ -199,7 +199,7 @@ function barrelEnd(gun, dir, key) {
   return (barrelEnds[key] = end).clone();
 }
 
-// Fitted parts you can see: a suppressor or a muzzle brake on the muzzle.
+// Fitted parts you can see: a suppressor or a muzzle brake on the muzzle (a bayonet: fitBayonet).
 export function fitMuzzle(gun, kind, forward = 1) {
   gun.userData.device?.removeFromParent();
   gun.userData.device = null;
@@ -214,6 +214,26 @@ export function fitMuzzle(gun, kind, forward = 1) {
   gun.add(dev);
   gun.userData.device = dev;
   gun.userData.muzzle = base.clone().add(new THREE.Vector3(0, 0, forward * len));
+}
+
+// A bayonet under the muzzle: its ring round the barrel, a slim blade out in front (lower when a
+// suppressor's fitted, so they clear each other).
+export function fitBayonet(gun, on, forward = 1) {
+  gun.userData.bayonet?.removeFromParent();
+  gun.userData.bayonet = null;
+  if (!on) return;
+  const base = gun.userData.baseMuzzle ?? (gun.userData.baseMuzzle = gun.userData.muzzle.clone());
+  const steel = new THREE.MeshStandardMaterial({ color: 0x1e1f1c, roughness: 0.45, metalness: 0.6 });
+  const drop = gun.userData.device ? 0.03 : 0.016;
+  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0085, 0.25, 4).rotateX(forward * Math.PI / 2).scale(0.55, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8a8e94, roughness: 0.3, metalness: 0.9 }));   // (a slim blade tapering to its point)
+  blade.position.copy(base).add(new THREE.Vector3(0, -drop, forward * 0.1));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.003, 6, 12), steel);
+  ring.position.copy(base).add(new THREE.Vector3(0, -0.002, -forward * 0.025));
+  const dev = new THREE.Group();
+  dev.add(blade, ring);
+  dev.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  gun.add(dev);
+  gun.userData.bayonet = dev;
 }
 
 export class Character {

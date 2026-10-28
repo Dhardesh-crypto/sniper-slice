@@ -6,6 +6,9 @@
 // Ambush: hidden in tall grass, any guard who hasn't spotted you can be taken from any side
 // (calm, wary or searching), even in the moment he stumbles onto you; he's spun round as
 // you grab him.
+// Bayonet (a muzzle part, defs.js): with it fitted and the rifle in your hands, F runs any guard
+// through who's close in front of you, whatever he knows: a lunge and a thrust, face to face. Not
+// quiet: he cries out.
 import * as THREE from 'three';
 
 const REACH = 1.7;
@@ -14,7 +17,9 @@ const BEHIND = Math.cos(THREE.MathUtils.degToRad(70));
 const STEP_IN = 0.22;        // seconds to slide into place behind him
 const STAND_OFF = 1.45;      // metres behind him: the thrust clip lunges ~0.8 m and reaches 1.6 m
 const STRIKE_AT = 0.7;       // seconds: the thrust's hand peaks at 0.9 s of the clip, played 1.3× fast
-const DURATION = 0.96;       // seconds: the clip's lunge ends at 1.25 s (after that it slashes again)
+const DURATION = 0.96;
+const BAYONET_REACH = 2.4, BAYONET_ARC = Math.cos(THREE.MathUtils.degToRad(60));   // m, and how far off straight ahead
+const LUNGE = 0.22, BAYONET_TIME = 0.5;   // s to close in and strike; s before you're your own again       // seconds: the clip's lunge ends at 1.25 s (after that it slashes again)
 
 function knifeModel() {
   const g = new THREE.Group();
@@ -28,8 +33,8 @@ function knifeModel() {
 }
 
 export class Takedown {
-  constructor({ world, player, avatar, stealth, input, audio, fx, hud }) {
-    Object.assign(this, { world, player, avatar, stealth, input, audio, fx, hud });
+  constructor({ world, player, avatar, stealth, input, audio, fx, hud, arsenal }) {
+    Object.assign(this, { world, player, avatar, stealth, input, audio, fx, hud, arsenal });
     this.active = null;
     this.knife = knifeModel();
     avatar.root.add(this.knife);
@@ -58,17 +63,38 @@ export class Takedown {
     return best;
   }
 
+  // With a bayonet fitted and the rifle up: the guard close in front of you, whatever he knows.
+  bayonetCandidate() {
+    const p = this.player, a = this.arsenal;
+    if (this.active || this.bayo || p.dead || p.climb || p.carrying || p.mounted || p.stance === 'prone' || !a || a.current !== 'rifle' || a.mount || !a.def.bayonet || a.reloadT > 0 || a.pendingSwitch) return null;
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    let best = null, bestD = BAYONET_REACH;
+    for (const s of this.world.soldiers) {
+      if (!s.alive || s.range || s.downed || s.riding || s.manning) continue;
+      const dx = s.root.position.x - p.pos.x, dz = s.root.position.z - p.pos.z, d = Math.hypot(dx, dz);
+      if (d > bestD || Math.abs(p.pos.y - s.root.position.y) > 0.8) continue;
+      if ((dx * fx + dz * fz) / Math.max(d, 1e-3) < BAYONET_ARC) continue;
+      best = s; bestD = d;
+    }
+    return best;
+  }
+
   state() {
-    if (this.active) return null;
-    const s = this.candidate();
-    return s ? { label: 'F · TAKEDOWN', progress: 0 } : null;
+    if (this.active || this.bayo) return null;
+    if (this.candidate()) return { label: 'F · TAKEDOWN', progress: 0 };
+    return this.bayonetCandidate() ? { label: 'F · BAYONET', progress: 0 } : null;
   }
 
   tick(dt) {
     if (this.active) { this.run(dt); return; }
+    if (this.bayo) { this.runBayonet(dt); return; }
     if (!this.input.wasPressed('KeyF')) return;
     const s = this.candidate();
-    if (!s) return;
+    if (!s) {
+      const b = this.bayonetCandidate();
+      if (b) { this.input.pressed.delete('KeyF'); this.startBayonet(b); }
+      return;
+    }
     this.input.pressed.delete('KeyF'); // don't let the same press start a body drag
     this.start(s);
   }
@@ -152,5 +178,37 @@ export class Takedown {
     const dir = at.clone().sub(fore).normalize();
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
     this.knife.quaternion.copy(this.avatar.root.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+  }
+
+  // The charge: you close in over a fifth of a second, the blade goes in, he goes down backward.
+  startBayonet(s) {
+    const p = this.player, to = new THREE.Vector3(s.root.position.x - p.pos.x, 0, s.root.position.z - p.pos.z);
+    const d = to.length(), dir = to.normalize();
+    this.bayo = { s, t: 0, struck: false, dir, from: p.pos.clone(), to: p.pos.clone().addScaledVector(dir, Math.max(0, d - 1.05)) };
+    p.locked = true;
+    p.yaw = Math.atan2(-dir.x, -dir.z);
+    this.audio.rustle?.();
+  }
+
+  runBayonet(dt) {
+    const b = this.bayo, p = this.player;
+    b.t += dt;
+    const k = Math.min(1, b.t / LUNGE), e = k * (2 - k);
+    p.pos.x = b.from.x + (b.to.x - b.from.x) * e;
+    p.pos.z = b.from.z + (b.to.z - b.from.z) * e;
+    this.arsenal.viewKick = b.t < LUNGE ? -2.5 * k : this.arsenal.viewKick;   // (the rifle thrust forward)
+    if (!b.struck && b.t >= LUNGE) {
+      b.struck = true;
+      const s = b.s;
+      if (s.alive) {
+        const chest = s.char.bones.Spine02?.getWorldPosition(new THREE.Vector3()) ?? s.bodyPosition(new THREE.Vector3());
+        s.applyHit('torso', { damage: { torso: 999 } }, b.dir.clone().setY(-0.05), { point: chest, power: 1.1 });
+        this.fx.blood(chest, b.dir.clone().negate());
+        this.audio.thump?.({ freq: 120, dur: 0.18, gain: 0.6 });
+        this.stealth.noise(chest.clone(), 14, 'shout');
+        this.onKill?.(s);
+      }
+    }
+    if (b.t >= BAYONET_TIME) { this.bayo = null; p.locked = false; }
   }
 }

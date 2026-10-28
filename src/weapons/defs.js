@@ -139,6 +139,10 @@ export const PARTS = {
       { id: 'mag_extended', name: 'Extended magazine', info: '+60% rounds', mag: 1.6, reload: 1.1 },
       { id: 'mag_large', name: 'Large magazine', info: 'Double the rounds; slower reload', mag: 2, reload: 1.25 },
     ],
+    bayonet: [   // (its own lug under the barrel: it goes with any muzzle device, the De Lisle's built-in silencer too)
+      { id: 'bayonet_none', name: 'No bayonet', stock: true, info: '' },
+      { id: 'bayonet', name: 'Bayonet', info: 'F up close: run a guard through face to face, even in a fight; a little more sway', sway: 1.06, bayonet: true },
+    ],
     stock: [
       { id: 'stock_std', name: 'Standard stock', stock: true, info: '' },
       { id: 'stock_cheek', name: 'Cheek-rest stock', info: 'Less sway, hold your breath longer', sway: 0.8, breath: 1.35 },
@@ -160,7 +164,7 @@ export const PARTS = {
   },
   heavy: {},         // nothing to fit to the heavy weapons
 };
-export const SLOT_NAMES = { scope: 'Scope', barrel: 'Barrel', muzzle: 'Muzzle', magazine: 'Magazine', stock: 'Stock' };
+export const SLOT_NAMES = { scope: 'Scope', barrel: 'Barrel', muzzle: 'Muzzle', bayonet: 'Bayonet', magazine: 'Magazine', stock: 'Stock' };
 export const allParts = () => Object.values(PARTS).flatMap(slots => Object.values(slots).flat());
 export const partById = (id) => allParts().find(p => p.id === id);
 
@@ -186,6 +190,7 @@ export function buildWeapon(weaponId, fit = {}) {
     if (part.aimSpeed) def.aimSpeed *= part.aimSpeed;
     if (part.suppressor) def.suppressor = true;
     if (part.brake) def.brake = true;
+    if (part.bayonet) def.bayonet = true;
   }
   if (weaponId === 'welrod' || base.integralSuppressor) def.suppressor = true;   // built in
   return def;
