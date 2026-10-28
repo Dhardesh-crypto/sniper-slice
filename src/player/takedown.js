@@ -19,6 +19,7 @@ const STAND_OFF = 1.45;      // metres behind him: the thrust clip lunges ~0.8 m
 const STRIKE_AT = 0.7;       // seconds: the thrust's hand peaks at 0.9 s of the clip, played 1.3× fast
 const DURATION = 0.96;
 const BAYONET_REACH = 2.4, BAYONET_ARC = Math.cos(THREE.MathUtils.degToRad(60));   // m, and how far off straight ahead
+const DOG_REACH = 2.2, DOG_STRIKE = 0.22, DOG_TIME = 0.55;   // m; s to the blade going in; s before you're your own again
 const LUNGE = 0.22, BAYONET_TIME = 0.5;   // s to close in and strike; s before you're your own again       // seconds: the clip's lunge ends at 1.25 s (after that it slashes again)
 
 function knifeModel() {
@@ -79,8 +80,22 @@ export class Takedown {
     return best;
   }
 
+  // A guard dog close by (whatever it's doing: biting you, or about to): the knife.
+  dogCandidate() {
+    const p = this.player;
+    if (this.active || this.bayo || this.dogStab || p.dead || p.climb || p.carrying || p.mounted || p.driving) return null;
+    let best = null, bestD = DOG_REACH;
+    for (const dog of this.dogs?.dogs ?? []) {
+      if (dog.mode === 'dead') continue;
+      const d = dog.a.root.position, dist = Math.hypot(d.x - p.pos.x, d.z - p.pos.z);
+      if (dist < bestD && Math.abs(d.y - p.pos.y) < 1) { best = dog; bestD = dist; }
+    }
+    return best;
+  }
+
   state() {
-    if (this.active || this.bayo) return null;
+    if (this.active || this.bayo || this.dogStab) return null;
+    if (this.dogCandidate()) return { label: 'F · KNIFE THE DOG', progress: 0 };
     if (this.candidate()) return { label: 'F · TAKEDOWN', progress: 0 };
     return this.bayonetCandidate() ? { label: 'F · BAYONET', progress: 0 } : null;
   }
@@ -88,7 +103,10 @@ export class Takedown {
   tick(dt) {
     if (this.active) { this.run(dt); return; }
     if (this.bayo) { this.runBayonet(dt); return; }
+    if (this.dogStab) { this.runDog(dt); return; }
     if (!this.input.wasPressed('KeyF')) return;
+    const dog = this.dogCandidate();
+    if (dog) { this.input.pressed.delete('KeyF'); this.startDog(dog); return; }
     const s = this.candidate();
     if (!s) {
       const b = this.bayonetCandidate();
@@ -178,6 +196,41 @@ export class Takedown {
     const dir = at.clone().sub(fore).normalize();
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
     this.knife.quaternion.copy(this.avatar.root.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+  }
+
+  // A dog: down on one knee to it, a short step in and one stab; it yelps and drops.
+  startDog(dog) {
+    const p = this.player, d = dog.a.root.position, to = new THREE.Vector3(d.x - p.pos.x, 0, d.z - p.pos.z);
+    const dist = to.length(), dir = to.normalize();
+    this.dogStab = { dog, t: 0, struck: false, dir, from: p.pos.clone(), to: p.pos.clone().addScaledVector(dir, Math.max(0, dist - 0.8)), stance: p.stance };
+    p.locked = true;
+    p.vel.set(0, 0, 0);
+    p.yaw = Math.atan2(-dir.x, -dir.z);
+    if (p.stance === 'stand') p.setStance('crouch');
+    this.knife.visible = true;
+    this.audio.rustle?.();
+  }
+
+  runDog(dt) {
+    const k = this.dogStab, p = this.player;
+    k.t += dt;
+    const e = Math.min(1, k.t / DOG_STRIKE);
+    p.pos.x = k.from.x + (k.to.x - k.from.x) * e * (2 - e);
+    p.pos.z = k.from.z + (k.to.z - k.from.z) * e * (2 - e);
+    if (!k.struck && k.t >= DOG_STRIKE) {
+      k.struck = true;
+      const at = k.dog.a.root.position.clone().setY(k.dog.a.root.position.y + 0.45);
+      this.dogs.kill(k.dog);
+      this.fx.blood(at, k.dir.clone().negate());
+      this.audio.knife();
+      this.stealth.noise(at, 16, 'shout');                       // (the yelp carries a little way)
+    }
+    if (k.t >= DOG_TIME) {
+      this.dogStab = null;
+      this.knife.visible = false;
+      p.locked = false;
+      if (k.stance === 'stand' && p.stance === 'crouch') p.setStance('stand');
+    }
   }
 
   // The charge: you close in over a fifth of a second, the blade goes in, he goes down backward.

@@ -278,6 +278,7 @@ mission.complete = (id, message) => {
   if (!was && !mission.done) setTimeout(() => { if (saves.save('auto').ok) hud.message('CHECKPOINT SAVED', ''); }, 1500);
 };
 const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud, arsenal });
+takedown.dogs = dogs;   // (F knifes a dog that's close)
 const disguise = new Disguise({ world, player, avatar, arsenal, input, audio, hud, carry, takedown });   // a dead guard's uniform
 stealth.disguise = disguise;
 hud.disguise = disguise;
