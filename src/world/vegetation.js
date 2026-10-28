@@ -290,7 +290,8 @@ export function cullTreeChunks(chunks, viewer, far = Infinity, zoom = 1) {
 
 function tuftGeometry(rng, blades, height) {
   const positions = [], colors = [];
-  const base = new THREE.Color(0x3f5a22), tip = new THREE.Color(0xa9b25c);
+  const winter = activeMap().winter;   // (dead straw, frosted, poking through the snow)
+  const base = new THREE.Color(winter ? 0x6a604c : 0x3f5a22), tip = new THREE.Color(winter ? 0xd2c8a8 : 0xa9b25c);
   for (let i = 0; i < blades; i++) {
     const a = rng() * Math.PI * 2, r = rng() * 0.18;
     const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
@@ -349,6 +350,7 @@ export function buildGrass(scene) {
     if (normalAt(x, z, nrm).y < 0.85) continue;
     if (fbm(x * 0.02, z * 0.02, 2) < 0.38) continue;
     if (grassDensity && rng() > grassDensity(x, z)) continue;
+    if (activeMap().winter && rng() < 0.8) continue;   // (most of it under the snow)
     const sc = 0.6 + rng() * 0.7;
     m.compose(p.set(x, heightAt(x, z) - 0.05, z), q.identity(), s.set(sc, sc, sc));
     cellOf(x, z).short.push(m.clone());
@@ -417,6 +419,7 @@ export function buildNearGrass(scene, patches) {
       if (normalAt(x, z, nrm).y < 0.82) d = 0;
       if (inTallGrass(patches, x, z)) d *= 0.3; // the tall-grass patches already cover it
       if (grassDensity) d *= grassDensity(x, z);
+      if (activeMap().winter) d *= 0.3;
       mask[k * 4] = d * 255;
       mask[k * 4 + 3] = 255;
     }

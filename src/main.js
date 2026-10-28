@@ -27,6 +27,7 @@ import { CarPatrol } from './ai/patrol.js';
 import { Searchlights } from './world/searchlights.js';
 import { Birds } from './fx/birds.js';
 import { BurnBarrels } from './world/burnbarrels.js';
+import { applyWinter } from './world/winter.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
@@ -100,10 +101,11 @@ await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 M.map.id ??= missionId;                          // (its far country: textures/horizon_<id>.webp)
-const conditions = pickConditions(M.map, runSeed); // this run's weather: as briefed, or overcast, rain, mist
+const conditions = pickConditions(M.map, runSeed, settings.season); // this run's weather: as briefed, or overcast, rain, mist; and maybe winter
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
 if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show, and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
 
 const input = new Input(canvas);
 const audio = new Audio();
@@ -413,6 +415,8 @@ bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
 bind('set-aim', 'aimMode', () => '');
+bind('set-season', 'season', () => '');
+document.getElementById('set-season')?.addEventListener('change', () => setTimeout(() => location.reload(), 60));   // (the map is built for its season: start again)
 
 document.getElementById('play').addEventListener('click', () => {
   audio.start();
@@ -678,6 +682,8 @@ if (loadedSlot) {
 // first time it comes into view.
 scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v); });
 await renderer.compileAsync(scene, camera);
+// Winter: snow on everything that faces the sky (and again once the far country and late models are in).
+if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) setTimeout(() => applyWinter(scene), ms); }
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.

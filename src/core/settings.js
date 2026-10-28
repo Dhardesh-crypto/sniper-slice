@@ -3,7 +3,7 @@ const KEY = 'sniper-slice.settings';
 // lungMarker: 'always' (whenever scoped) | 'breath' (only while holding breath) | 'off'
 // killCam: 'always' (every kill) | 'sometimes' (headshots, organ shots, long range) | 'off'
 // quality: 'high' | 'medium' | 'low' (see Post.setQuality)
-const DEFAULTS = { sensitivity: 1.0, fov: 68, invertY: false, lungMarker: 'always', killCam: 'sometimes', quality: 'medium', volume: 0.8, music: 0.5, aimMode: 'hold' };
+const DEFAULTS = { sensitivity: 1.0, fov: 68, invertY: false, lungMarker: 'always', killCam: 'sometimes', quality: 'medium', volume: 0.8, music: 0.5, aimMode: 'hold', season: 'random' };
 
 export function loadSettings() {
   try {

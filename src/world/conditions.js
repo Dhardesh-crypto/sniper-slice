@@ -15,7 +15,27 @@ const KINDS = {
   dusk: { weight: 0.17, label: 'Dusk' },
 };
 
-export function pickConditions(map, seed) {
+// Winter, on top of whatever the weather is: drawn for one run in four, or set in the menu
+// (season: 'random' | 'summer' | 'winter'). Snow lies everywhere (winter.js); it falls under cloud.
+export function pickConditions(map, seed, season = 'random') {
+  const c = pickWeather(map, seed);
+  const winter = season === 'winter' || (season === 'random' && seeded(seed ^ 0x5ea5) () < 0.25);
+  if (!winter) return c;
+  const L = { ...LIGHT, ...map.light };
+  map.winter = true;
+  map.light = { ...L, sun: c.kind === 'dusk' ? L.sun : 0xf0f2ff, sunIntensity: L.sunIntensity * 0.8, zenith: Math.max(L.zenith, c.kind === 'dusk' ? L.zenith : 62),
+    hemiSky: 0xcbd5e4, hemiGround: 0xdfe4ea, hemi: (L.hemi ?? 0.5) * 1.15, env: (L.env ?? 0.22) * 1.1, exposure: (L.exposure ?? 0.85) - 0.08 };
+  const fog = new THREE.Color(map.fog?.color ?? 0xb9c6cc).lerp(new THREE.Color(0xd2d9e2), 0.6);
+  map.fog = { ...map.fog, color: fog.getHex(), near: Math.min(map.fog?.near ?? 400, 260), far: Math.min(map.fog?.far ?? 1600, 1400) };
+  const snowing = c.kind === 'overcast' || c.kind === 'rain' ? (c.kind === 'rain' ? 0.9 : 0.5) : 0;
+  map.weather = { ...map.weather, rain: 0, snow: snowing };
+  if (snowing) map.sightScale = (map.sightScale ?? 1) * (c.kind === 'rain' ? 0.85 : 0.95);
+  else map.sightScale = (map.sightScale ?? 1) * 1.1;   // (a dark uniform on snow shows from far off)
+  const label = c.kind === 'rain' ? 'Winter, heavy snow' : c.kind === 'overcast' ? 'Winter, snowing' : c.label ? `Winter, ${c.label.toLowerCase()}` : 'Winter';
+  return { kind: c.kind, label, winter: true, snowing };
+}
+
+function pickWeather(map, seed) {
   const rnd = seeded(seed ^ 0x51ed27);
   // A map written with mist or rain of its own (the forest) keeps it; the dawn mist map can't have more.
   const allowed = Object.keys(KINDS).filter(k => k === 'briefed' || (!map.fog?.density && !map.weather?.rain && !(k === 'mist' && map.weather?.mist)));

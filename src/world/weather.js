@@ -1,12 +1,14 @@
 // Weather, per mission (the map's `weather`): rain (streaks falling round you, its hiss, and it
 // covers a little of your noise), low ground mist drifting at dawn, and sea spray thrown up where
-// the waves meet the shore.
+// the waves meet the shore; in winter (winter.js) snow falling and breath clouding in the cold.
 import * as THREE from 'three';
 import { heightAt, activeMap } from './terrain.js';
 
 const RAIN_DROPS = 2200;
 const RAIN_BOX = { x: 44, y: 26, z: 44 };   // m round the camera
 const MIST_PUFFS = 46;
+const SNOW_BOX = 30;                        // m round the camera
+const _b = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const MIST_REACH = 170;                     // m: puffs further off than this drift back in front of you
 
 function softCloud() {
@@ -31,7 +33,54 @@ export class Weather {
     this.kind = w;
     if (w.rain) this.makeRain(w.rain);
     if (w.mist) this.makeMist(w.mist);
+    if (w.snow) this.makeSnow(w.snow);
+    this.winter = !!activeMap().winter;
     this.sprayT = 0;
+  }
+
+  // ---- snow: flakes drifting down in a box that follows the camera, swaying as they fall ----
+  makeSnow(level) {
+    const n = Math.round(3500 * level), B = SNOW_BOX;
+    const pos = new Float32Array(n * 3);
+    this.flakes = Array.from({ length: n }, () => ({ x: (Math.random() - 0.5) * B, y: Math.random() * B * 0.6, z: (Math.random() - 0.5) * B, v: 0.7 + Math.random() * 0.7, ph: Math.random() * 6.3 }));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const x = c.getContext('2d'), grd = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.4, 'rgba(255,255,255,0.8)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = grd; x.fillRect(0, 0, 32, 32);
+    this.snow = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.2, map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, color: 0xffffff, opacity: 0.95, toneMapped: false }));
+    this.snow.frustumCulled = false;
+    this.snow.userData.noSnow = true;
+    this.scene.add(this.snow);
+    this.snowT = 0;
+  }
+
+  tickSnow(dt) {
+    const B = SNOW_BOX, cam = this.camera.position, pos = this.snow.geometry.attributes.position, wind = this.windX ?? 0.6;
+    this.snowT += dt;
+    this.flakes.forEach((f, i) => {
+      f.y -= f.v * dt;
+      f.x += (wind + 0.35 * Math.sin(this.snowT * 1.3 + f.ph)) * dt;
+      f.z += 0.3 * Math.cos(this.snowT * 1.1 + f.ph) * dt;
+      if (f.y < -B * 0.25) { f.y = B * 0.4; f.x = (Math.random() - 0.5) * B; f.z = (Math.random() - 0.5) * B; }
+      // Wrapped round the camera, so the box stays full wherever you look and go.
+      const wx = ((f.x - cam.x) % B + B * 1.5) % B - B / 2, wz = ((f.z - cam.z) % B + B * 1.5) % B - B / 2;
+      pos.setXYZ(i, cam.x + wx, cam.y + f.y, cam.z + wz);
+    });
+    pos.needsUpdate = true;
+  }
+
+  // ---- breath in the cold: a little cloud from each man near you every few seconds ----
+  tickBreath(dt) {
+    for (const s of this.world?.soldiers ?? []) {
+      if (!s.alive || s.range || s.root.position.distanceTo(this.camera.position) > 60) continue;
+      if ((s.breathT = (s.breathT ?? Math.random() * 3) - dt) > 0) continue;
+      s.breathT = (s.gait === 'run' ? 1.1 : 2.6) + Math.random() * 1.4;
+      const head = s.headPosition(_b);
+      head.x += Math.sin(s.root.rotation.y) * 0.22; head.z += Math.cos(s.root.rotation.y) * 0.22; head.y -= 0.12;
+      this.fx.emit(head, _fwd.set(Math.sin(s.root.rotation.y), 0.25, Math.cos(s.root.rotation.y)), { color: 0xe8ecf0, count: 2, speed: 0.35, size: 0.12, life: 1.3, grow: 3.5, gravity: 0.1 });
+    }
   }
 
   // ---- rain: thin streaks in a box that follows the camera ----
@@ -121,5 +170,7 @@ export class Weather {
     if (this.rain) this.tickRain(dt);
     if (this.mist) this.tickMist(dt);
     if (this.kind.spray) this.tickSpray(dt);
+    if (this.snow) this.tickSnow(dt);
+    if (this.winter) this.tickBreath(dt);
   }
 }

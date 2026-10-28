@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, clamp } from './noise.js';
 import { textures } from './textures.js';
+import { snowTexture } from './winter.js';
 
 export let MAP_HALF = 400;
 export let PLAY_HALF = 375;
@@ -89,6 +90,7 @@ export function normalAt(x, z, out = new THREE.Vector3()) {
   return out.set(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
 }
 
+const _pre = new THREE.Color(), _snow = new THREE.Color(0xeef1f6), _slush = new THREE.Color(0x77706a);
 export function buildTerrain() {
   const SEG = Math.round(MAP_HALF);   // 2 m squares
   const geo = new THREE.PlaneGeometry(MAP_HALF * 2, MAP_HALF * 2, SEG, SEG);
@@ -112,13 +114,21 @@ export function buildTerrain() {
     c.lerp(dirt, smoothstep(0.12, 0.3, slope));
     if (y > 22) c.lerp(dry, smoothstep(22, 45, y) * 0.45);           // drier grass up the hills
     c.lerp(rock, smoothstep(0.28, 0.5, slope) * 0.85);                  // rock only where it's steep
+    if (MAP.winter) _pre.copy(c);
     MAP.paint?.(c, x, z, { yard, road, mowed, rock, dirt, dry, y, slope });
+    if (MAP.winter) {
+      // Snow where it's level enough to lie, thinner in drifts' lee; trodden to slush where the map
+      // paints a yard, a road or a path (wherever its own colours changed the ground).
+      const trod = Math.min(1, Math.abs(c.r - _pre.r) * 4 + Math.abs(c.g - _pre.g) * 4 + Math.abs(c.b - _pre.b) * 4);
+      const lies = (1 - smoothstep(0.22, 0.5, slope)) * (0.82 + 0.18 * fbm(x * 0.03 + 7, z * 0.03, 2));
+      c.lerp(_slush, trod * 0.6).lerp(_snow, lies * (1 - 0.75 * trod));
+    }
     const v = 0.92 + fbm(x * 0.4, z * 0.4, 1) * 0.16; // fine variation
     colors[i * 3] = c.r * v; colors[i * 3 + 1] = c.g * v; colors[i * 3 + 2] = c.b * v;
   }
   // A map on a photographed ground (its own colour already): the painted colours only lighten and
   // darken it (clearings, paths, slopes), around their average.
-  if (MAP.groundTexture) {
+  if (MAP.groundTexture && !MAP.winter) {          // (under snow it's ours, not the photo's)
     const avg = [0, 1, 2].map(k => { let s = 0; for (let i = k; i < colors.length; i += 3) s += colors[i]; return s / (colors.length / 3); });
     for (let i = 0; i < colors.length; i++) colors[i] = Math.min(1.6, colors[i] / avg[i % 3]);
   }
@@ -126,7 +136,7 @@ export function buildTerrain() {
 
   // Ground detail repeats every 4 m on top of the large-scale vertex colours.
   const { map, normalMap } = textures()[MAP.groundTexture ?? 'ground'];
-  const detail = map.clone(), detailN = normalMap.clone();
+  const detail = MAP.winter ? snowTexture() : map.clone(), detailN = normalMap.clone();   // (under snow: its own white grain)
   for (const t of [detail, detailN]) t.repeat.set(MAP_HALF / 2, MAP_HALF / 2);
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.95, map: detail, normalMap: detailN, normalScale: new THREE.Vector2(0.6, 0.6),
