@@ -85,7 +85,7 @@ export class Footprints {
   stamp(x, z, yaw) {
     const e = 0.4, y = heightAt(x, z);
     const n = new THREE.Vector3(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw + Math.PI));   // (the sole's toe is drawn at the texture's top, which the laid-down plane points at −z)
     const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y + 0.02, z), q, new THREE.Vector3(1, 1, 1));
     const i = this.next;
     this.mesh.setMatrixAt(i, m);

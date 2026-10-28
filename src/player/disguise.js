@@ -41,7 +41,7 @@ export class Disguise {
   // Acting the part: walking or standing, weapon down, hands free.
   inCharacter() {
     const p = this.player, a = this.arsenal;
-    return !p.sprinting && p.stance === 'stand' && !p.climb && !p.carrying && !a.aiming && !this.takedown?.active && a.current !== 'heavy';
+    return !p.sprinting && (p.stance === 'stand' || p.driving) && !p.climb && !p.carrying && !a.aiming && !this.takedown?.active && a.current !== 'heavy';
   }
 
   // How much of the usual sighting rate guard `s` gets at distance d.

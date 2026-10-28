@@ -34,6 +34,7 @@ import { Glint } from './stealth/glint.js';
 import { Flags } from './world/flags.js';
 import { AirWar } from './world/airwar.js';
 import { Disguise } from './player/disguise.js';
+import { Driving } from './player/driving.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed, seeded } from './core/run.js';
@@ -281,6 +282,7 @@ const disguise = new Disguise({ world, player, avatar, arsenal, input, audio, hu
 stealth.disguise = disguise;
 hud.disguise = disguise;
 saves.g.disguise = disguise;
+const driving = new Driving({ world, player, avatar, input, audio, hud, stealth, camera, patrol, ai, disguise });   // take a truck, car or motorcycle
 takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;
@@ -538,6 +540,7 @@ function tick(dt) {
   items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
+  driving.tick(dt);     // before the rest that E works: getting in or out takes the key
   disguise.tick(dt);
   pickups.tick(dt);
   wire.tick(player);
@@ -691,6 +694,7 @@ function step(realDt, draw = true) {
     pistolAim: arsenal.current === 'pistol' && arsenal.aim > 0.3,
     fpBlend,
   });
+  driving.frame(camera);   // at the wheel: the chase camera
   if (Math.abs(camera.fov - arsenal.fov) > 1e-3) {
     camera.fov = arsenal.fov;
     camera.updateProjectionMatrix();
@@ -699,8 +703,8 @@ function step(realDt, draw = true) {
 
   avatar.update(dt, {
     pos: new THREE.Vector3().lerpVectors(player.prevPos, player.pos, alpha),
-    lookYaw: player.yaw, lookPitch: player.pitch, moveYaw: player.moveYaw,
-    stance: player.stance, speed: player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
+    lookYaw: driving.bodyYaw() ?? player.yaw, lookPitch: driving.vehicle ? 0 : player.pitch, moveYaw: driving.bodyYaw() ?? player.moveYaw,
+    stance: player.stance, speed: driving.vehicle ? 0 : player.speed, sprinting: player.sprinting, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,
     throwAim: items.aimingThrow, healing: !!items.healing, searching: search.progress > 0, mounted: player.mounted, lean: player.lean ?? 0,
@@ -734,8 +738,8 @@ function step(realDt, draw = true) {
   const td = takedown.state();
   const its = items.state();
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
-  const pk = pickups.state(), ia = interactions.state(), mg = guns.state(), dg = disguise.state();
-  const prompts = heal ? [heal] : dg?.progress > 0 ? [dg] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, dg, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const pk = pickups.state(), ia = interactions.state(), mg = guns.state(), dg = disguise.state(), dv = driving.state();
+  const prompts = heal ? [heal] : driving.vehicle ? [dv] : dg?.progress > 0 ? [dg] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, dg, dv, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
@@ -760,7 +764,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = { footprints, flags, airwar, disguise,
+window.game = { footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },

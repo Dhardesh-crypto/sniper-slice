@@ -122,7 +122,7 @@ export class CarPatrol {
 
   tick(dt) {
     const c = this.car;
-    if (!c) return;
+    if (!c || c.stolen) return;          // (you've taken it: driving.js drives it now)
     const alarmed = c.crew.some(s => s.alive && s.aware.state !== 'calm') || this.ai.alarm.on;
     if (alarmed && c.crew.some(s => s.riding)) c.stopping = true;
     let speed = 0;

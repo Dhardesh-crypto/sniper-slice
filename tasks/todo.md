@@ -914,4 +914,9 @@ The user asked for bigger, noticeable features; chose the air war with strikes, 
       the usual rate (×2 close up, ×2 for officers, ×2 bloodstained; 35% once the stripped body is
       found); running, crouching, aiming, climbing or carrying a body undoes it; spotted outright,
       it's blown. Blast-killed men's uniforms are ruined. Saved.
-- [ ] Drivable vehicles
+- [x] Drivable vehicles (player/driving.js): E by any parked truck, car or motorcycle (and the patrol
+      car once its crew are out, the reinforcements' truck once they're down): W/S, A/D, Space, E out;
+      chase camera on the mouse; you sit in the seat; the engine is heard (guards come to look);
+      walls and trees stop you (a hard crash hurts); men in the way are run down. Not saved (a loaded
+      game has the vehicles back where they were parked).
+- [x] Footprints in the snow pointed backwards (the user): turned round.

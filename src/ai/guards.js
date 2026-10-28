@@ -607,6 +607,7 @@ export class GuardAI {
   tickTruck(dt) {
     const t = this.truck;
     if (!t) return;
+    if (t.stolen) { this.audio.setTruck(0); return; }   // (you've taken it: driving.js)
     const pos = (x) => new THREE.Vector3(x, this.world.groundAt(x, roadCenterZ(x)), roadCenterZ(x));
     let speed = 0;
     if (t.x < t.stopX && !t.stalled) {

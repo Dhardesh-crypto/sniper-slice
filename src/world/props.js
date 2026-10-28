@@ -323,6 +323,9 @@ export const DRESS_KEYS = Object.keys(DRESS).filter(k => !DRESS[k].vehicle);
 // Place set dressing: items are [key, x, z, rotY = 0]. Each stands on the ground (heightAt) with
 // its block; one whose block would overlap a building or another block (`avoid`) is left out, so
 // nothing ends up inside a wall or across a doorway. Returns the meshes for bullets and the boxes.
+// The parked vehicles every map's dressing sets down (truck, car, motorcycle): driving.js can take them.
+export const DRIVABLE = [];
+
 export function dressProps(scene, items, heightAt, avoid = [], vehicleModel = null) {
   const group = new THREE.Group(), solids = [], boxes = [], hidden = new THREE.MeshBasicMaterial({ visible: false });
   scene.add(group);
@@ -344,12 +347,15 @@ export function dressProps(scene, items, heightAt, avoid = [], vehicleModel = nu
     if (!spec.block) continue;
     boxes.push(box);
     model.userData.block = box;                  // (wire.js cuts a gap in it)
-    if (spec.bullets === false) continue;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, h, bd), hidden);
+    const drivable = key === 'truck' || key === 'car' || key === 'motorcycle';
+    if (spec.bullets === false) { if (drivable) DRIVABLE.push({ kind: key, model, box, solid: null }); continue; }
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hidden);   // (turned with the model, so it can drive off with it)
     m.position.set(x, y + h / 2, z);
+    m.rotation.y = rotY;
     group.add(m);
     m.updateMatrixWorld(true);
     solids.push(m);
+    if (drivable) DRIVABLE.push({ kind: key, model, box, solid: m, size: [w, h, d] });
   }
   return { solids, boxes, group };
 }
