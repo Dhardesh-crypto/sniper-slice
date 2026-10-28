@@ -202,9 +202,11 @@ export class Stealth {
   canSee(s, chest, vis, d) {
     const a = s.aware;
     const lit = inBeam(s.torch, chest);                         // in his torch beam, at dusk
-    if (this.concealed && !lit && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
-    const range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1);   // (rain and mist hide you further off)
+    const glint = this.glint?.toward(eye) ?? 0;                 // your scope flashing in the sun (glint.js): seen far off, and through grass
+    if (this.concealed && !lit && glint < 0.2 && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
+    let range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1);   // (rain and mist hide you further off)
+    if (glint > 0) { range = Math.max(range, 340 * glint); vis = Math.max(vis, 0.5 * glint); }
     if (d > range * Math.sqrt(vis) + 3) return 0;
     const to = chest.clone().sub(eye);
     const facing = new THREE.Vector3(Math.sin(s.root.rotation.y), 0, Math.cos(s.root.rotation.y));

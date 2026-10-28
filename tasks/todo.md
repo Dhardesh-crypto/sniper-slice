@@ -885,3 +885,14 @@ also with casemate guns over the beach; winter as a random season and a menu swi
       a quick one; wire cutters and a crowbar to find; a bayonet (its own slot, F face to face).
 - [x] A story (missions/story.js): Kestrel and Major Ellis, each mission's take leading to the next,
       a dispatch card before each (read out), Ellis's report on the end screen (read out).
+
+## Flak Line fix, glint, tracks in the snow (2026-10-28)
+- [x] Flak Line froze when the alarm called reinforcements: the map has no road, so the truck and
+      its men were put at NaN. Where there's no road they now come on foot from `reinforceFrom`.
+- [x] Scope glint (stealth/glint.js): scoped with the sun ahead, a guard near your line of sight who
+      faces you sees the flash from up to 340 m and through grass (about 2–3 s to notice at 60–150
+      m); none under cloud, little in mist; "SUN ON THE LENS" in the scope. Enemy snipers, spotters
+      and lookouts facing you with the sun behind you wink at the scope (seen on the bell spotters).
+- [x] Boot prints in the snow (world/footprints.js): yours and every guard's, fresh ones dark, filling
+      in over 7 minutes (sooner while snowing). A guard who comes on your fresh trail turns wary and
+      follows it stretch by stretch (checked: 34 m along it in 30 s).

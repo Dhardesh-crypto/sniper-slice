@@ -29,6 +29,8 @@ import { Birds } from './fx/birds.js';
 import { BurnBarrels } from './world/burnbarrels.js';
 import { Wire } from './world/wire.js';
 import { applyWinter } from './world/winter.js';
+import { Footprints } from './world/footprints.js';
+import { Glint } from './stealth/glint.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed } from './core/run.js';
@@ -109,7 +111,7 @@ useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
 if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
 document.getElementById('briefing').insertAdjacentHTML('afterbegin', storyLine(missionId));   // (the story so far: missions/story.js)
-if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show, and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
+if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show (the guards' show you their rounds; a guard who finds yours follows them), and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
 
 const input = new Input(canvas);
 const audio = new Audio();
@@ -146,6 +148,8 @@ const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, h
 const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
 const birds = new Birds({ scene, world, audio, player });   // put up out of the trees by shots and blasts
 explosions.onBlast = (at, size) => birds.flush(at, 1.6 * size);
+stealth.glint = new Glint({ scene, world, player, arsenal, camera });   // your scope flashing in the sun, and theirs
+const footprints = new Footprints({ scene, world, player, stealth, hud });   // boot prints in the snow (winter)
 const flashlights = new Flashlights({ scene, world, player });   // and at dusk the guards carry torches
 hotspots.ai = ai; hotspots.mission = mission;
 ai.hotspots = hotspots;
@@ -525,7 +529,9 @@ function tick(dt) {
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
+  stealth.glint.tick(dt);
   stealth.tick(dt);
+  footprints.tick(dt);
   ai.tick(dt);
   dogs.tick(dt);
   patrol.tick(dt);
@@ -735,7 +741,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = {
+window.game = { footprints,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
