@@ -26,7 +26,8 @@ export class Soldier {
     this.reactT = 0;             // reeling from a hit (the hit-reaction clip)
     this.activity = null;
 
-    this.char = new Character(look ?? (officer ? 'officerColonel' : 'guard'));
+    this.look = look ?? (officer ? 'officerColonel' : 'guard');   // (also the uniform you'd take off him: disguise.js)
+    this.char = new Character(this.look);
     this.root = this.char.root;
     // `body` is the soldier's own frame (origin at the feet, facing +z), kept for
     // code that reads positions relative to the body (tagging, the head marker).
@@ -199,6 +200,9 @@ export class Soldier {
   // centre line it turns him: a shoulder hit spins him round); `power`: the round's punch (0–1.2);
   // `blast`: an explosion's force on him (0–1.5), which throws him through the air.
   die(bulletDir, { quiet = false, zone = 'torso', point = null, power = 1, blast = 0 } = {}) {
+    // His uniform: soaked through by a body wound, past use after a blast (disguise.js).
+    if (zone === 'torso' || this.bleed > 0 || this.downed) this.bloodied = true;
+    if (blast > 0) this.uniformRuined = true;
     this.alive = false;
     this.quietDeath = quiet;
     if (this.downed) {

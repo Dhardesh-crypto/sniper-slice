@@ -33,6 +33,7 @@ import { Footprints } from './world/footprints.js';
 import { Glint } from './stealth/glint.js';
 import { Flags } from './world/flags.js';
 import { AirWar } from './world/airwar.js';
+import { Disguise } from './player/disguise.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed, seeded } from './core/run.js';
@@ -276,6 +277,10 @@ mission.complete = (id, message) => {
   if (!was && !mission.done) setTimeout(() => { if (saves.save('auto').ok) hud.message('CHECKPOINT SAVED', ''); }, 1500);
 };
 const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud, arsenal });
+const disguise = new Disguise({ world, player, avatar, arsenal, input, audio, hud, carry, takedown });   // a dead guard's uniform
+stealth.disguise = disguise;
+hud.disguise = disguise;
+saves.g.disguise = disguise;
 takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;
@@ -533,6 +538,7 @@ function tick(dt) {
   items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
+  disguise.tick(dt);
   pickups.tick(dt);
   wire.tick(player);
   world.tunnels?.tick(dt);
@@ -728,8 +734,8 @@ function step(realDt, draw = true) {
   const td = takedown.state();
   const its = items.state();
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
-  const pk = pickups.state(), ia = interactions.state(), mg = guns.state();
-  const prompts = heal ? [heal] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
+  const pk = pickups.state(), ia = interactions.state(), mg = guns.state(), dg = disguise.state();
+  const prompts = heal ? [heal] : dg?.progress > 0 ? [dg] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, dg, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
   const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
@@ -754,7 +760,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = { footprints, flags, airwar,
+window.game = { footprints, flags, airwar, disguise,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },

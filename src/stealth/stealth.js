@@ -113,6 +113,7 @@ export class Stealth {
     // The guard who noticed calls out (the ones a shout reaches just join in).
     if (why !== 'shout') this.audio.shout(why === 'body' ? 'body' : why === 'seen' ? 'spotted' : 'suspicious', s.root.position.distanceTo(this.player.pos));
     s.react(a.state, a.stimulus);
+    if (state === 'alerted' && why === 'seen') this.disguise?.seenThrough();   // (spotted for what you are)
     if (state === 'alerted' && why !== 'shout') { // a shout reaches neighbours but isn't passed on (the siren comes in Phase 5)
       if (why === 'seen') this.hud.message('SPOTTED', 'wound');
       if (why === 'body') this.hud.message('A BODY HAS BEEN FOUND', 'wound');
@@ -218,7 +219,8 @@ export class Stealth {
     if (hit && !(hit.soldier === undefined && hit.point.distanceTo(chest) < 0.4)) return 0;
     const stateK = a.state === 'alerted' ? 2 : a.state === 'suspicious' ? 1.5 : 1;
     const idle = s.chatWith ? 0.6 : s.smoking > 0 ? 0.85 : 1;     // chatting or smoking, he watches less
-    return 1.1 * this.wariness * Math.max(vis, lit ? 0.6 : 0) * coneK * stateK * idle * (lit ? 2 : 1) * Math.pow(Math.max(0, 1 - d / range), 1.3);
+    const guise = this.disguise?.factor(s, d) ?? 1;                // in their uniform, acting the part (disguise.js)
+    return 1.1 * this.wariness * Math.max(vis, lit ? 0.6 : 0) * coneK * stateK * idle * guise * (lit ? 2 : 1) * Math.pow(Math.max(0, 1 - d / range), 1.3);
   }
 
   lookForBodies(s) {

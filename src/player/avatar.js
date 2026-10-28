@@ -2,7 +2,7 @@
 // animated by stance and speed (idle, walk, rifle sprint, crouch walk, crawl), with the
 // arms holding the rifle on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
-import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK } from '../world/characters.js';
+import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK, assets } from '../world/characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
@@ -73,6 +73,35 @@ export class Avatar {
     this.state = '';
     this.char.play('idleLegs', { fade: 0 });
     this.buildConcealLook();
+  }
+
+  // A guard's uniform over your own kit (disguise.js): his model's mesh, bound to your bones (the
+  // guards and you share one skeleton), your own hidden under it.
+  wearUniform(look) {
+    this.takeOffUniform();
+    let src = null;
+    (assets.models[look] ?? assets.models.guard)?.scene.traverse(o => { if (o.isSkinnedMesh && !src) src = o; });
+    const mine = this.char.skinned;
+    if (!src || !mine) return false;
+    const bones = src.skeleton.bones.map(b => this.char.bones[b.name]);
+    if (bones.some(b => !b)) return false;
+    const mesh = new THREE.SkinnedMesh(src.geometry, src.material);
+    mesh.position.copy(src.position); mesh.quaternion.copy(src.quaternion); mesh.scale.copy(src.scale);
+    mine.parent.add(mesh);
+    mesh.bind(new THREE.Skeleton(bones, src.skeleton.boneInverses.map(m => m.clone())), src.bindMatrix.clone());
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.boundingSphere = mine.boundingSphere?.clone() ?? null;
+    mesh.frustumCulled = mine.frustumCulled;
+    mine.visible = false;
+    this.uniform = mesh;
+    return true;
+  }
+
+  takeOffUniform() {
+    if (!this.uniform) return;
+    this.uniform.removeFromParent();
+    this.uniform = null;
+    if (this.char.skinned) this.char.skinned.visible = true;
   }
 
   // Carry the loadout: the rifle's model (with a fitted suppressor or muzzle brake on it) and

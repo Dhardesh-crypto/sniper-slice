@@ -101,7 +101,7 @@ export class Saves {
       soldiers: world.soldiers.filter(s => !s.range).map(s => ({
         name: s.name, reinforcement: s.name === 'Reinforcement', alive: s.alive, hp: s.hp,
         pos: v3(s.root.position), yaw: s.root.rotation.y, homeYaw: s.warm?.yaw ?? s.homeYaw, home: v3(s.warm?.home ?? s.home),   // (warming his hands at a barrel: his post is where he came from)
-        searched: !!s.searched, hidden: !!s.hidden, found: !!s.found, tagged: !!s.tagged, quietDeath: !!s.quietDeath,
+        searched: !!s.searched, hidden: !!s.hidden, found: !!s.found, tagged: !!s.tagged, quietDeath: !!s.quietDeath, stripped: !!s.stripped, bloodied: !!s.bloodied, uniformRuined: !!s.uniformRuined,
         deathClip: s.deathClip ?? null,
         rifle: s.drop ? { pos: s.char.rifle.position.toArray(), quat: s.char.rifle.quaternion.toArray() } : null,
         downed: s.alive && s.downed ? { away: s.downed.away.toArray(), crawled: s.downed.crawled, max: s.downed.max, bandaged: !!s.downed.bandaged, bleed: s.bleed ?? 0 } : null,
@@ -128,6 +128,7 @@ export class Saves {
       beltGrenades: this.g.beltGrenades?.state() ?? [],
       interactions: this.g.interactions?.snapshot() ?? null,
       wire: this.g.wire?.snapshot() ?? [],
+      disguise: this.g.disguise?.snapshot() ?? null,
       missionId: this.g.missionId ?? 'vineyard',
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
@@ -171,7 +172,7 @@ export class Saves {
       s.targetYaw = sd.alive ? sd.yaw : s.targetYaw;
       s.homeYaw = sd.homeYaw;
       if (sd.home) s.home.fromArray(sd.home);
-      s.searched = sd.searched; s.hidden = sd.hidden; s.found = sd.found; s.tagged = sd.tagged; s.quietDeath = sd.quietDeath;
+      s.searched = sd.searched; s.hidden = sd.hidden; s.found = sd.found; s.tagged = sd.tagged; s.quietDeath = sd.quietDeath; s.stripped = sd.stripped; s.bloodied = sd.bloodied; s.uniformRuined = sd.uniformRuined;
       if (!sd.alive) s.restoreDead(sd.deathClip ?? 'deathFwd', sd.rifle);
       else {
         s.hp = sd.hp;
@@ -236,6 +237,7 @@ export class Saves {
     this.g.beltGrenades?.restore(d.beltGrenades);
     this.g.interactions?.restore(d.interactions);
     this.g.wire?.restore(d.wire);
+    this.g.disguise?.restore(d.disguise);
     (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) this.g.pickups.restore(b, { destroyed: true }); });
     (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (b && o) this.g.pickups.restore(b, { opened: true }); });
   }

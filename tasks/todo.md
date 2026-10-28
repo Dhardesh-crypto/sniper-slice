@@ -909,5 +909,9 @@ The user asked for bigger, noticeable features; chose the air war with strikes, 
 - [x] Sounds: the user's Pixabay picks (bomber pass, the fighters' low pass, the valley plane, the
       airfield's engine start, the 2 cm guns, the falling bomb) timed so each peaks at the nearest
       moment; ElevenLabs for the drone, strafing, flak bursts, the 88's report, the crash, radio.
-- [ ] Disguise
+- [x] Disguise (player/disguise.js): hold U over a body for his uniform (his own model's mesh bound
+      to your skeleton: the guards and you share one). Acting the part, guards make you out at 12% of
+      the usual rate (×2 close up, ×2 for officers, ×2 bloodstained; 35% once the stripped body is
+      found); running, crouching, aiming, climbing or carrying a body undoes it; spotted outright,
+      it's blown. Blast-killed men's uniforms are ruined. Saved.
 - [ ] Drivable vehicles

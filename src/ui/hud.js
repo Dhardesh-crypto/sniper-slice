@@ -98,6 +98,8 @@ export class Hud {
     // Overall state
     const banner = this.el.banner ?? (this.el.banner = document.getElementById('alertstate'));
     banner.textContent = st.alarm ? 'ALARM' : st.worst === 'alerted' ? 'ENEMIES ALERTED' : st.worst === 'suspicious' ? 'SUSPICIOUS' : '';
+    const guise = this.disguise?.status();
+    if (guise) banner.textContent = banner.textContent ? `${banner.textContent} · ${guise}` : guise;
     banner.className = st.alarm ? 'alarm' : st.worst;
   }
 
