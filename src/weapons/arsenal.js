@@ -8,6 +8,7 @@ import { weaponPicture } from '../ui/weapon-pictures.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
+const QUICK_WINDOW = 0.14, FUMBLE = 0.6;   // the quick-reload window (share of the reload); what fumbling it costs (s)
 const NEAR_MISS = 1.6;            // m from his head: a round this close and he knows it
 const _nm = new THREE.Vector3(), _nh = new THREE.Vector3(), _nq = new THREE.Vector3();
 const FIXED_STEP = 1 / 60;
@@ -265,6 +266,10 @@ export class Arsenal {
     if (inp.wasPressed('KeyR') && w.mag < def.magazine && w.reserve > 0 && !this.busy) this.beginReload();
     this.tickWeaponWheel(dt);
     if (this.queuedAmmo && this.current === 'rifle' && this.pendingSwitch === null && this.switchT <= 0 && !this.reloadT) { this.loadAmmo(this.queuedAmmo); this.queuedAmmo = null; }
+    // Out of rounds: it reloads itself a moment after the last shot (once the bolt's back).
+    if (this.autoReloadT > 0 && (this.autoReloadT -= dt) <= 0 && w.mag === 0 && w.reserve > 0 && !this.busy && !this.reloadT && this.pendingSwitch === null) this.beginReload();
+    if (this.reloadT > 0 && inp.wasPressed('KeyR')) this.quickReload();
+    if (this.reloadQuick > 0) this.reloadQuick -= dt;
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) {
@@ -327,9 +332,22 @@ export class Arsenal {
     this.audio.click(0.05, 1300, 0.2);
   }
 
+  // A reload, with a window for a quick one: press R while the marker's in it and the rounds are
+  // in at once; press outside it and you fumble (a moment longer); leave it and it takes its time.
   beginReload() {
-    this.reloadT = this.def.reloadTime;
+    this.reloadT = this.reloadTotal = this.def.reloadTime;
+    this.reloadWin = 0.32 + Math.random() * 0.2;            // (where along the reload the window opens)
+    this.reloadTried = false;
+    this.autoReloadT = 0;
     this.audio.reloadFor(this.def, this.def.reloadTime);
+  }
+
+  quickReload() {
+    if (this.reloadTried || !this.reloadTotal) return;
+    this.reloadTried = true;
+    const p = 1 - this.reloadT / this.reloadTotal;
+    if (p >= this.reloadWin && p <= this.reloadWin + QUICK_WINDOW) { this.reloadT = Math.min(this.reloadT, 0.05); this.reloadQuick = 1; this.audio.click(0, 1600, 0.25); }
+    else { this.reloadT += FUMBLE; this.reloadTotal += FUMBLE; this.audio.click(0, 420, 0.3); }
   }
 
   tickBreath(dt) {
@@ -400,6 +418,7 @@ export class Arsenal {
     }
 
     w.mag--;
+    if (w.mag === 0 && w.reserve > 0 && !this.mount) this.autoReloadT = Math.max(0.35, def.cycleTime * 0.8);
     this.cooldown = def.cycleTime;
     this.stats.shots++;
     this.recoilVel += def.recoil * 22 * (this.scoped ? 1 : 0.5);
@@ -807,7 +826,7 @@ export class Arsenal {
       zoomName: this.def.zoomNames[this.zoomIndex], zoomFov: this.def.zoomFovs[this.zoomIndex],
       binocFov: BINOCULARS.zoomFovs[this.binocZoomIndex], binocZoomName: BINOCULARS.zoomNames[this.binocZoomIndex],
       aim: this.aim, binoc: this.binocT ?? 0, scoped: this.scoped, breath: this.breath,
-      holding: this.holding, exhausted: this.exhaustedT > 0, reloading: this.reloadT > 0, ready: this.readyT,
+      holding: this.holding, exhausted: this.exhaustedT > 0, reloading: this.reloadT > 0, reload: this.reloadT > 0 ? { p: 1 - this.reloadT / (this.reloadTotal || 1), win: this.reloadWin, w: QUICK_WINDOW, tried: this.reloadTried } : null, quick: this.reloadQuick > 0, ready: this.readyT,
       range: this.rangeReadout, tagProgress: this.tagCandidate ? Math.min(1, this.tagT / 0.35) : 0,
       lethal: !!this.lethal,
     };

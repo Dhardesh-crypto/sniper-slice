@@ -31,6 +31,12 @@ canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block;
 #breath.exhausted #breath-fill { background: var(--red); }
 
 #ammo { position: absolute; right: 24px; bottom: 22px; text-align: right; }
+#reloadbar { display: none; position: absolute; left: 50%; top: calc(50% + 48px); width: 170px; height: 7px; margin-left: -85px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(242, 237, 225, 0.35); }
+#reloadbar.on { display: block; }
+#reloadbar i { position: absolute; top: 0; bottom: 0; }
+#reloadbar .win { z-index: 1; background: rgba(255, 207, 106, 0.8); }
+#reloadbar .win.used { opacity: 0.25; }
+#reloadbar .fill { left: 0; background: rgba(242, 237, 225, 0.35); border-right: 2px solid #fff; }
 #weapon-name { font-size: 11px; color: var(--dim); text-transform: uppercase; }
 #mag { font-size: 30px; font-weight: 300; }
 #mag span { font-size: 15px; color: var(--dim); margin-left: 4px; }

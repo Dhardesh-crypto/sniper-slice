@@ -291,7 +291,18 @@ export class Hud {
     el.breath.classList.toggle('holding', a.holding);
     el.breath.classList.toggle('exhausted', a.exhausted);
 
-    el.weapon.textContent = a.reloading ? 'RELOADING…' : a.name;
+    el.weapon.textContent = a.quick ? 'QUICK RELOAD' : a.reloading ? 'RELOADING… R IN THE MARK: QUICK' : a.name;
+    // The reload bar: how far along, and the window where R gives a quick reload.
+    const rb = el.reloadBar ?? (el.reloadBar = document.getElementById('reloadbar'));
+    if (rb) {
+      rb.classList.toggle('on', !!a.reload);
+      if (a.reload) {
+        rb.firstElementChild.style.left = `${(a.reload.win * 100).toFixed(1)}%`;
+        rb.firstElementChild.style.width = `${(a.reload.w * 100).toFixed(1)}%`;
+        rb.firstElementChild.classList.toggle('used', a.reload.tried);
+        rb.lastElementChild.style.width = `${(a.reload.p * 100).toFixed(1)}%`;
+      }
+    }
     // The item in hand (Q to change, G to use).
     if (items) {
       const box = el.item ?? (el.item = document.getElementById('item'));
