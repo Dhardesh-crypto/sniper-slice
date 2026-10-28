@@ -71,7 +71,7 @@ export class Hud {
       g.arc(W / 2, H / 2, R, ang - Math.PI / 2 - 0.16, ang - Math.PI / 2 + 0.16);
       g.stroke();
       // ? or ! over the guard when you can see him.
-      if (a.state !== 'calm') {
+      if (a.state !== 'calm' && s !== world.alarmRunner?.s) {   // (the alarm runner has his own mark)
         const p = project(s.headPosition());
         if (p && p.x > 0 && p.x < W && p.y > 0 && p.y < H) {
           g.font = `bold ${(a.state === 'alerted' ? 22 : 18) * d}px "Helvetica Neue", Arial, sans-serif`;
@@ -362,6 +362,40 @@ export class Hud {
       g.fill();
       g.fillStyle = 'rgba(255,255,255,0.85)';
       g.fillText(`${Math.round(camera.position.distanceTo(s.root.position))} m`, p.x, p.y - 14 * d);
+    }
+    // The man running for the alarm: a pulsing red siren mark over him, seen through walls and kept
+    // on the edge of the screen when he's off it (kill him before he gets there), with a ring that
+    // fills while he's at the post working the switch.
+    const run = world.alarmRunner;
+    if (run) {
+      const h = run.s.headPosition(this.v5 ?? (this.v5 = new THREE.Vector3()));
+      h.y += 0.55;
+      this.v.copy(h).project(camera);
+      let x = (this.v.x * 0.5 + 0.5) * W, y = (-this.v.y * 0.5 + 0.5) * H;
+      const behind = this.v.z > 1, m = 34 * d;
+      if (behind) { x = W - x; y = H - m; }
+      const off = behind || x < m || x > W - m || y < m || y > H - m;
+      x = THREE.MathUtils.clamp(x, m, W - m); y = THREE.MathUtils.clamp(y, m, H - m);
+      const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 120), r = 11 * d;
+      g.fillStyle = `rgba(200,30,20,${0.85 * pulse})`;
+      g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 2 * d;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+      // (a siren horn: a bell mouth on a short stem)
+      g.fillStyle = '#fff';
+      g.beginPath(); g.moveTo(x - 5 * d, y + 3 * d); g.lineTo(x - 2 * d, y - 5 * d); g.lineTo(x + 2 * d, y - 5 * d); g.lineTo(x + 5 * d, y + 3 * d); g.closePath(); g.fill();
+      g.fillRect(x - 6 * d, y + 3.5 * d, 12 * d, 2 * d);
+      if (run.progress > 0) {
+        g.strokeStyle = '#ffd34a'; g.lineWidth = 3 * d;
+        g.beginPath(); g.arc(x, y, r + 4 * d, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, run.progress)); g.stroke();
+      }
+      g.font = `bold ${11 * d}px "Helvetica Neue", Arial, sans-serif`;
+      g.textAlign = 'center';
+      const label = run.progress > 0 ? 'SOUNDING THE ALARM' : off ? `ALARM RUNNER · ${Math.round(camera.position.distanceTo(run.s.root.position))} m` : 'ALARM RUNNER';
+      g.strokeStyle = 'rgba(0,0,0,0.75)'; g.lineWidth = 3 * d;
+      g.strokeText(label, x, y - r - 7 * d);
+      g.fillStyle = 'rgba(255,90,70,0.95)';
+      g.fillText(label, x, y - r - 7 * d);
+      g.font = `${11 * d}px "Helvetica Neue", Arial, sans-serif`;
     }
     // Tagged weak spots: an orange warning triangle with what it is and how many hits it takes.
     for (const h of hotspots?.tagged() ?? []) {

@@ -1,6 +1,9 @@
 // Where guards can walk: a 1 m grid over the compound and its surroundings, built from the
 // world's collision boxes (walls, buildings, crates), with A* for paths and string-pulling
 // to straighten them. Outside the grid the land is open: guards walk straight there.
+// Routes know their height: each step is on the floor a man would stand on coming from the last
+// one (a bridge deck, a box top, the ground), and no step drops more than he'd jump down on
+// purpose, so a guard on the deck never takes a short cut off its edge to the bank below.
 // Each upper floor of a walk-in building (buildings.js `storeys`) has its own finer grid, built
 // from the walls and furniture at that height, joined to the ground's by its flight of stairs: a
 // route between floors goes to the foot of the stairs, up the flight, and on across the floor.
@@ -11,6 +14,8 @@ const CELL = 1;
 const HALF_DEFAULT = 110;   // the grid covers 220 × 220 m around the target area (a map can ask for more)
 const CLEARANCE = 0.45;     // a guard's radius plus a little
 const STOREY_CELL = 0.5, STOREY_CLEAR = 0.3;   // indoors: rooms and doorways need a finer grid
+const DROP = 2;             // m: the most a route steps down at once (guards.js SAFE_DROP)
+const REACH = 0.6;          // m: a box top this far above you is a step up onto it
 
 class Heap {
   constructor() { this.a = []; }
@@ -53,8 +58,12 @@ class Grid {
     this.g = new Float32Array(nx * nz);
     this.from = new Int32Array(nx * nz);
     this.stamp = new Uint32Array(nx * nz);
+    this.ys = new Float32Array(nx * nz);
     this.search = 0;
   }
+
+  // The floor at (x, z) for a man coming from height y (an upper floor's grid: its own level).
+  floorFrom(x, z, y) { return y; }
 
   // Block every cell within `clear` of the box's footprint.
   blockBox(b, clear) {
@@ -79,6 +88,7 @@ class Grid {
   iz(z) { return Math.floor((z - this.z0) / this.cell); }
   inside(i, j) { return i >= 0 && j >= 0 && i < this.nx && j < this.nz; }
   center(k, y = 0) { return new THREE.Vector3(this.x0 + ((k % this.nx) + 0.5) * this.cell, y, this.z0 + (Math.floor(k / this.nx) + 0.5) * this.cell); }
+  cellFloor(k, y) { return y; }
   walkable(x, z) {
     const i = this.ix(x), j = this.iz(z);
     return !this.inside(i, j) || !this.blocked[j * this.nx + i];
@@ -97,12 +107,16 @@ class Grid {
     return -1;
   }
 
-  // Straight walk from a to b without crossing a blocked cell?
+  // Straight walk from a to b without crossing a blocked cell, or dropping off anything high?
   clearLine(a, b) {
     const d = Math.hypot(b.x - a.x, b.z - a.z), steps = Math.ceil(d / (this.cell * 0.5));
-    for (let s = 1; s < steps; s++) {
-      const t = s / steps;
-      if (!this.walkable(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false;
+    let y = a.y;
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      if (s < steps && !this.walkable(x, z)) return false;
+      const f = this.floorFrom(x, z, y);
+      if (y - f > DROP) return false;
+      y = f;
     }
     return true;
   }
@@ -116,10 +130,10 @@ class Grid {
     const h = (k) => { const dx = Math.abs(k % n - gi), dz = Math.abs(Math.floor(k / n) - gj); return dx + dz - 0.586 * Math.min(dx, dz); };
     const stamp = ++this.search;
     const open = new Heap();
-    this.stamp[start] = stamp; this.g[start] = 0; this.from[start] = -1;
+    this.stamp[start] = stamp; this.g[start] = 0; this.from[start] = -1; this.ys[start] = a.y;
     open.push(start, h(start));
     let found = false, expanded = 0;
-    while (open.size && expanded < 40000) {
+    while (open.size && expanded < Math.max(40000, this.nx * this.nz / 4)) {   // (on a big grid a way round a gorge can be long)
       const k = open.pop();
       if (k === goal) { found = true; break; }
       expanded++;
@@ -133,7 +147,9 @@ class Grid {
         if (di && dj && (this.blocked[j * n + ni] || this.blocked[nj * n + i])) continue; // no corner cutting
         const ng = gk + (di && dj ? 1.414 : 1);
         if (this.stamp[nk] === stamp && ng >= this.g[nk]) continue;
-        this.stamp[nk] = stamp; this.g[nk] = ng; this.from[nk] = k;
+        const ny = this.cellFloor(nk, this.ys[k]);
+        if (this.ys[k] - ny > DROP) continue;                                            // (no stepping off a ledge)
+        this.stamp[nk] = stamp; this.g[nk] = ng; this.from[nk] = k; this.ys[nk] = ny;
         open.push(nk, ng + h(nk));
       }
     }
@@ -142,7 +158,7 @@ class Grid {
     for (let k = goal; k !== -1; k = this.from[k]) cells.push(k);
     cells.reverse();
     // String-pull: keep only the corners needed to stay off blocked cells.
-    const pts = cells.map(k => this.center(k));
+    const pts = cells.map(k => this.center(k, this.ys[k]));
     const out = [];
     let anchor = a.clone();
     for (let i = 1; i < pts.length; i++) {
@@ -163,6 +179,20 @@ export class NavGrid extends Grid {
     this.x0 = COMPOUND.x - HALF;
     this.z0 = COMPOUND.z - HALF;
     this.init(this.x0, this.z0, this.n, this.n, CELL);
+    // What there is to stand on in each cell: the ground, and the tops of the boxes over it.
+    this.lo = new Float32Array(this.n * this.n);
+    for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) this.lo[j * this.n + i] = world.groundAt(this.x0 + (i + 0.5) * CELL, this.z0 + (j + 0.5) * CELL);
+    this.tops = new Map();
+    for (const b of world.boxes) {
+      const i0 = Math.max(0, this.ix(b.min.x)), i1 = Math.min(this.n - 1, this.ix(b.max.x));
+      const j0 = Math.max(0, this.iz(b.min.z)), j1 = Math.min(this.n - 1, this.iz(b.max.z));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const k = j * this.n + i;
+        if (b.max.y <= this.lo[k]) continue;
+        const t = this.tops.get(k);
+        if (t) t.push(b.max.y); else this.tops.set(k, [b.max.y]);
+      }
+    }
     // A box blocks if it stands between ankle and head height off the ground under it.
     for (const b of world.boxes) {
       if (world.doorBoxes?.has(b)) continue;      // doors: guards open them as they pass
@@ -218,6 +248,19 @@ export class NavGrid extends Grid {
     // The upper floors, each joined to the floor below it (the ground, for a first floor).
     this.storeys = (world.storeys ?? []).map(st => new Storey(world, st));
     for (const s of this.storeys) s.below = s.f > 1 ? this.storeys.find(o => o.building === s.building && o.f === s.f - 1) ?? this : this;
+  }
+
+  // The floor of cell k for a man coming from height y: the highest box top he could step up
+  // onto, or the ground.
+  cellFloor(k, y) {
+    let f = this.lo[k];
+    const t = this.tops.get(k);
+    if (t) for (const top of t) if (top > f && top <= y + REACH) f = top;
+    return f;
+  }
+  floorFrom(x, z, y) {
+    const i = this.ix(x), j = this.iz(z);
+    return this.inside(i, j) ? this.cellFloor(j * this.n + i, y) : this.world.groundAt(x, z);
   }
 
   // Which grid a point is on: an upper floor it stands on (or is nearly up to), or the ground.

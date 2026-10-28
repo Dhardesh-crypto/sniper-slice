@@ -118,11 +118,23 @@ export class Dogs {
       } else if (face !== null) this.turn(a, face, 2, dt);
     }
     a.v += (speed - a.v) * Math.min(1, dt * (speed > a.v ? 3 : 5));
+    const ox = pos.x, oz = pos.z;
     pos.x += Math.sin(a.root.rotation.y) * a.v * dt;
     pos.z += Math.cos(a.root.rotation.y) * a.v * dt;
     this.world.collideCircle(pos, 0.3, pos.y, pos.y + 0.7);
-    const floor = this.world.floorAt(pos.x, pos.z, pos.y);
-    pos.y = floor < pos.y - 0.6 ? Math.max(floor, pos.y - 6 * dt) : floor;
+    // A dog won't jump off anything higher than a man would; if the ground goes from under it, it
+    // falls, and from five metres or more it doesn't get up.
+    let floor = this.world.floorAt(pos.x, pos.z, pos.y);
+    if (!dog.fallV && floor < pos.y - 2) { pos.x = ox; pos.z = oz; a.v = 0; floor = this.world.floorAt(pos.x, pos.z, pos.y); }
+    if (dog.fallV || floor < pos.y - 0.6) {
+      if (!dog.fallV) { dog.fallV = 1e-3; dog.fallTop = pos.y; }
+      dog.fallV += 9.8 * dt;
+      pos.y = Math.max(floor, pos.y - dog.fallV * dt);
+      if (pos.y > floor) return;
+      const h = dog.fallTop - floor;
+      dog.fallV = 0;
+      if (h >= 5) this.kill(dog);
+    } else pos.y = floor;
   }
 
   turn(a, want, rate, dt) {

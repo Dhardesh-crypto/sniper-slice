@@ -614,6 +614,7 @@ function tick(dt) {
   world.tick(dt);
   if (player.dead && !deathScreen.classList.contains('on')) {
     deathScreen.classList.add('on');
+    deathScreen.querySelector('h2').textContent = player.fellFrom ? `KILLED IN A ${Math.round(player.fellFrom)} M FALL` : 'KILLED IN ACTION';
     menu.classList.add('hidden');
     audio.setSiren(0);
     audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);

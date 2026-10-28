@@ -27,6 +27,8 @@ const ALARM_QUIET = 60;         // the siren stops after this long without anyon
 const REINFORCE_DELAY = 12;     // seconds from the siren to the truck setting off
 const SIREN_ACTIVATE = 1.5;     // seconds at the post to sound it
 const CUT_TIME = 1.6;           // seconds holding E to cut the wire
+const SAFE_DROP = 2;            // m: the most a guard jumps down on purpose (nav.js keeps routes to it)
+const GRAVITY = 9.8;
 
 // Patrol routes, metres from the compound centre (walked in a loop at a stroll), with an
 // optional pause in seconds at a point. The Oberst's is his daily routine.
@@ -102,7 +104,8 @@ export class GuardAI {
       const mode = this.decide(s);
       if (mode !== b.mode) this.enter(s, mode);
       s.nextActivity = null;           // run() says if he's looking around or at work this tick
-      this.run(s, dt);
+      if (!s.fallV || s.fallTop - s.root.position.y < 0.3) this.run(s, dt);   // (in the air he does nothing but fall)
+      this.tickFall(s, dt);
       s.setActivity(s.nextActivity);
     }
     for (const s of this.world.soldiers) if (s.alive && s.downed && s.brain) this.tickDowned(s, dt);
@@ -126,9 +129,9 @@ export class GuardAI {
       if (b.help.alive && b.help.downed && !b.help.downed.bandaged && !(a.spotted && a.state === 'alerted')) return 'help';
       b.help = null; b.helpT = 0;                // (he's seen you: he fights)
     }
+    if (this.alarm.runner === s) return 'alarm';   // (once he's set off for the siren he sees it through)
     if (b.task && a.state !== 'alerted') return 'repair';
     if (a.state === 'alerted') {
-      if (this.alarm.runner === s) return 'alarm';
       if (this.time - b.lastSeenT < (b.mode === 'combat' ? LOST_SIGHT : 0.4)) return 'combat';
       return b.fixed ? 'post' : 'search';
     }
@@ -214,6 +217,11 @@ export class GuardAI {
       case 'alarm': {
         if (this.goTo(s, this.siren.standAt, RUN, dt)) {
           this.stop(s);
+          if (s.root.position.distanceTo(this.siren.standAt) > 4) {   // (no way there for him: someone else may find one)
+            (this.alarm.cantReach ??= new Set()).add(s);
+            this.alarm.runner = null; this.alarm.activateT = 0;
+            break;
+          }
           s.targetYaw = Math.PI; // face the junction box
           this.alarm.activateT += dt;
           if (this.alarm.activateT > SIREN_ACTIVATE) {
@@ -527,20 +535,27 @@ export class GuardAI {
   tickAlarm(dt) {
     const al = this.alarm;
     if (!this.siren) return;                 // a map without a siren: no alarm to sound
-    // Someone has to sound it: the nearest free guard to the post runs for it.
-    if (!al.on && !al.runner && !al.knownDead) {
-      const alerted = this.guards().some(s => s.aware.state === 'alerted' && s.aware.why !== 'shout');
-      if (alerted) {
-        let best = null, bestD = 90;
-        for (const s of this.guards()) {
-          if (s.officer || s.brain.fixed) continue;
-          const d = s.root.position.distanceTo(this.siren.pos);
-          if (d < bestD) { best = s; bestD = d; }
-        }
-        if (best) { al.runner = best; al.activateT = 0; if (best.aware.state !== 'alerted') this.stealth.raise(best, 'alerted', best.aware.stimulus, 'shout'); }
+    if (al.runner && (!al.runner.alive || al.runner.downed || al.runner.takenDown)) { al.runner = null; al.activateT = 0; }
+    // Someone has to sound it, and only a man who knows can: of the guards who are alerted (who saw
+    // you, or heard a comrade's shout), the free one nearest the post runs all the way there.
+    // Spotted far from the siren, you have that long to stop him (the HUD marks him). If the news
+    // reaches a man much nearer the post meanwhile, he goes instead.
+    if (!al.on && !al.knownDead && (al.pickT = (al.pickT ?? 0) - dt) <= 0) {
+      al.pickT = 1;
+      let best = null, bestD = Infinity;
+      for (const s of this.guards()) {
+        if (s.officer || s.brain.fixed || s.brain.nest || s.riding || s.manning || s.aware.state !== 'alerted' || al.cantReach?.has(s)) continue;
+        const d = s.root.position.distanceTo(this.siren.pos);
+        if (d < bestD) { best = s; bestD = d; }
+      }
+      const cur = al.runner, curD = cur ? cur.root.position.distanceTo(this.siren.pos) : Infinity;
+      if (best && best !== cur && bestD < curD - 25 && al.activateT === 0) {
+        if (!cur) this.hud.message('A GUARD IS RUNNING FOR THE ALARM', 'wound');
+        al.runner = best;
       }
     }
-    if (al.runner && (!al.runner.alive || al.runner.downed)) { al.runner = null; al.activateT = 0; }
+    // For the HUD: who's running for it, and how far he's got with it at the post.
+    this.world.alarmRunner = al.runner && !al.on ? { s: al.runner, progress: al.activateT / SIREN_ACTIVATE, working: al.working } : null;
     if (al.on) {
       const seen = this.guards().some(s => s.aware.spotted && s.aware.state === 'alerted');
       al.quietT = seen ? 0 : al.quietT + dt;
@@ -803,10 +818,17 @@ export class GuardAI {
     pos.x += (dx / dist) * step;
     pos.z += (dz / dist) * step;
     this.world.collideCircle(pos, 0.36, pos.y, pos.y + 1.7);   // (shoulders and elbows clear of the wall)
-    // Up terrace steps and stairs at once; down anything higher at a falling pace, so he strides
-    // over a hand's width of open stairwell at the top of a flight instead of dropping through it.
+    // Up terrace steps and stairs at once, down them as they come; off anything higher he steps
+    // only if it's a drop a man takes on purpose. Over a hand's width of open stairwell at the top
+    // of a flight he strides (tickFall: the fall starts too slowly to take him through it).
     const floor = this.world.floorAt(pos.x, pos.z, pos.y);
-    pos.y = floor < pos.y - 0.6 ? Math.max(floor, pos.y - 6 * dt) : floor;
+    if (floor < pos.y - SAFE_DROP && !s.fallV) {
+      pos.x -= (dx / dist) * step; pos.z -= (dz / dist) * step;
+      b.path = null; b.stuck++;                 // (not this way: find another, or give up on it)
+      if (b.stuck >= 3) { b.stuck = 0; this.stop(s); return true; }
+      return false;
+    }
+    if (floor >= pos.y - 0.6) pos.y = floor;
     s.targetYaw = Math.atan2(dx, dz);
     s.aimDir = null;
     s.crouchTarget = 0;
@@ -828,6 +850,36 @@ export class GuardAI {
 
   stop(s) {
     s.setGait('stand');
+  }
+
+  // Nothing under him (the floor gone from under his feet, a step off the edge, the bed of a truck):
+  // he drops, faster and faster, and lands as hard as the height says. A metre or two he takes on
+  // his feet; from three or four a jarred leg and he limps; from six or more he's down with broken
+  // bones, calling for help; from ten he doesn't get up.
+  tickFall(s, dt) {
+    if (s.riding || s.manning) { s.fallV = 0; return; }
+    const pos = s.root.position, floor = this.world.floorAt(pos.x, pos.z, pos.y);
+    if (!s.fallV) {
+      if (floor >= pos.y - 0.6) return;
+      s.fallV = 1e-3; s.fallTop = pos.y;
+    }
+    s.fallV += GRAVITY * dt;
+    const y = pos.y - s.fallV * dt;
+    if (y > floor) { pos.y = y; if (s.fallTop - y > 0.3) this.stop(s); return; }
+    pos.y = floor;
+    const h = s.fallTop - floor;
+    s.fallV = 0; s.fallTop = null;
+    this.landed(s, h);
+  }
+
+  landed(s, h) {
+    if (h < 2.5) return;
+    const at = s.root.position;
+    this.audio.bodyFall?.(at.distanceTo(this.player.pos), Math.min(1, h / 8));
+    const damage = (h - 2.5) * 13;               // 4 m: 20 · 6 m: 45 · 8 m: 72 · 10 m: 98
+    const down = new THREE.Vector3(0, -1, 0);
+    s.applyHit('leg', { damage: { leg: damage, torso: damage } }, down, { zone: 'leg' });
+    if (s.alive && !s.downed && h >= 6 && s.char.action('crawl')) s.goDown(down);   // (broken bones: he can't stand)
   }
 
   // Turn this way and that for a while. Returns true when done looking.

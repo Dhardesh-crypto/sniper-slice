@@ -326,6 +326,15 @@ export class Audio {
     }
   }
 
+  // A body hitting the ground from a height (k: 0–1, how hard), heard from `distance` m.
+  bodyFall(distance, k = 1) {
+    const delay = Math.min(distance / 343, 1.5), gain = Math.max(0.05, (0.5 + 0.6 * k) * (1 - distance / 300));
+    if (distance > 300) return;
+    this.thump({ at: delay, freq: 48, dur: 0.35, gain: gain * 0.9 });
+    this.noiseBurst({ at: delay, dur: 0.18, type: 'lowpass', freq: 600, gain: gain * 0.7 });
+    this.noiseBurst({ at: delay + 0.03, dur: 0.3, type: 'bandpass', freq: 1800, q: 0.7, gain: gain * 0.2 * k });   // (gravel, kit)
+  }
+
   impact(distance) {
     const delay = Math.min(distance / 343, 1.5); // distant impacts arrive late
     const gain = Math.max(0.08, 0.6 - distance / 1200);

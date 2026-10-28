@@ -211,6 +211,13 @@ export class Player {
       this.onNoise?.(this.pos.clone().setY(floor), Math.min(30, 4 + h * 3), 'landing');
       if (h > 4) { this.heartRate = Math.min(170, this.heartRate + h * 6); this.vel.multiplyScalar(0.2); }
     }
+    // Fall damage: three metres you take on your legs; from there it hurts more with every metre
+    // (5 m: a fifth of your health, 8 m: well over half), and from twelve you don't get up.
+    if (h > 3) {
+      this.audio.bodyFall?.(0, Math.min(1, h / 8));
+      this.damage((h - 3) * 11.5, this.pos.clone().setY(floor + 3));
+      this.fellFrom = this.dead ? h : 0;
+    }
   }
 
   // ---- climbing ----
