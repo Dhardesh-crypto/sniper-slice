@@ -72,9 +72,9 @@ export class Particles {
 
   dust(point, normal, distance) {
     // Scale puffs up with range so they stay visible through the scope.
-    const k = 1 + distance / 150;
-    this.emit(point, normal, { color: 0xb8a882, count: 12, speed: 3.5, size: 0.45 * k, life: 1.8, grow: 3 });
-    this.emit(point, normal, { color: 0x6d5f45, count: 5, speed: 6, size: 0.12 * k, life: 0.6, grow: 1.2, gravity: -9 });
+    const k = 1 + distance / 150, snow = this.snow && normal.y > 0.5;   // (in winter the ground throws up snow)
+    this.emit(point, normal, { color: snow ? 0xe8edf3 : 0xb8a882, count: 12, speed: 3.5, size: 0.45 * k, life: 1.8, grow: 3 });
+    this.emit(point, normal, { color: snow ? 0xc9d2de : 0x6d5f45, count: 5, speed: 6, size: 0.12 * k, life: 0.6, grow: 1.2, gravity: -9 });
   }
 
   // Entry puff faces the shooter; `exit` sprays forward along the bullet.
@@ -97,6 +97,9 @@ export class Particles {
       u.vel.y += u.gravity * dt;
       u.vel.multiplyScalar(Math.exp(-2.5 * dt));
       s.position.addScaledVector(u.vel, dt);
+      // Dust and smoke drift off downwind once their own push dies (how a spotter reads the wind
+      // from a miss); fire and sparks are gone too quickly to.
+      if (this.wind && !u.glow) s.position.addScaledVector(this.wind, dt * 0.7 * Math.min(1, u.life * 2));
       const t = u.life / u.max;
       s.scale.setScalar(u.size * (1 + (u.grow - 1) * t));
       // Fire burns out fast; smoke and dust hang, then thin away.
