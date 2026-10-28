@@ -157,6 +157,18 @@ body.started #restart, body.started #save-btn { display: inline-block; }
 #load-btn.none { display: none; }
 #end { position: fixed; inset: 0; display: none; place-content: center; background: rgba(8, 10, 8, 0.72); color: var(--ink); z-index: 20; }
 #end.on { display: grid; }
+#briefing .story { font-style: italic; color: var(--dim); border-left: 2px solid rgba(255, 207, 106, 0.5); padding-left: 10px; margin-bottom: 12px; }
+#report { max-width: 520px; margin: 18px 0 6px; font-size: 13px; line-height: 1.6; color: var(--ink); font-style: italic; }
+#report .from { font-style: normal; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+#dispatch { position: fixed; inset: 0; display: none; place-content: center; z-index: 25; cursor: pointer; background: radial-gradient(ellipse at center, rgba(20, 18, 14, 0.82), rgba(4, 4, 3, 0.96)); }
+#dispatch.on { display: grid; }
+#dispatch .paper { width: min(620px, 86vw); padding: 34px 40px 26px; background: #e9dfc8; color: #2a241a; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6); font-family: 'Courier New', Courier, monospace; transform: rotate(-0.6deg); }
+#dispatch .date { margin: 0; font-size: 12px; letter-spacing: 0.25em; text-transform: uppercase; color: #6b5d45; }
+#dispatch .paper h2 { color: #2a241a; margin: 6px 0 2px; font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+#dispatch .from { margin: 0 0 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #6b5d45; border-bottom: 1px solid rgba(42, 36, 26, 0.35); padding-bottom: 10px; }
+#dispatch .body { min-height: 9em; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+#dispatch .go { margin: 18px 0 0; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #8a7a5c; text-align: right; }
+@media (max-width: 520px) { #dispatch .paper { padding: 22px 20px; } #dispatch .body { font-size: 13px; } }
 #end .panel { min-width: 420px; padding: 34px 40px; background: rgba(20, 22, 20, 0.85); border: 1px solid rgba(242, 237, 225, 0.15); }
 #end h2 { font-weight: 300; letter-spacing: 0.4em; font-size: 28px; margin: 0 0 6px; }
 #rating { color: #ffcf6a; letter-spacing: 0.3em; font-size: 14px; margin-bottom: 18px; }

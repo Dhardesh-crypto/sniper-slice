@@ -2,6 +2,8 @@
 
 Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for this game; the guards' voices (`vo_*.mp3`, and their small talk `chat_*.mp3`: voices George, Daniel and Bill) with ElevenLabs Multilingual v2 text-to-speech (German).
 
+The campaign's story (`story_<mission>_intro.mp3` / `_outro.mp3`: Major Ellis's orders and reports) was read with ElevenLabs Multilingual v2 text-to-speech, voice George (English).
+
 From Pixabay (Pixabay Content License: free to use in a game, no attribution required; not to be
 redistributed as standalone sound files):
 

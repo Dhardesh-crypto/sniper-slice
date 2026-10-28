@@ -55,6 +55,7 @@ import { BeltGrenades } from './world/belt-grenades.js';
 import { Rockets } from './weapons/rockets.js';
 import { Interactions } from './world/interact.js';
 import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missions/campaign.js';
+import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
 import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
@@ -107,6 +108,7 @@ const conditions = pickConditions(M.map, runSeed, settings.season); // this run'
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
 if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+document.getElementById('briefing').insertAdjacentHTML('afterbegin', storyLine(missionId));   // (the story so far: missions/story.js)
 if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show, and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
 
 const input = new Input(canvas);
@@ -270,6 +272,8 @@ mission.onComplete = (sum) => {
   profile.completeMission(missionId);     // the next mission unlocks
   document.getElementById('rating').textContent = `RATING · ${sum.rating}`;
   document.getElementById('end-stats').innerHTML = sum.rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  // Ellis's report: what it's bought, and where it leads.
+  if (story) { document.getElementById('report').innerHTML = `<p class="from">${HANDLER} · to Kestrel</p><p>${story.outro}</p>`; playVoice(`story_${missionId}_outro`); }
   endScreen.classList.add('on');
   menu.classList.add('hidden');
   audio.setSiren(0);
@@ -421,7 +425,44 @@ bind('set-aim', 'aimMode', () => '');
 bind('set-season', 'season', () => '');
 document.getElementById('set-season')?.addEventListener('change', () => setTimeout(() => location.reload(), 60));   // (the map is built for its season: start again)
 
+// The story: before the first start, Ellis's orders on a dispatch card (read out); a loaded game
+// goes straight in. The click that closes the card starts the mission.
+const story = STORY[missionId];
+let briefed = !story;
+const playVoice = (name) => {
+  try {
+    storyVoice?.pause();
+    storyVoice = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+    storyVoice.volume = Math.min(1, settings.volume * 1.1);
+    storyVoice.play().catch(() => {});
+  } catch { /* no audio: the words are on the card */ }
+};
+let storyVoice = null;
+function showDispatch(then) {
+  const card = document.getElementById('dispatch');
+  card.querySelector('.date').textContent = story.date;
+  card.querySelector('h2').textContent = story.title;
+  card.querySelector('.from').textContent = `From ${HANDLER} · to Kestrel`;
+  const body = card.querySelector('.body');
+  body.textContent = '';
+  card.classList.add('on');
+  menu.classList.add('hidden');
+  playVoice(`story_${missionId}_intro`);
+  // Typed out as he speaks (about his pace), all at once on a click.
+  let i = 0;
+  const type = setInterval(() => { i = Math.min(story.intro.length, i + 3); body.textContent = story.intro.slice(0, i); if (i >= story.intro.length) clearInterval(type); }, 40);
+  const go = () => {
+    if (body.textContent.length < story.intro.length) { clearInterval(type); body.textContent = story.intro; return; }   // (first click: the whole text)
+    card.removeEventListener('click', go); window.removeEventListener('keydown', key);
+    card.classList.remove('on');
+    then();
+  };
+  const key = (e) => { if (e.code === 'Space' || e.code === 'Enter') go(); };
+  card.addEventListener('click', go);
+  window.addEventListener('keydown', key);
+}
 document.getElementById('play').addEventListener('click', () => {
+  if (!briefed) { briefed = true; audio.start(); showDispatch(() => document.getElementById('play').click()); return; }
   audio.start();
   audio.startMusic(M.map.music ?? missionId);
   input.lock();
@@ -677,7 +718,7 @@ function step(realDt, draw = true) {
 // A load the player asked for (the page was reloaded to rebuild the world from the save).
 // A save that can't be applied must never leave a black screen: start the mission fresh instead.
 let loadedSlot = null;
-try { loadedSlot = saves.applyPending(); } catch (e) {
+try { loadedSlot = saves.applyPending(); if (loadedSlot) briefed = true; } catch (e) {
   console.error('Could not load the save', e);
   hud.message('COULD NOT LOAD THAT SAVE · STARTING FRESH', 'wound');
 }
