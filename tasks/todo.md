@@ -896,3 +896,18 @@ also with casemate guns over the beach; winter as a random season and a menu swi
 - [x] Boot prints in the snow (world/footprints.js): yours and every guard's, fresh ones dark, filling
       in over 7 minutes (sooner while snowing). A guard who comes on your fresh trail turns wary and
       follows it stretch by stretch (checked: 34 m along it in 30 s).
+
+## The air war (2026-10-28)
+The user asked for bigger, noticeable features; chose the air war with strikes, disguise and drivable vehicles.
+- [x] Bomber streams (world/airwar.js): six to nine B-25s in vics every few minutes (every 1½–2 min on
+      Flak Line), black flak bursts round them, the map's own 8.8 cm and 2 cm guns firing (fewer as you
+      destroy them); hit bombers smoke, roll over, crew bale out under parachutes, crash in the hills.
+      Their drone and the guns mask your shots. Models: P-47 and B-25 (Higgsfield → Tripo, 0.7 MB each).
+- [x] Air strikes: binoculars + G marks a spot (two a mission); red smoke on it; two P-47s roar in
+      over your head, strafe toward the mark, bomb it (lands within 1–3 m; checked 2 killed and a
+      vehicle set off). Live 2 cm flak near the mark may shoot one down.
+- [x] Sounds: the user's Pixabay picks (bomber pass, the fighters' low pass, the valley plane, the
+      airfield's engine start, the 2 cm guns, the falling bomb) timed so each peaks at the nearest
+      moment; ElevenLabs for the drone, strafing, flak bursts, the 88's report, the crash, radio.
+- [ ] Disguise
+- [ ] Drivable vehicles

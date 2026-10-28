@@ -32,6 +32,7 @@ import { applyWinter } from './world/winter.js';
 import { Footprints } from './world/footprints.js';
 import { Glint } from './stealth/glint.js';
 import { Flags } from './world/flags.js';
+import { AirWar } from './world/airwar.js';
 import { Flashlights } from './world/flashlights.js';
 import { pickConditions } from './world/conditions.js';
 import { runSeed, seeded } from './core/run.js';
@@ -103,7 +104,7 @@ const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMiss
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
-await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'archKit', 'interiorKit', 'anatomy', 'safe', 'siren', 'crates', 'cypress', 'pine', 'cypressLod', 'pineLod', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', 'motorcycle', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
+await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'archKit', 'interiorKit', 'anatomy', 'safe', 'siren', 'crates', 'cypress', 'pine', 'cypressLod', 'pineLod', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', 'motorcycle', 'p47', 'b25', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
 playBtn.textContent = 'Click to play';
 playBtn.disabled = false;
 M.map.id ??= missionId;                          // (its far country: textures/horizon_<id>.webp)
@@ -176,6 +177,8 @@ const tank = world.tankSpot ? new Tank({ scene, world, player, stealth, audio, f
 if (tank) tank.onDestroyed = () => mission.tankDestroyed();
 mission.tank = tank;
 const items = new Items({ scene, world, player, arsenal, camera, stealth, explosions, hotspots, input, audio, fx, hud });
+const airwar = new AirWar({ scene, world, player, stealth, audio, fx, hud, explosions, hotspots, camera, arsenal, input, seed: runSeed });   // bombers and flak overhead; strikes you call in
+hud.airwar = airwar;
 explosions.chainers.push(items);
 const rockets = new Rockets({ scene, world, explosions, hotspots, items, fx });
 arsenal.rockets = rockets;
@@ -526,6 +529,7 @@ function tick(dt) {
   if (input.wasPressed('KeyT')) trajLine.visible = !trajLine.visible;
   if (player.dead) { input.keys.clear(); input.buttons.clear(); input.pressed.clear(); }
   player.tick(dt, { aiming: arsenal.aiming });
+  airwar.tick(dt);     // before the items: G through the binoculars calls a strike, not a throw
   items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
@@ -750,7 +754,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = { footprints, flags,
+window.game = { footprints, flags, airwar,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },

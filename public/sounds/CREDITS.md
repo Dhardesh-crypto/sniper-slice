@@ -2,10 +2,18 @@
 
 Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for this game; the guards' voices (`vo_*.mp3`, and their small talk `chat_*.mp3`: voices George, Daniel and Bill) with ElevenLabs Multilingual v2 text-to-speech (German).
 
+The air war (`bombers_drone`, `strafe_50cal`, `flak_burst`, `flak88_fire`, `plane_crash`, `radio_static`): ElevenLabs Sound Effects.
+
 The campaign's story (`story_<mission>_intro.mp3` / `_outro.mp3`: Major Ellis's orders and reports) was read with ElevenLabs Multilingual v2 text-to-speech, voice George (English).
 
 From Pixabay (Pixabay Content License: free to use in a game, no attribution required; not to be
 redistributed as standalone sound files):
+- `plane_flyover.mp3`: "Airplane Flyover" by freesound_community, https://pixabay.com/sound-effects/city-airplane-flyover-61082/ (the bomber stream's pass; trimmed to 20 s, levelled)
+- `plane_lowpass.mp3`: "Low Airplane Fly By" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-low-airplane-fly-by-90354/ (the Thunderbolts' pass; levelled)
+- `plane_prop.mp3`: "Small propeller airplane" by Ahmed_Abdulaal, https://pixabay.com/sound-effects/film-special-effects-small-propeller-airplane-337002/ (the plane crossing the valley; levelled)
+- `flak20_fire.mp3`: "antiair" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-antiair-85147/ (the 2 cm flak guns firing; levelled)
+- `bomb_fall.mp3`: "Falling Bomb" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-falling-bomb-41038/ (a strike's bombs coming down; levelled)
+- `plane_start.mp3`: "Airplane start propeller" by freesound_community, https://pixabay.com/sound-effects/city-airplane-start-propeller-94940/ (the airfield's engine run-up; levelled)
 
 - `shot_trenchgun.mp3`: "Shotgun Firing (4)" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-shotgun-firing-4-6746/ (trimmed, levelled)
 - `pump.mp3`: the first full rack (back and forward) from "Pump Action Shotgun Cycle" by freesound_community, https://pixabay.com/sound-effects/film-special-effects-pump-action-shotgun-cycle-81021/ (cut, levelled)

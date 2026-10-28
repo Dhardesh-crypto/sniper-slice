@@ -37,6 +37,7 @@ export class Masking {
     this.planeFrom = dir.clone().multiplyScalar(-1300).add(side).setY(PLANE.alt);
     this.planeDir = dir;
     this.planeT = 0;
+    this.planeSounded = false;
     this.plane.visible = true;
     this.plane.position.copy(this.planeFrom);
     this.plane.lookAt(this.planeFrom.clone().add(dir)); // an object's lookAt turns its +z (the nose) toward the point
@@ -75,11 +76,15 @@ export class Masking {
       const p = this.planePos();
       this.plane.position.copy(p);
       for (const prop of this.plane.userData.props ?? []) prop.rotation.z += dt * 60; // propellers spin
-      this.audio.setPlane(Math.max(0, 1 - p.distanceTo(listener) / 900));
+      // Its pass (a recording that peaks 6 s in), started so the loudest moment is the nearest.
+      if (!this.planeSounded) {
+        const rel = p.clone().sub(listener), v = this.planeDir.clone().multiplyScalar(PLANE.speed);
+        const tca = -rel.dot(v) / (PLANE.speed * PLANE.speed);
+        if (tca <= 6.0) { this.planeSounded = true; const dmin = rel.addScaledVector(v, Math.max(0, tca)).length(); this.audio.sample('plane_prop', { gain: THREE.MathUtils.clamp(1.3 - dmin / 700, 0.15, 1), wet: 0.3 }); }
+      }
       if (this.planeT * PLANE.speed > 2600) {
         this.planeT = -1;
         this.plane.visible = false;
-        this.audio.setPlane(0);
         this.nextPlane = this.time + PLANE.every[0] + this.rng() * (PLANE.every[1] - PLANE.every[0]);
       }
     }

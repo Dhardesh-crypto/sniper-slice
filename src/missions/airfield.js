@@ -400,7 +400,7 @@ const def = {
     if (radar?.exploded && site.radar && !site.radarDown) { site.radarDown = true; site.radar.rotation.z = 0.5; site.radar.position.y -= 1.2; }
     // The engine run-up: on for a while every so often (it's on the ground crew's roster).
     const t = m.time % RUNUP_EVERY, on = t > RUNUP_EVERY - RUNUP_FOR && hs.some(h => h.kind === 'plane' && !h.exploded);
-    if (on !== site.runup.on) { site.runup.on = on; if (on && m.player.pos.distanceTo(site.runup.at) < 250) m.hud.message('AN ENGINE IS RUNNING UP ON THE APRON', ''); }
+    if (on !== site.runup.on) { site.runup.on = on; const d = m.player.pos.distanceTo(site.runup.at); if (on && d < 600) m.audio.sample('plane_start', { at: d / 343, gain: Math.max(0.1, 1.1 - d / 450), wet: 0.3 }); if (on && d < 250) m.hud.message('AN ENGINE IS RUNNING UP ON THE APRON', ''); }
     m.audio.setEngine(on ? Math.max(0, 1 - m.player.pos.distanceTo(site.runup.at) / 300) * 1.2 : 0);
   },
   markers(m) {

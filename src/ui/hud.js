@@ -255,7 +255,7 @@ export class Hud {
     el.crosshair.classList.toggle('lethal', mode === 'none' && a.weapon === 'pistol' && a.lethal);   // a killing shot
     el.scopeInfo.style.opacity = mode === 'none' ? 0 : 1;
     if (mode === 'scope') el.scopeInfo.textContent = `${a.zoomName}   ZERO ${a.zero} m${(stealth?.glint?.lens ?? 0) > 0.25 ? '   ✷ SUN ON THE LENS' : ''}`;
-    else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS`;
+    else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS${this.airwar ? (this.airwar.strikesLeft > 0 ? `   G · CALL AN AIR STRIKE (${this.airwar.strikesLeft})` : '   NO STRIKES LEFT') : ''}`;
     el.range.style.opacity = mode === 'binoc' ? 1 : 0;
     if (mode === 'binoc') el.range.textContent = a.range ? `${Math.round(a.range)} m` : '— m';
 

@@ -34,7 +34,9 @@ export const SOUND_CHECK = [
   ['Guard: heard something', 'vo_suspicious_2', 0.5], ['Reload: shotgun', 'reload_shotgun', 0.7], ['Reload: MG42', 'reload_mg42', 0.7],
   ['Reload: rocket', 'reload_rocket', 0.7], ['Reload: PIAT', 'reload_piat', 0.7],
 ];
-const EXTRA = ['bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', 'explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren'];
+const EXTRA = ['bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', 'explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren',
+  'bombers_drone', 'strafe_50cal', 'flak_burst', 'flak88_fire', 'plane_crash', 'radio_static',   // (the air war: ElevenLabs sound effects)
+  'plane_flyover', 'plane_lowpass', 'plane_prop', 'plane_start', 'flak20_fire', 'bomb_fall'];   // (planes passing, an engine starting: Pixabay, CREDITS.md)
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'],
   medic: ['vo_medic_1', 'vo_medic_2', 'vo_medic_3', 'vo_medic_4'] };   // a wounded man down, calling for help
@@ -350,29 +352,6 @@ export class Audio {
       this[key] = g;
     }
     return this[key];
-  }
-
-  setPlane(level) {
-    const g = this.drone('planeGain', (out) => {
-      for (const [f, gain] of [[62, 0.5], [93, 0.35], [124, 0.2]]) {
-        const o = this.ctx.createOscillator();
-        o.type = 'sawtooth';
-        o.frequency.value = f;
-        const lp = this.ctx.createBiquadFilter();
-        lp.type = 'lowpass';
-        lp.frequency.value = 380;
-        const og = this.ctx.createGain();
-        og.gain.value = gain;
-        o.connect(lp).connect(og).connect(out);
-        o.start();
-      }
-      const n = this.ctx.createBufferSource();
-      n.buffer = this.noise; n.loop = true;
-      const nf = this.ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 500;
-      const ng = this.ctx.createGain(); ng.gain.value = 0.6;
-      n.connect(nf).connect(ng).connect(out); n.start();
-    });
-    if (g) g.gain.setTargetAtTime(level * level * 0.45, this.ctx.currentTime, 0.3);
   }
 
   setGenerator(level) {
