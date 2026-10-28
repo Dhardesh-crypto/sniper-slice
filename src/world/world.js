@@ -11,6 +11,7 @@ import { armNests } from './mgnest.js';
 import { storeys } from './buildings.js';
 
 import { buildHorizon } from './horizon.js';
+import { makeWater } from './water.js';
 
 // Late-afternoon sun, about 24° up, low enough for long shadows and warm light.
 export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair treads, the terrace)
@@ -92,13 +93,9 @@ export class World {
     this.waterLevel = activeMap().waterLevel ?? null;
     this.maxSlope = activeMap().maxSlope ?? null;          // cliffs you can't walk up (a gorge)
     if (this.waterLevel != null) {
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(MAP_HALF * 2 + 3000, MAP_HALF * 2 + 3000).rotateX(-Math.PI / 2),
-        new THREE.MeshStandardMaterial({ color: 0x2d4a52, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.88 }));
-      water.position.y = this.waterLevel;
-      water.receiveShadow = true;
-      water.userData.noAO = true;
-      water.userData.water = true;
-      scene.add(water);
+      // (waves, depth colour, surf: water.js; the sheet itself stays flat for bullets and wading)
+      this.sea = makeWater(scene, { level: this.waterLevel, size: MAP_HALF * 2 + 3000, calm: activeMap().waterCalm ?? 1 });
+      const water = this.sea.mesh;
       this.water = water;
       this.raycastTargets.push(water);
     }
@@ -181,6 +178,7 @@ export class World {
     this.sky.material.uniforms.time.value = this.time; // seconds: clouds drift ~0.03 noise units/s
     windUniforms.uTime.value = this.time;
     this.updateWind();
+    this.sea?.tick(dt, this.wind);
     // Animation level of detail: soldiers far from the player animate a third as often
     // (accumulating the time), which is invisible at that range. Dying ones always update.
     this.frame = (this.frame ?? 0) + 1;

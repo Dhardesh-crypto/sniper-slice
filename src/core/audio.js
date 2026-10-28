@@ -36,7 +36,8 @@ export const SOUND_CHECK = [
 ];
 const EXTRA = ['bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', 'explosion_grenade', 'explosion_large', 'explosion_far', 'mg42_tail', 'pump', 'tank_tracks', 'tank_turret', 'army_truck', 'truck_start', 'siren',
   'bombers_drone', 'strafe_50cal', 'flak_burst', 'flak88_fire', 'plane_crash', 'radio_static',   // (the air war: ElevenLabs sound effects)
-  'plane_flyover', 'plane_lowpass', 'plane_prop', 'plane_start', 'flak20_fire', 'bomb_fall'];   // (planes passing, an engine starting: Pixabay, CREDITS.md)
+  'plane_flyover', 'plane_lowpass', 'plane_prop', 'plane_start', 'flak20_fire', 'bomb_fall',
+  'sea_waves', 'sea_distant', 'gull_1', 'gull_2', 'gull_3'];   // (the shore: ElevenLabs)   // (planes passing, an engine starting: Pixabay, CREDITS.md)
 // Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'],
   medic: ['vo_medic_1', 'vo_medic_2', 'vo_medic_3', 'vo_medic_4'] };   // a wounded man down, calling for help

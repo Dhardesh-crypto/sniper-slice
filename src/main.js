@@ -32,6 +32,7 @@ import { applyWinter } from './world/winter.js';
 import { Footprints } from './world/footprints.js';
 import { Glint } from './stealth/glint.js';
 import { Flags } from './world/flags.js';
+import { SeaShore } from './world/seashore.js';
 import { AirWar } from './world/airwar.js';
 import { Disguise } from './player/disguise.js';
 import { Driving } from './player/driving.js';
@@ -136,6 +137,7 @@ const fx = new Particles(scene, 600);   // (tank exhausts keep a few dozen in th
 fx.wind = world.wind; fx.snow = !!activeMap().winter;   // (puffs drift downwind; in winter the ground throws up snow)
 world.barrels = new BurnBarrels({ scene, world, fx, seed: runSeed });   // fires in oil drums by the guard posts (before the guards' map is drawn)
 const flags = new Flags({ scene, world, seed: runSeed });   // pennants at the posts, to read the wind by
+const seashore = new SeaShore({ scene, world, audio, player });   // the waves on the shore, gulls over the sea
 const arsenal = new Arsenal({ world, player, input, audio, fx, settings });
 arsenal.camera = camera;
 arsenal.avatar = avatar;
@@ -581,6 +583,7 @@ function tick(dt) {
   tickExhaust(dt);
   tickGroundMarks();
   flags.tick(dt);
+  seashore.tick(dt);
   weather.tick(dt);
   world.decals.tick(dt);
   world.casings.tick(dt);
@@ -781,7 +784,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = { footprints, flags, airwar, disguise, driving,
+window.game = { audio, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },

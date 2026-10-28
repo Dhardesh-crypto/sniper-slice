@@ -4,6 +4,8 @@ Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for t
 
 The air war (`bombers_drone`, `strafe_50cal`, `flak_burst`, `flak88_fire`, `plane_crash`, `radio_static`): ElevenLabs Sound Effects.
 
+The shore (`sea_waves`, `sea_distant`, `gull_1`–`gull_3`): ElevenLabs Sound Effects.
+
 The campaign's story (`story_<mission>_intro.mp3` / `_outro.mp3`: Major Ellis's orders and reports) was read with ElevenLabs Multilingual v2 text-to-speech, voice George (English).
 
 From Pixabay (Pixabay Content License: free to use in a game, no attribution required; not to be
