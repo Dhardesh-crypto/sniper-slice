@@ -495,7 +495,19 @@ function tick(dt) {
   // Birdsong in the quiet; a gunshot or the siren silences it for a while.
   birdT -= dt;
   const shot = stealth.lastShot;
-  if (shot && shot !== lastFlush) { lastFlush = shot; birds.flush(shot.origin, THREE.MathUtils.clamp(shot.radius / 220, 0.25, 1.5)); }
+  if (shot && shot !== lastFlush) {
+    lastFlush = shot;
+    const spots = birds.flush(shot.origin, THREE.MathUtils.clamp(shot.radius / 220, 0.25, 1.5));
+    // A calm guard facing that way sees the birds go up (a quiet shot he didn't hear): he wonders why.
+    for (const at of spots) for (const s of stealth.guards()) {
+      if (s.aware?.state !== 'calm' || s.officer || Math.random() < 0.4) continue;
+      const to = at.clone().sub(s.root.position), d = Math.hypot(to.x, to.z);
+      if (d > 140) continue;
+      const facing = Math.atan2(to.x, to.z) - s.root.rotation.y;
+      if (Math.cos(facing) < Math.cos(1.3)) continue;
+      stealth.raise(s, 'suspicious', at.clone().setY(world.groundAt(at.x, at.z)), 'glimpse');
+    }
+  }
   if (stealth.lastShot && stealth.time - stealth.lastShot.t < 0.05) birdT = 35;
   if (birdT <= 0) { birdT = 3 + Math.random() * 7; if (!stealth.alarm) audio.birdCall(); }
   world.tick(dt);

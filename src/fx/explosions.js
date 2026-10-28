@@ -3,6 +3,7 @@
 // kill radius, hurt to you nearer than the hurt radius, a noise every guard in earshot hears,
 // and chain reactions: vehicles and placed explosives caught in the blast go off too.
 import * as THREE from 'three';
+import { activeMap } from '../world/terrain.js';
 
 export class Explosions {
   constructor({ scene, world, player, stealth, audio, fx, hud, arsenal }) {
@@ -91,6 +92,7 @@ export class Explosions {
     }
     const light = this.lights.find(l => !this.flashes.some(f => f.light === l)) ?? this.lights[0];
     light.position.copy(at).y += 0.8;
+    light.color.setHex(0xffb060);
     this.flashes = this.flashes.filter(f => f.light !== light);
     this.flashes.push({ light, t: 0, peak: 60 * size * size });
   }
@@ -143,6 +145,20 @@ export class Explosions {
       }
     }
     this.fires = this.fires.filter(f => f.t > 0);
+    // Between flashes the same two lights are the nearest wrecks' fires: an orange flicker on the
+    // ground and walls round them, strong at dusk, faint by day, dying down as the fire does.
+    const free = this.lights.filter(l => !this.flashes.some(f => f.light === l));
+    const near = this.fires.filter(f => f.t > 8).sort((a, b) => a.at.distanceToSquared(this.player.pos) - b.at.distanceToSquared(this.player.pos));
+    this.flicker = (this.flicker ?? 0) + dt;
+    free.forEach((l, i) => {
+      const f = near[i];
+      if (!f) { l.intensity = 0; return; }
+      const burn = f.t > 30 ? 1 : (f.t - 8) / 22;               // (flames, then embers)
+      const w = this.flicker * 11 + i * 3.1;
+      l.position.copy(f.at).y += 1.2 + 0.15 * Math.sin(w * 0.7);
+      l.color.setHex(0xff8a3a);
+      l.intensity = (activeMap().dusk ? 14 : 4) * burn * (0.72 + 0.18 * Math.sin(w) * Math.sin(w * 1.73) + 0.1 * Math.random());
+    });
     for (const p of this.pending) p.t -= dt;
     const due = this.pending.filter(p => p.t <= 0);
     this.pending = this.pending.filter(p => p.t > 0);

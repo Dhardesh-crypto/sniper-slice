@@ -1,6 +1,7 @@
 // Birds put up by a gunshot or a blast: from the trees nearest it a few small flocks burst out,
 // wings beating hard, climb away from the noise and are gone over the hills. Each tree gives up
-// its birds once (they don't come back to a place that's being shot up). One instanced mesh of
+// its birds once (they don't come back to a place that's being shot up). A guard looking that way
+// sees them go up and comes to see why (main.js). One instanced mesh of
 // little dark shapes, the wings flapping in the vertex shader; a flurry of wingbeats and alarm calls.
 import * as THREE from 'three';
 
@@ -55,10 +56,12 @@ export class Birds {
     }
     near.sort((a, b) => a[1] - b[1]);
     let flushed = 0;
+    const spots = [];
     for (const [t] of near.slice(0, 3)) {
       if (Math.random() < 0.35) { this.spent.add(t); continue; }   // (not every tree had birds in it)
       this.spent.add(t);
       const ground = this.world.groundAt(t.x, t.z), n = 3 + Math.floor(Math.random() * 6);
+      spots.push(new THREE.Vector3(t.x, ground + 8, t.z));
       const away = new THREE.Vector3(t.x - at.x, 0, t.z - at.z);
       if (away.lengthSq() < 1) away.set(Math.random() - 0.5, 0, Math.random() - 0.5);
       away.normalize();
@@ -75,6 +78,7 @@ export class Birds {
       }
     }
     if (flushed && this.audio) this.audio.birdFlush?.(this.player.pos.distanceTo(at), flushed);
+    return spots;                                   // (where they went up: main.js has guards notice)
   }
 
   tick(dt) {
