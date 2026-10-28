@@ -19,12 +19,28 @@ import { propModel, dressProps } from '../world/props.js';
 const F = { x: 80, z: -60 };                  // the town centre (the piazza)
 const START = { x: -300, z: 300 };             // the ridge you start from
 const HX = 76, HZ = 64;                        // the walls, half-size
+// The valley between the ridge and the town (all in world metres):
+const FARM = { x: -130, z: 165 };              // the Contis' farm: the arrest squad's billet and its truck
+const CROSS = { x: -205, z: -60 };             // the crossroads on the valley road: a checkpoint and its telephone
+const KNOLL = { x: -40, z: 112 };              // a lookout post on a knoll, watching the ridge and the lane
+// The farm lane: down off the ridge, through the farmyard, on to the crossroads.
+const LANE = [[-292, 288], [-250, 242], [-200, 196], [-160, 174], [FARM.x, FARM.z], [-138, 136], [-152, 96], [-172, 48], [-192, 2], [CROSS.x, CROSS.z + 4]];
+function laneDist(x, z) {
+  let d = Infinity;
+  for (let i = 1; i < LANE.length; i++) {
+    const [x0, z0] = LANE[i - 1], [x1, z1] = LANE[i], dx = x1 - x0, dz = z1 - z0;
+    const t = Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz)));
+    d = Math.min(d, Math.hypot(x - x0 - t * dx, z - z0 - t * dz));
+  }
+  return d;
+}
 
 function base(x, z) {
   let h = (fbm(x * 0.003 + 11.3, z * 0.003 - 4.1, 4) - 0.5) * 40;
   h += (fbm(x * 0.03 + 2, z * 0.03, 2) - 0.5) * 2.5;
   h += 42 * Math.exp(-((x - F.x) ** 2 + (z - F.z) ** 2) / (2 * 140 * 140));       // the town's hill
   h += 22 * Math.exp(-((x - START.x) ** 2 + (z - START.z) ** 2) / (2 * 70 * 70));  // the ridge
+  h += 16 * Math.exp(-((x - KNOLL.x) ** 2 + (z - KNOLL.z) ** 2) / (2 * 38 * 38));  // the lookout's knoll
   const r = Math.max(Math.abs(x), Math.abs(z));
   if (r > 390) {
     const t = (r - 390) / 110;
@@ -32,28 +48,36 @@ function base(x, z) {
   }
   return h;
 }
+// The farmyard is levelled a little, so its buildings stand square.
+const farmPad = (x, z) => 1 - smoothstep(26, 40, Math.hypot(x - FARM.x, z - FARM.z));
+function country(x, z) { const h = base(x, z), p = farmPad(x, z); return p > 0 ? lerp(h, base(FARM.x, FARM.z), p) : h; }
 const H = base(F.x, F.z) + 1;                  // the town's ground level
 const roadZ = (x) => F.z + Math.sin((x - F.x) * 0.011) * 26 * smoothstep(-80, -200, x - F.x);
+const rel = (routes) => Object.fromEntries(Object.entries(routes).map(([k, pts]) => [k, pts.map(([x, z, w]) => [x - F.x, z - F.z, w])]));
 const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Math.max(Math.abs(z - F.z) - HZ - 2, 0));
 
 const map = {
   // Late afternoon: a low golden sun from the west, long shadows down the streets.
   light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
   fog: { color: 0xc4c4c0 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
-  animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1]],   // in the fields below the south wall
-  half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 130,
+  animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1], ['cow', -95, 215, 22, 4], ['goat', -175, 120, 14, 4], ['horse', -150, 205, 8, 1]],   // below the south wall; round the farm
+  half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 310,   // (the guards' map reaches the farm and the crossroads)
   // The hilltop is flattened inside the walls and falls away outside them.
-  heightAt(x, z) { return lerp(H, base(x, z), smoothstep(0, 40, outside(x, z))); },
+  heightAt(x, z) { return lerp(H, country(x, z), smoothstep(0, 40, outside(x, z))); },
   roadCenterZ: (x) => (x < F.x - HX ? roadZ(x) : NaN),
   keepClear(x, z, margin = 0) {
     if (outside(x, z) < 4 + margin) return true;
     if (x < F.x - HX && Math.abs(z - roadZ(x)) < 5 + margin) return true;
     if (Math.hypot(x - START.x, z - START.z) < 12 + margin) return true;
+    if (laneDist(x, z) < 3 + margin || Math.hypot(x - FARM.x, z - FARM.z) < 30 + margin) return true;   // the lane, the farmyard
+    if (Math.hypot(x - CROSS.x, z - CROSS.z) < 14 + margin || Math.hypot(x - KNOLL.x, z - KNOLL.z) < 8 + margin) return true;
     return false;
   },
-  paint(c, x, z, { road, rock }) {
+  paint(c, x, z, { road, rock, dirt }) {
     c.lerp(rock, (1 - smoothstep(0, 3, outside(x, z))) * 0.75);          // paving inside the walls
     if (x < F.x - HX) c.lerp(road, 1 - smoothstep(2, 3.5, Math.abs(z - roadZ(x))));
+    c.lerp(dirt ?? road, (1 - smoothstep(1.2, 2.4, laneDist(x, z))) * 0.8);          // the farm lane: two ruts of dirt
+    if (Math.hypot(x - FARM.x, z - FARM.z) < 20) c.lerp(dirt ?? road, 0.55);     // the trodden farmyard
   },
   truck: { from: -560, stop: -96 },                 // reinforcements come up the road to the gate
   reinforceHome: [-60, 4],
@@ -65,6 +89,12 @@ const map = {
     'North patrol': [[-50, -41], [50, -41, 8], [-50, -41, 8]],
     'South patrol': [[-50, 40], [50, 40, 8], [-50, 40, 8]],
     'West patrol': [[-48, -30], [-48, 30, 6], [-48, -30, 6]],
+    // Out in the valley (world metres, turned into the piazza's frame below).
+    ...rel({
+      'Lane patrol': [[FARM.x - 8, FARM.z - 22, 8], [-152, 96], [-172, 48], [-192, 2, 10], [-172, 48], [-152, 96]],
+      'Farm sentry': [[-160, 174, 10], [-150, 196], [-118, 196], [-100, 170, 6], [-112, 140], [-150, 140]],
+      'Checkpoint patrol': [[CROSS.x + 6, CROSS.z - 10, 8], [CROSS.x - 40, CROSS.z - 10], [CROSS.x - 40, CROSS.z + 12, 6], [CROSS.x + 6, CROSS.z + 12]],
+    }),
   },
   pickups: layout,
 };
@@ -312,6 +342,8 @@ function site(scene) {
   const sentryRoof = roofs.find(r => r.flat && !r.hb && r.cz > F.z + 40 && r.cx > F.x + 10) ?? roofs.find(r => r.flat && !r.hb);
   if (sentryRoof) add(sentryRoof.cx - F.x, sentryRoof.cz - F.z, 0, { y: sentryRoof.top, name: 'Roof sentry', stance: 'alert', look: 'guardCamo' });
 
+  const valley = countryside(b, scene, soldiers, ladders, doors);
+
   const dressed = dressProps(scene, dressing(), map.heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
@@ -319,15 +351,100 @@ function site(scene) {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren,
     spawn: new THREE.Vector3(START.x, map.heightAt(START.x, START.z), START.z),
     staffCar: { engine: carEngine, parts: [kubel.userData.mesh], title: 'STAFF CAR ENGINE' },
-    vehicles: [{ title: 'TRUCK ENGINE', engine: truckEngine, parts: [truck.userData.mesh] }],
+    vehicles: [{ title: 'TRUCK ENGINE', engine: truckEngine, parts: [truck.userData.mesh] }, valley.truck],
+    valley,
     hall, church, walkIns, towerTop: new THREE.Vector3(T[0], TOP, T[1]), towerTops: [new THREE.Vector3(T[0], TOP, T[1])],
   };
+}
+
+// ---- the valley: the Contis' farm, the crossroads checkpoint, the lookout on the knoll ----
+function countryside(b, scene, soldiers, ladders, doors) {
+  const g = (x, z) => map.heightAt(x, z);
+  const add = (x, z, yaw, opts) => {
+    const s = new Soldier({ position: new THREE.Vector3(x, opts.y ?? g(x, z), z), yaw, ...opts });
+    scene.add(s.root);
+    soldiers.push(s);
+    return s;
+  };
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  const out = {};
+
+  // The farm: the house on the east side of the yard, the barn open to it on the south, a well.
+  const fy = g(FARM.x, FARM.z);
+  const house = building(b, {
+    x: FARM.x + 16, z: FARM.z, y: fy, w: 8, d: 12, floors: 2, h: 3.0, mat: M.plaster, roof: 'gable',
+    openings: [
+      { side: 'w', at: -2, w: 1.1, h: 2.2, door: true },
+      { side: 'w', at: 3, w: 1.0, h: 1.2, sill: 1.0, window: true }, { side: 'e', at: 0, w: 1.0, h: 1.2, sill: 1.0, window: true },
+      { side: 'w', at: -2, w: 1.0, h: 1.2, sill: 1.0, floor: 1, window: true }, { side: 'w', at: 3, w: 1.0, h: 1.2, sill: 1.0, floor: 1, window: true },
+      { side: 'n', at: 0, w: 1.0, h: 1.2, sill: 1.0, window: true },
+    ],
+  });
+  doors.push(...house.doors);
+  furniture.table(b, FARM.x + 17.5, fy, FARM.z + 3, 1.4, 0.8);
+  out.docAt = new THREE.Vector3(FARM.x + 17.5, fy + 0.79, FARM.z + 3);
+  // The barn: posts and a tiled roof over a floor of straw, open to the yard.
+  const bx = FARM.x - 2, bz = FARM.z + 18;
+  for (const dx of [-7, -2.3, 2.3, 7]) for (const dz of [-3.6, 3.6]) b.box(0.3, 4.2, 0.3, M.darkWood, bx + dx, fy, bz + dz);
+  b.box(14.6, 3.4, 0.3, M.stone, bx, fy, bz + 3.8);                                   // the back wall
+  b.box(15.4, 0.25, 8.4, M.roof, bx, fy + 4.2, bz, { solid: false });
+  b.box(13.6, 0.1, 7, M.straw ?? M.wood, bx, fy + 0.02, bz, { solid: false });
+  // The arrest squad's truck in the yard, nose to the gate, and the sergeant's motorcycle.
+  const truck = vehicleModel('truck');
+  const [tx, tz] = [FARM.x - 4, FARM.z - 4];
+  truck.position.set(tx, g(tx, tz), tz); truck.rotation.y = -Math.PI * 0.6;
+  b.group.add(truck);
+  const ty = g(tx, tz), fwd = new THREE.Vector3(Math.sin(truck.rotation.y), 0, Math.cos(truck.rotation.y));
+  const engineAt = new THREE.Vector3(tx, 0, tz).addScaledVector(fwd, 2.4);
+  b.box(2.6, 2.4, 2.6, hidden, tx - fwd.x * 1.2, ty + 0.35, tz - fwd.z * 1.2);
+  const engine = b.box(1.3, 1.25, 1.3, hidden, engineAt.x, ty + 0.5, engineAt.z);
+  out.truck = { title: 'ARREST TRUCK ENGINE', engine, parts: [truck.userData.mesh] };
+  out.truckAt = new THREE.Vector3(tx, ty, tz);
+  // Its crew and the billet's guards.
+  add(FARM.x + 11, FARM.z - 3, -Math.PI / 2, { name: 'Farm guard', stance: 'alert' });                // at the house door
+  add(-160, 174, -Math.PI / 2, { name: 'Farm sentry' });                                               // walking the farm round
+  add(FARM.x + 2, FARM.z - 6, Math.PI, { name: 'Truck driver', look: 'guardPionier' });
+  add(FARM.x + 15, FARM.z + 3, -Math.PI / 2, { name: 'Gestapo sergeant', look: 'guardSergeant' });   // in the kitchen, over his lists
+  add(FARM.x - 8, FARM.z - 22, 0, { name: 'Lane patrol' });
+  add(FARM.x - 6, FARM.z - 24, 0, { name: 'Lane patrol', look: 'guardCamo' });
+
+  // The crossroads checkpoint: a barrier (raised), a sentry box, sandbags, the field telephone on a pole.
+  const cy = g(CROSS.x, CROSS.z);
+  b.box(0.35, 1.1, 0.35, M.darkWood, CROSS.x + 4, cy, CROSS.z - 6);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 7), new THREE.MeshStandardMaterial({ color: 0xc23b2c, roughness: 0.7 }));
+  bar.position.set(CROSS.x + 4, cy + 1.1 + 3.3 * Math.sin(1.2) / 2, CROSS.z - 6 + 3.5 * Math.cos(1.2)); bar.rotation.x = -1.2; bar.castShadow = true;
+  b.group.add(bar);
+  for (let i = 0; i < 3; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.9), new THREE.MeshStandardMaterial({ color: 0xece6d6, roughness: 0.7 })); st.position.set(0, 0, -2.6 + i * 2.2); bar.add(st); }
+  const phone = { pole: new THREE.Vector3(CROSS.x - 3, cy, CROSS.z - 9) };
+  b.box(0.22, 6, 0.22, M.wood, phone.pole.x, cy, phone.pole.z);
+  out.junction = b.box(0.4, 0.5, 0.25, M.metal, phone.pole.x, cy + 1.2, phone.pole.z + 0.2, { solid: false });
+  const line = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 4.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
+  line.position.set(phone.pole.x + 0.12, cy + 3.6, phone.pole.z + 0.12); b.group.add(line);
+  out.phoneLine = line;
+  out.phoneAt = new THREE.Vector3(phone.pole.x, cy, phone.pole.z + 0.9);
+  add(CROSS.x + 6, CROSS.z - 3, -Math.PI / 2, { name: 'Checkpoint guard', stance: 'alert' });
+  add(CROSS.x + 6, CROSS.z + 3, -Math.PI / 2, { name: 'Checkpoint guard', stance: 'alert', look: 'guardSergeant' });
+  add(CROSS.x - 2, CROSS.z - 11, 0, { name: 'Telephonist', look: 'guardPionier' });
+  add(CROSS.x + 6, CROSS.z - 10, Math.PI / 2, { name: 'Checkpoint patrol' });
+
+  // The lookout on the knoll: a ring of sandbags, a man with field glasses and his radio operator.
+  const ky = g(KNOLL.x, KNOLL.z);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + 0.4, x = KNOLL.x + Math.cos(a) * 2.8, z = KNOLL.z + Math.sin(a) * 2.8;
+    if (i === 7) continue;                                                                // (the way in)
+    b.box(1.8, 0.5, 0.6, M.sandbag, x, g(x, z) - 0.05, z, { rotY: -a + Math.PI / 2 });
+    b.box(1.6, 0.45, 0.55, M.sandbag, x, g(x, z) + 0.42, z, { rotY: -a + Math.PI / 2, solid: false });
+  }
+  const toRidge = Math.atan2(START.x - KNOLL.x, START.z - KNOLL.z);
+  add(KNOLL.x + 0.6, KNOLL.z + 0.4, toRidge, { name: 'Hill lookout', stance: 'alert', look: 'guardCamo' });
+  add(KNOLL.x - 0.9, KNOLL.z - 0.6, toRidge + 2.2, { name: 'Lookout radioman' });
+  return out;
 }
 
 // Set dressing: carts and barrels in the streets, a well, sentry boxes at the gates, the road's
 // telegraph poles and signpost, haystacks and wire outside the walls.
 function dressing() {
-  const poles = [-20, -60, -100, -140, -180].map(x => ['pole', x, roadZ(x) + 6]);
+  const poles = [-20, -60, -100, -140, -180].map(x => ['pole', x, roadZ(x) + 6]);   // (the telephone line from the crossroads up to the town)
   return [
     ...poles, ['signpost', -6, -70, 0.4],
     ['well', 110, -70], ['cart', 60, -45, 0.4], ['cart', 125, -55, -0.6], ['barrels', 40, -80, Math.PI / 2], ['barrels', 128, -90, 0],
@@ -338,6 +455,13 @@ function dressing() {
     ['haystack', 40, 18], ['haystack', 58, 24], ['haystack', -20, -100], ['wire', 90, 12, 0], ['wire', 150, 10, 0],
     ['marketStall', 80, -48, 0], ['marketStall', 72, -51, 0.2], ['cafeSet', 96, -45], ['cafeSet', 99, -50, 1], ['fiat', 110, -52, 0.4],
     ['horseCart', 35, -100, 1.2], ['rock', 10, 62], ['rock', 185, 30, 1], ['rock', -60, -150, 2],
+    // The farm: a well in the yard, hay, a cart, the field kitchen; vines down the slope to the south-west.
+    ['well', FARM.x - 10, FARM.z + 2], ['haystack', FARM.x - 18, FARM.z + 26], ['haystack', FARM.x + 26, FARM.z + 22], ['cart', FARM.x - 16, FARM.z - 10, 0.8],
+    ['kitchen', FARM.x + 9, FARM.z + 10, Math.PI / 2], ['barrels', FARM.x + 12, FARM.z - 10], ['motorcycle', FARM.x + 8, FARM.z - 14, 1.2],
+    ...[0, 1, 2, 3, 4, 5].map(i => ['vineRow', FARM.x - 60 + i * 5, FARM.z + 40, 0.15]), ...[0, 1, 2, 3, 4].map(i => ['vineRow', FARM.x - 52 + i * 5, FARM.z + 62, 0.15]),
+    // The crossroads: a sentry box, sandbags across the road's edge, a signpost, a cart pushed off the road.
+    ['sentryBox', CROSS.x + 8, CROSS.z - 9, 0], ['sandbags', CROSS.x + 9, CROSS.z + 8, 0], ['signpost', CROSS.x - 6, CROSS.z + 8, 0.6], ['supplies', CROSS.x - 8, CROSS.z - 14],
+    ['horseCart', -240, -40, 0.4], ['rock', -110, 60, 1], ['rock', -230, 120, 2], ['haystack', -185, 140], ['haystack', -60, 180],
   ];
 }
 
@@ -357,7 +481,7 @@ function layout({ world, on }) {
     ['heavy', 48, 30], ['ammo', -71, -40], ['medical', -71, 40], ['explosives', 71, -40], ['bottles', 20, -42],
   ]) boxes.push({ kind: 'supply', type, where: type, at: P(rx, rz) });
   // Out on the slopes and the ridge.
-  for (const [type, x, z] of [['ammo', sp.x + 6, sp.z + 3], ['medical', sp.x + 4, sp.z - 6], ['explosives', -120, 120], ['ammo', -40, 40]]) {
+  for (const [type, x, z] of [['ammo', sp.x + 6, sp.z + 3], ['medical', sp.x + 4, sp.z - 6], ['explosives', FARM.x + 3, FARM.z + 19], ['ammo', CROSS.x - 9, CROSS.z - 12], ['medical', KNOLL.x + 1.5, KNOLL.z - 1.5], ['ammo', -40, 40]]) {
     boxes.push({ kind: 'supply', type, where: type, at: on(x, z) });
   }
   const benches = [
@@ -404,9 +528,17 @@ function intel(it, world, { pickups, arsenal, mission }) {
       'Weiss keeps his own copy of the safe number in his pocket. Good luck. — A friend.' });
   if (w2) it.addDocument({ id: 'town-drawing', title: "A child's drawing", at: new THREE.Vector3(w2.cx + 1, w2.top - 3.2 + 0.05, w2.cz),
     text: 'A crayon drawing of the bell tower with two little soldiers at the top, and a big sun.\n\nOn the back, in a child\'s hand: "Papa says the bell will ring again when they are gone."' });
+  // Out in the valley: the transport order on the sergeant's table at the farm, and the field
+  // telephone at the crossroads (cut it and the town can't call up the reinforcements).
+  const v = world.site.valley;
+  it.addDocument({ id: 'town-transport', title: 'Transport order', at: v.docAt,
+    text: 'Aussenkommando, San Vito. One truck, one driver, two men to report to the town hall at 05:00 on Sunday.\n\n' +
+      'Twelve persons to be taken to Verona. No stops. The farm people here are to be kept to the house until the truck has gone.\n\n— Scharführer Lenz' });
+  it.addLever({ at: v.phoneAt, label: 'CUT THE TELEPHONE LINE TO THE TOWN', busy: 'CUTTING THE LINE…', time: 2.5,
+    onUse: () => { v.phoneLine.visible = false; v.phoneCut = true; mission.ai.radioDown = true; mission.audio.click?.(0, 1800, 0.4); } });
   mission.papersDoc = { id: 'town-papers', title: "Weiss's papers", reveals: SAFE.id,
     text: `Service book of SS-Sturmbannführer E. Weiss. A cigarette case. In the lining of the case, a slip of paper: ${SAFE.combination}.` };
-  mission.documentsTotal = 9;
+  mission.documentsTotal = 10;
 }
 
 const spotters = (m) => m.world.soldiers.filter(s => s.name === 'Bell spotter');
@@ -422,14 +554,23 @@ const def = {
     { id: 'spotters', text: 'Silence the observation post in the bell tower', optional: true },
     { id: 'papers', text: "Take Weiss's papers", optional: true },
     { id: 'car', text: 'Destroy the Gestapo staff car', optional: true },
+    { id: 'truck', text: "Wreck the arrest squad's truck at the Contis' farm", optional: true },
+    { id: 'phone', text: 'Cut the field telephone at the crossroads (no call for reinforcements)', optional: true },
     { id: 'extract', text: 'Get back to the ridge you came from', hidden: true },
   ],
   tick(m) {
+    const v = m.world.site.valley;
+    if (!m.obj('truck').done && m.world.hotspots.some(h => h.title === 'ARREST TRUCK ENGINE' && (h.exploded || h.broken))) m.complete('truck', 'THE ARREST TRUCK WILL NOT RUN');
+    if (!m.obj('phone').done && v?.phoneCut) m.complete('phone', 'THE TELEPHONE LINE IS CUT · NO REINFORCEMENTS');
     if (!m.obj('spotters').done && spotters(m).every(s => !s.alive)) m.complete('spotters', 'THE BELL TOWER IS SILENT');
     if (!m.obj('car').done && m.world.hotspots.some(h => h.title === 'STAFF CAR ENGINE' && h.exploded)) m.complete('car', 'STAFF CAR DESTROYED');
   },
   markers(m) {
-    return m.obj('spotters').done ? [] : [{ pos: m.world.site.towerTop, kind: 'radio', label: 'OBSERVATION POST', height: 1.5 }];
+    const v = m.world.site.valley, out = [];
+    if (!m.obj('spotters').done) out.push({ pos: m.world.site.towerTop, kind: 'radio', label: 'OBSERVATION POST', height: 1.5 });
+    if (!m.obj('truck').done) out.push({ pos: v.truckAt, kind: 'radio', label: 'ARREST TRUCK', height: 3 });
+    if (!m.obj('phone').done) out.push({ pos: v.phoneAt, kind: 'radio', label: 'FIELD TELEPHONE', height: 2.5 });
+    return out;
   },
 };
 
@@ -443,11 +584,14 @@ const briefing = `
       The combination is written down somewhere, and he carries it; or crack it by ear.</li>
     <li><b>Optional:</b> silence the observation post in the bell tower: a ladder inside climbs to the belfry.</li>
     <li><b>Optional:</b> take his papers, and destroy his staff car outside the town hall.</li>
+    <li><b>In the valley:</b> the arrest squad is billeted at the Contis' farm, below the ridge: wreck the truck
+      that is to take the prisoners north. A checkpoint holds the crossroads on the valley road: cut its field
+      telephone and the town can't call for help. A lookout with field glasses watches the ridge from a knoll.</li>
     <li><b>Then</b> get back to the ridge to the south-west, where green smoke marks the pick-up.</li>
     <li><b>Inside:</b> walk into the church, the town hall and some houses; read what you find (E). Some flat
       roofs have ladders: the rooftops are a way through the town.</li>
   </ul>
-  <p class="brief">The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
+  <p class="brief">A farm lane runs down off the ridge, through the farmyard, to the crossroads. The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', props: ['fountain', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', props: ['fountain', 'vineRow', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

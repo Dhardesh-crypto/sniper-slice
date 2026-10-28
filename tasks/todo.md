@@ -920,3 +920,14 @@ The user asked for bigger, noticeable features; chose the air war with strikes, 
       walls and trees stop you (a hard crash hurts); men in the way are run down. Not saved (a loaded
       game has the vehicles back where they were parked).
 - [x] Footprints in the snow pointed backwards (the user): turned round.
+
+## Bell Tower's valley (2026-10-28)
+The user: the town is far from the start, nothing on the way, no roads, patrols or farms.
+- [x] The Contis' farm (the priest's notes already sent the children there): the arrest squad's
+      billet, a two-storey farmhouse, an open barn, the truck that is to take the prisoners north
+      (optional: wreck it), five guards, the transport order on the table; vines, hay, animals.
+- [x] A farm lane down off the ridge, through the farmyard, to the valley road.
+- [x] The crossroads checkpoint: a raised barrier, sentry box, four men, the field telephone on its
+      pole (optional: cut it, hold E: no reinforcement truck).
+- [x] A lookout with field glasses and his radio man on a knoll, watching the ridge (they glint).
+- [x] A two-man lane patrol between the farm and the crossroads; the guards' map now reaches them.

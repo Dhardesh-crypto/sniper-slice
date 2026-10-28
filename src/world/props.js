@@ -286,6 +286,7 @@ const DRESS = {
   barrels: { size: { x: 3.2, y: 1.8, z: 2.0 }, block: [3, 1.6, 1.8] },
   cart: { size: { x: 4.4, y: 1.7, z: 1.7 }, block: [2.2, 1.3, 1.6] },
   haystack: { size: { y: 4.2 }, block: [3.2, 3.6, 3.2] },
+  vineRow: { size: { x: 9, y: 1.7, z: 1.1 } },   // (a row of vines on its wires: walk between the rows)
   well: { size: { y: 3 }, block: [1.8, 0.9, 1.8] },
   motorcycle: { size: { x: 2.4, y: 1.15, z: 1.7 }, block: [2.2, 1.0, 1.6] },
   pak40: { size: { x: 6, y: 1.9, z: 2.2 }, block: [2.2, 1.4, 2.1] },
