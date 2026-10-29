@@ -27,7 +27,9 @@ export function besideTrench(line, along, side = 1, { w = 4, d = 3, half = 0.85 
   return null;
 }
 
-// lines: [[x, z], ...] per trench; dugouts: [{ x, z, yaw, w, d }] (yaw: the doorway faces +z turned by it).
+// lines: [[x, z], ...] per trench; dugouts: [{ x, z, yaw, w, d, ramp? }] (yaw: the doorway faces +z
+// turned by it). A dugout away from the trenches gets a ramp dug down to its doorway, `ramp` m long.
+const RAMP_HALF = 1.0, RAMP_BANK = 0.8, RAMP_FLAT = 0.8;   // (level at the foot, so you're down to the floor under the lintel)
 export function trenchSystem(lines, { depth = 1.9, half = 0.9, bank = 0.9, dugouts = [] } = {}) {
   const dist = (x, z) => {
     let d = Infinity;
@@ -39,6 +41,28 @@ export function trenchSystem(lines, { depth = 1.9, half = 0.9, bank = 0.9, dugou
     const c = Math.cos(g.yaw ?? 0), s = Math.sin(g.yaw ?? 0), dx = x - g.x, dz = z - g.z;
     const lx = dx * c - dz * s, lz = dx * s + dz * c;
     return Math.abs(lx) < g.w / 2 + m && Math.abs(lz) < g.d / 2 + m;
+  });
+  // A dugout's ramp in its local frame: across (lx) and how far up it (u: 0 at the door, 1 at the top).
+  const rampLocal = (g, x, z) => {
+    const c = Math.cos(g.yaw ?? 0), s = Math.sin(g.yaw ?? 0), dx = x - g.x, dz = z - g.z;
+    return [Math.abs(dx * c - dz * s), (dx * s + dz * c - g.d / 2) / g.ramp];
+  };
+  // How deep the ramps cut at (x, z), as a share of the trench depth: 1 at a door, 0 at the top.
+  const rampAt = (x, z) => {
+    let best = 0;
+    for (const g of dugouts) {
+      if (!g.ramp) continue;
+      const [lx, u] = rampLocal(g, x, z);
+      if (u < -0.01 || u > 1) continue;
+      const up = THREE.MathUtils.clamp((u * g.ramp - RAMP_FLAT) / (g.ramp - RAMP_FLAT), 0, 1);
+      best = Math.max(best, (1 - up) * (1 - smoothstep(RAMP_HALF, RAMP_HALF + RAMP_BANK, lx)));
+    }
+    return best;
+  };
+  const inRamp = (x, z, m = 0) => dugouts.some(g => {
+    if (!g.ramp) return false;
+    const [lx, u] = rampLocal(g, x, z);
+    return u > -0.01 && u < 1 + m / g.ramp && lx < RAMP_HALF + RAMP_BANK + m;
   });
   // Ways out: every so often the wall slopes gently enough to walk up (a cut step in the bank).
   const exits = [];
@@ -62,7 +86,7 @@ export function trenchSystem(lines, { depth = 1.9, half = 0.9, bank = 0.9, dugou
   };
   const nearExit = (x, z, r = 2.2) => alongExit(x, z) < r;
   return {
-    lines, depth, half, dugouts, dist, inDugout, exits, nearExit,
+    lines, depth, half, dugouts, dist, inDugout, inRamp, exits, nearExit,
     // How much lower the ground is at (x, z): the trench floor flat across `half`, the walls steep
     // over `bank` (steep enough to need a jump, not a ladder: you climb out where you like).
     carve(x, z) {
@@ -72,7 +96,7 @@ export function trenchSystem(lines, { depth = 1.9, half = 0.9, bank = 0.9, dugou
       const b2 = e < 4 ? lerp(4.6, bank, smoothstep(1.8, 4, e)) : bank;
       let cut = t < half + b2 ? depth * (1 - smoothstep(half, half + b2, t)) : 0;
       if (inDugout(x, z, 0.2)) cut = depth;
-      return cut;
+      return Math.max(cut, depth * rampAt(x, z));
     },
   };
 }
@@ -137,6 +161,11 @@ function dugout(b, sys, g, heightAt) {
   furniture.bed?.(b, bx, floor, bz);
   furniture.table?.(b, tx, floor, tz, 1.2, 0.8);
   b.box(0.7, 0.55, 0.5, M.crate, kx, floor, kz, { rotY: yaw });
+  // The ramp down to the door (a dugout away from the trenches): boards across it for footing.
+  if (g.ramp) for (let t = 0.3; t < g.ramp - 0.2; t += 0.6) {
+    const [rx, rz] = W(0, d / 2 + t);
+    box(RAMP_HALF * 2, 0.05, 0.18, plank, 0, heightAt(rx, rz) + 0.01, d / 2 + t, { solid: false });
+  }
   const [ix, iz] = W(0, 0), [ex, ez] = W(0, d / 2 + 0.7);
   return { inside: new THREE.Vector3(ix, floor, iz), table: new THREE.Vector3(tx, floor + 0.79, tz), entrance: new THREE.Vector3(ex, floor, ez), floor, yaw };
 }

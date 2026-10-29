@@ -36,7 +36,7 @@ const DUGOUTS = [
   besideTrench(FIRE, 272, -1),
   besideTrench(FIRE, 388, -1, { w: 3.6 }),
   besideTrench(COMM[0], 120, 1),                       // up at the battery: crew quarters off the west communication trench
-  { x: POST.x, z: POST.z + 6, yaw: Math.PI, w: 5, d: 3.6, command: true },   // the command dugout (the safe)
+  { x: POST.x, z: POST.z + 9, yaw: Math.PI, w: 5, d: 3.6, ramp: 4.6, command: true },   // the command dugout (the safe), a ramp down to its door from the post
 ];
 const SYS = trenchSystem(LINES, { depth: 1.9, half: 0.85, bank: 0.8, dugouts: DUGOUTS });
 const WIRE_Z = [150, 162];                             // two belts of wire in front of the fire trench
@@ -71,7 +71,7 @@ const map = {
   heightAt,
   roadCenterZ: (x) => NaN,
   keepClear(x, z, m = 0) {
-    if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m)) return true;
+    if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m) || SYS.inRamp(x, z, 1 + m)) return true;
     if (z > WIRE_Z[0] - 5 - m && z < WIRE_Z[1] + 5 + m && Math.abs(x) < 230) return true;
     if (Math.hypot(x - POST.x, (z - POST.z) * 1.3) < 95 + m) return true;             // the battery
     if (Math.hypot(x - FARM.x, z - FARM.z) < 20 + m) return true;
@@ -154,7 +154,7 @@ function site(scene, world) {
 
   // ---- the command post: the fire-control predictor on its stand, a rangefinder, a field telephone ----
   const py = heightAt(POST.x, POST.z);
-  for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 7) continue; b.box(1.6, 0.9, 0.6, M.sandbag, POST.x + Math.cos(ang) * 4.2, py, POST.z + Math.sin(ang) * 4.2, { rotY: -ang + Math.PI / 2 }); }
+  for (let a = 0; a < 10; a++) { const ang = a / 10 * Math.PI * 2; if (a === 7 || SYS.inRamp(POST.x + Math.cos(ang) * 4.2, POST.z + Math.sin(ang) * 4.2, 0.6)) continue; b.box(1.6, 0.9, 0.6, M.sandbag, POST.x + Math.cos(ang) * 4.2, py, POST.z + Math.sin(ang) * 4.2, { rotY: -ang + Math.PI / 2 }); }   // (open where the dugout's ramp comes up)
   b.box(1.1, 1.2, 0.9, steel, POST.x, py, POST.z);                                         // the predictor
   b.box(4, 0.18, 0.18, steel, POST.x, py + 1.6, POST.z - 1.4, { solid: false });          // the rangefinder's arms
   b.box(0.2, 1.6, 0.2, steel, POST.x, py, POST.z - 1.4, { solid: false });
