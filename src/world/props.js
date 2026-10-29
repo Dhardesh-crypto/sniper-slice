@@ -7,9 +7,9 @@
 // sitting on y = 0, centred on its footprint and scaled into the space the game gives it, so it
 // can stand in for the collision blocks that are already there.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
+import { loadGLB } from './gltf.js';
 
 // file: in public/models; turn: quarter turns (about y) that lay its length along x with the
 // front toward −x (measured from each mesh; see the comments).
@@ -95,10 +95,9 @@ export const PROPS = {
 };
 
 export async function loadProps(keys, onProgress = () => {}) {
-  const loader = new GLTFLoader();
   let done = 0;
   await Promise.all([...new Set(keys)].filter(k => PROPS[k] && !assets.models[k]).map(async (k) => {
-    try { assets.models[k] = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${PROPS[k].file}.glb`); }
+    try { assets.models[k] = await loadGLB(`${import.meta.env.BASE_URL}models/${PROPS[k].file}.glb`); }
     catch (e) { console.warn(`prop ${k} missing`, e); }
     onProgress(++done / keys.length);
   }));

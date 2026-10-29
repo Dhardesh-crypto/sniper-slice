@@ -931,3 +931,12 @@ The user: the town is far from the start, nothing on the way, no roads, patrols 
       pole (optional: cut it, hold E: no reinforcement truck).
 - [x] A lookout with field glasses and his radio man on a knoll, watching the ridge (they glint).
 - [x] A two-man lane patrol between the farm and the crossroads; the guards' map now reaches them.
+
+## Smaller models: meshoptimizer (2026-10-29)
+- [x] public/models compressed with EXT_meshopt_compression (tools/compress-models.mjs, npm run
+      compress): 71 → 49 MB; the characters ~60% smaller, the animation clips ~75%. Positions stay
+      float, so node transforms are untouched; normals, UVs and weights are quantized.
+- [x] The loaders (gltf.js) decode with MeshoptDecoder and turn every attribute back into float32.
+- [x] Checked old against new in the browser: every model's world-space positions identical,
+      normals within 0.05%, clip rotations within 0.84°; all nine missions load without errors.
+- [x] prepare-models.mjs and import-model.sh compress what they write.

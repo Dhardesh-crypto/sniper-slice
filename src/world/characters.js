@@ -2,7 +2,7 @@
 // cross-fades, a rifle-holding arm layer, the two-handed rifle, and hit zones that
 // ride on the skeleton's bones.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGLB } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
@@ -44,7 +44,6 @@ const GRIP_FROM_BUTT = 0.29;     // fraction of the length from the butt plate t
 export const assets = { models: {}, clips: {} };
 
 export async function loadAssets(onProgress = () => {}) {
-  const loader = new GLTFLoader();
   const url = (f) => `${import.meta.env.BASE_URL}models/${f}.glb`;
   const jobs = [
     ...Object.entries(MODELS).map(([k, f]) => [k, f, 'model']),
@@ -53,7 +52,7 @@ export async function loadAssets(onProgress = () => {}) {
   let done = 0;
   await Promise.all(jobs.map(async ([key, file, kind]) => {
     try {
-      const gltf = await loader.loadAsync(url(file));
+      const gltf = await loadGLB(url(file));
       if (kind === 'model') assets.models[key] = gltf;
       else assets.clips[key] = gltf.animations[0];
     } catch (e) {
