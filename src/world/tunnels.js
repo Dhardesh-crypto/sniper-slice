@@ -92,7 +92,7 @@ export class Tunnels {
   go(from) {
     if (this.trip) return;
     const p = this.player;
-    p.locked = true;
+    p.locked = p.underground = true;   // (out of sight and hearing: stealth.js, dogs.js)
     this.trip = { from, to: from.other, t: 0, crawl: Math.max(MIN_CRAWL, from.length * PER_METRE), moved: false };
     this.audio.rustle?.();
     this.hud?.message('DOWN THE HATCH · CRAWLING THROUGH THE TUNNEL', '');
@@ -120,16 +120,16 @@ export class Tunnels {
     for (const id of ['markers', 'crosshair']) { const el = document.getElementById(id); if (el) el.style.visibility = tr.inside ? 'hidden' : ''; }   // (the world's marks, not down here)
     if (tr.inside) this.crawl(tr, (tr.t - F) / (tr.crawl + 2 * F));
     if ((tr.stepT = (tr.stepT ?? 0) - dt) <= 0 && tr.inside) { tr.stepT = 0.55; this.audio.step?.('prone'); }
-    if (!tr.moved && tr.t >= F) {
+    if (!tr.lit && tr.t >= F) { tr.lit = true; this.audio.click?.(0.1, 1700, 0.22); }   // the torch on
+    if (!tr.moved && tr.t >= inEnd + F) {   // (in the black between the tunnel and the world)
       tr.moved = true;
-      this.audio.click?.(0.1, 1700, 0.22);   // the torch on
       const to = tr.to.at, off = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize().multiplyScalar(0.9);
       p.pos.set(to.x + off.x, to.y, to.z + off.z);
       p.prevPos?.copy(p.pos);
       p.vel?.set(0, 0, 0);
       if (p.stance !== 'crouch') p.setStance?.('crouch');   // (you come up out of it low)
     }
-    if (tr.t >= end) { this.trip = null; p.locked = false; this.fade.style.opacity = '0'; }
+    if (tr.t >= end) { this.trip = null; p.locked = p.underground = false; this.fade.style.opacity = '0'; }
   }
 
   // Crawling: elbows and knees, the head bobbing and rolling with each pull, the torch a step behind.

@@ -67,7 +67,7 @@ export class Stealth {
 
   footstepRadius() {
     const p = this.player;
-    if (!p.moving) return 0;
+    if (!p.moving || p.underground) return 0;
     const r = p.sprinting ? SPRINT_NOISE : STEP_NOISE[p.stance] * Math.min(1.3, p.speed / 2.5 + 0.4);
     return r * (1 - 0.7 * this.mask.amount);
   }
@@ -201,6 +201,7 @@ export class Stealth {
 
   // Detection rate (meter per second) of `s` seeing a target at `chest`, or 0.
   canSee(s, chest, vis, d) {
+    if (this.player.underground) return 0;                      // crawling a tunnel (tunnels.js)
     const a = s.aware;
     const lit = inBeam(s.torch, chest);                         // in his torch beam, at dusk
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);

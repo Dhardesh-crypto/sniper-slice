@@ -66,7 +66,7 @@ export class Dogs {
       // Smell, a few times a second.
       if ((dog.smellT -= dt) <= 0) {
         dog.smellT = 0.25;
-        const smells = !p.dead && toYou < this.smellRange(dog) && Math.abs(p.pos.y - pos.y) < 4;
+        const smells = !p.dead && !p.underground && toYou < this.smellRange(dog) && Math.abs(p.pos.y - pos.y) < 4;
         if (smells && dog.mode !== 'track') { dog.mode = 'track'; dog.lostT = 0; }
         if (dog.mode === 'track') dog.lostT = smells || toYou < SMELL * 1.8 ? 0 : dog.lostT + 0.25;
       }
