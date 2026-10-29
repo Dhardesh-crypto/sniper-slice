@@ -753,7 +753,7 @@ function step(realDt, draw = true) {
 
   if (!draw) return;
   renderer.shadowMap.needsUpdate = (shadowFrame++ & 1) === 0;
-  post.draw();
+  if (world.tunnels?.viewing) world.tunnels.render(renderer); else post.draw();   // (crawling a tunnel: its own little scene)
   const st = stealth.state();
   const ss = search.state(), cs = carry.state(), co = player.climbOption(), cut = ai.sabotageOption(), rad = mission.radioOption();
   const td = takedown.state();
