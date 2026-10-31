@@ -14,7 +14,7 @@ PROMPT = ('war-damaged rough fieldstone wall of an Italian farmhouse, 1944, clos
           'heavy shell damage, bullet holes and chipped stones, black scorch marks and soot streaks, '
           'crumbling lime mortar, broken patches of old ochre plaster, damp stains and moss at the base, '
           'sharp detailed photograph, overcast daylight')
-NEG = 'window, door, roof tiles, sky, landscape, people, text, blurry, smooth, clean, new, cartoon, painting'
+NEG = 'window, door, doorway, opening, hole, trees, sky, landscape, house, roof tiles, people, text, blurry, smooth, clean, new, cartoon, painting'
 LOG = WORK / 'drive.log'
 
 def log(*a):
@@ -44,8 +44,42 @@ def setup():
     tree = BVHTree.FromBMesh(bm)
     gone = [f for f in bm.faces if f.normal.z < -0.5 or tree.ray_cast(f.calc_center_median() + f.normal * 0.01, f.normal, 40)[0] is not None]
     bmesh.ops.delete(bm, geom=gone, context='FACES')
+    log('faces kept', len(bm.faces), 'removed', len(gone))
+    # Caps over the doorways and windows, 2 cm behind the wall face, for the generation only: with
+    # holes in its depth guide SDXL paints openings with the country behind them, bigger than the
+    # real ones and not quite where they are, and the trees land on the stone round them. Capped,
+    # the wall reads as solid and gets stone all over. Tiles of 10 cm wherever a ray at the wall
+    # finds no wall; marked, and deleted again before export.
+    tree = BVHTree.FromBMesh(bm)
+    planes = {}
+    for f in bm.faces:
+        n = f.normal
+        if abs(n.z) > 0.3 or f.calc_area() < 0.05: continue
+        ax = 0 if abs(n.x) > abs(n.y) else 1
+        sign = 1 if n[ax] > 0 else -1
+        planes.setdefault((ax, sign, round(f.calc_center_median()[ax], 2)), []).extend(v.co.copy() for v in f.verts)
+    cap = bm.faces.layers.int.new('sg_cap')
+    S = 0.1
+    for (ax, sign, off), pts in planes.items():
+        u = 1 - ax                                               # (the in-plane horizontal axis)
+        u0, u1 = min(p[u] for p in pts), max(p[u] for p in pts)
+        z0, z1 = min(p.z for p in pts), max(p.z for p in pts)
+        normal = Vector((sign, 0, 0)) if ax == 0 else Vector((0, sign, 0))
+        for i in range(int((u1 - u0) / S)):
+            for j in range(int((z1 - z0) / S)):
+                c = Vector((0, 0, z0 + (j + 0.5) * S)); c[u] = u0 + (i + 0.5) * S; c[ax] = off
+                if tree.ray_cast(c + normal * 0.5, -normal, 0.6)[0] is not None: continue
+                corners = []
+                for du, dz in ((0, 0), (1, 0), (1, 1), (0, 1)):
+                    q = Vector((0, 0, z0 + (j + dz) * S + (dz - 0.5) * 0.1)); q[u] = u0 + (i + du) * S + (du - 0.5) * 0.1   # (5 cm over: no slits at the edges)
+                    q[ax] = off - sign * 0.02
+                    corners.append(bm.verts.new(q))
+                face = bm.faces.new(corners if (sign > 0) == (ax == 1) else corners[::-1])
+                face.normal_update()
+                if face.normal.dot(normal) < 0: face.normal_flip()
+                face[cap] = 1
+    log('cap tiles', sum(1 for f in bm.faces if f[cap]))
     bm.to_mesh(ob.data); bm.free()
-    log('faces kept', len(ob.data.polygons), 'removed', len(gone))
     for m in list(ob.data.materials): ob.data.materials.clear()
     # UVs for the bake (the OBJ has none): smart project, a little margin between islands.
     bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
@@ -140,6 +174,12 @@ class Run:
             self.settle += 1
             if self.settle < 3: return 2.0
             log('bake done', round(time.time() - self.t0), [m.name for m in self.ob.data.materials])
+            # The caps go again: the real doorways and windows are holes in the skin.
+            bm = bmesh.new(); bm.from_mesh(self.ob.data)
+            lay = bm.faces.layers.int.get('sg_cap')
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if f[lay]], context='FACES')
+            bm.to_mesh(self.ob.data); bm.free()
+            self.ob.data.attributes.remove(self.ob.data.attributes['sg_cap'])
             for o in sc.objects: o.select_set(o == self.ob)
             with ui(): bpy.ops.export_scene.gltf(filepath=str(WORK / 'farmhouse_skin.glb'), use_selection=True, export_format='GLB',
                                       export_image_format='WEBP', export_image_quality=82, export_normals=True)
