@@ -19,6 +19,7 @@ import { vehicleModel } from '../world/vehicle-models.js';
 import { hasProp, propModel, dressProps } from '../world/props.js';
 import { trenchSystem, dressTrenches, besideTrench } from '../world/trenches.js';
 import { Tunnels } from '../world/tunnels.js';
+import { addSkin } from '../world/skins.js';
 
 const START = { x: -20, z: 300 };
 const FARM = { x: -150, z: 215 };                      // the ruined farmhouse below the line
@@ -172,6 +173,7 @@ function site(scene, world) {
   const farm = building(b, { x: FARM.x, z: FARM.z, y: fy, w: 11, d: 8, floors: 1, h: 3.2, mat: M.stone, roof: 'flat',
     openings: [{ side: 'n', at: -2, w: 1.2, door: true }, { side: 's', at: 2, w: 1.1, door: true }, { side: 'e', at: 0, w: 1.0, window: true }, { side: 'w', at: 1, w: 1.0, window: true }] });
   doors.push(...farm.doors);
+  addSkin(scene, 'skin_flak_farmhouse', FARM.x, fy, FARM.z);   // its outside, weathered (world/skins.js)
   furniture.table(b, FARM.x + 2, fy, FARM.z - 1, 1.6, 0.9);
   farm.docs = { note: new THREE.Vector3(FARM.x + 2, fy + 0.79, FARM.z - 1) };
 

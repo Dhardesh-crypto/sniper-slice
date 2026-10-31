@@ -940,3 +940,10 @@ The user: the town is far from the start, nothing on the way, no roads, patrols 
 - [x] Checked old against new in the browser: every model's world-space positions identical,
       normals within 0.05%, clip rotations within 0.84°; all nine missions load without errors.
 - [x] prepare-models.mjs and import-model.sh compress what they write.
+
+## StableGen pilot: the Flak farmhouse skin (2026-10-31)
+- [x] StableGen 0.4.0 in Blender 5.2, SDXL package + RealVisXL V5 in ComfyUI (~16 GB)
+- [x] Export the builder's walls (tools/skins/export-walls.js), texture them unattended (tools/skins/stablegen-texture.py)
+- [x] world/skins.js: the baked skin laid over the walls (polygon offset), walls keep collision/doors/inside
+- [x] Refined: 13 cameras square on to the walls, damage prompt, 4096 bake → 1.3 MB; sharp up close
+- Left: camera views paint slightly different stone where they meet; little scorching; ~11 min per building on the M2 Max
