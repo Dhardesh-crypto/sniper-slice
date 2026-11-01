@@ -68,10 +68,12 @@ import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
 import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
+import { installAtmosphere } from './world/atmosphere.js';
 
 const FIXED_DT = 1 / 60;
 
 const canvas = document.getElementById('view');
+installAtmosphere();   // (before any shader is built)
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);

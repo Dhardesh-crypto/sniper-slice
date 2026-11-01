@@ -1,6 +1,7 @@
 // Trees (instanced, trunks block bullets and the player) and wind-swayed grass,
 // including tall-grass patches that will hide a crouched or prone player.
 import * as THREE from 'three';
+import { foliageTexture } from './foliage-mips.js';
 import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF, keepClear as mapKeepClear, activeMap } from './terrain.js';
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -97,8 +98,7 @@ function leafTex(seed, { leaves = 70, len = 26, wid = 9 } = {}) {
     g.fill();
     g.restore();
   }
-  const t = new THREE.CanvasTexture(cv);
-  t.colorSpace = THREE.SRGBColorSpace;
+  const t = foliageTexture(cv);
   t.anisotropy = 4;
   return t;
 }

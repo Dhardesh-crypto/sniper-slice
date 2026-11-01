@@ -2,6 +2,7 @@
 // hit, where may the player stand, which way is the wind blowing.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { setAtmosphere } from './atmosphere.js';
 import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
 import { buildGround, cullGround } from './ground.js';
@@ -142,6 +143,7 @@ export class World {
 
     const fog = activeMap().fog;          // a misty map brings the fog in close
     scene.fog = fog?.density ? new THREE.FogExp2(fog.color, fog.density) : new THREE.Fog(fog?.color ?? 0xb9c6cc, fog?.near ?? 320, fog?.far ?? 1600);
+    setAtmosphere(this.sunDir, L.sun);
     scene.add(new THREE.HemisphereLight(L.hemiSky, L.hemiGround, L.hemi));
 
     const sun = new THREE.DirectionalLight(L.sun, L.sunIntensity);

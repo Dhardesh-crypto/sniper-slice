@@ -989,3 +989,8 @@ Cost per skin as built now: ~15 min on the M2 Max and ~1.5 MB; a terraced row ne
 - [x] All 20 landmark skins generated and in SKINNED; railway, town, vineyard checked in the game.
 - [x] town/80_-87 (church annex) redone with seed 7 (stablegen-texture.py takes an optional seed): the two faces now match (pink plaster).
 - [ ] town/80_-87 still has a painted landscape patch on the courtyard side (a doorway-sized area, probably an inside face kept because a ray through the doorway leaves the house). Fix in stablegen-texture.py's outside-face test.
+
+### From Athenaion (github.com/Leonxlnx/athenaion, MIT) (2026-11-01)
+- [x] Haze like air (src/world/atmosphere.js): three's fog chunks replaced; the map's fog still sets the amount; thicker low down, blue fades first, glow toward the sun. Checked forest (FogExp2), vineyard (linear), winter town: no shader errors.
+- [x] Leafy mips (src/world/foliage-mips.js): tree leaf cards and model-tree cards keep their coverage and colour at a distance (visible from above the forest: far crowns fuller).
+- [ ] Next candidates: tree LODs by on-screen size + shadow-aware culling; procedural plaster facades for background houses.

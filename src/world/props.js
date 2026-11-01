@@ -7,6 +7,7 @@
 // sitting on y = 0, centred on its footprint and scaled into the space the game gives it, so it
 // can stand in for the collision blocks that are already there.
 import * as THREE from 'three';
+import { foliageTexture } from './foliage-mips.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 import { loadGLB } from './gltf.js';
@@ -110,6 +111,18 @@ export const hasProp = (k) => !!assets.models[k];
 // alpha and seen from both sides. shade: per mesh, a multiplier on the colour (a number, or
 // [r, g, b]): the textures are rendered albedo, and in the game's light they need taking down.
 const CARDS = new Set(['crown', 'far', 'fern', 'bush', 'litter']);
+const cardMaps = new WeakMap();      // a card texture → its version with leafy mips (foliage-mips.js)
+function cardMap(t) {
+  const im = t.image, w = im?.width;
+  if (!w || w !== im.height || (w & (w - 1))) return t;            // (square, power of two only)
+  if (!cardMaps.has(t)) {
+    const f = foliageTexture(im, 0.5, t.flipY);
+    f.wrapS = t.wrapS; f.wrapT = t.wrapT; f.channel = t.channel;
+    f.repeat.copy(t.repeat); f.offset.copy(t.offset);
+    cardMaps.set(t, f);
+  }
+  return cardMaps.get(t);
+}
 export function modelParts(k, shade = {}) {
   const src = assets.models[k]?.scene;
   if (!src) return null;
@@ -119,7 +132,10 @@ export function modelParts(k, shade = {}) {
     if (!o.isMesh) return;
     const m = o.material = o.material.clone();     // (meshes sharing a material get their own shade)
     if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-    if (CARDS.has(o.name)) Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
+    if (CARDS.has(o.name)) {
+      Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
+      if (m.map) m.map = cardMap(m.map);
+    }
     // Matte: a sheen of sky on the cards turned the needles minty.
     Object.assign(m, { roughness: 1, metalness: 0, envMapIntensity: 0.15 });
     for (const t of [m.map, m.normalMap]) if (t) t.anisotropy = 8;
