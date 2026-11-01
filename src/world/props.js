@@ -8,6 +8,7 @@
 // can stand in for the collision blocks that are already there.
 import * as THREE from 'three';
 import { foliageTexture } from './foliage-mips.js';
+import { rockMaterial, ROCK_LOOK } from './stone.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 import { loadGLB } from './gltf.js';
@@ -78,7 +79,8 @@ export const PROPS = {
   groundDetail: { file: 'ground_detail', turn: 0 }, archKit: { file: 'arch_kit', turn: 0 }, interiorKit: { file: 'interior_kit', turn: 0 }, anatomy: { file: 'anatomy', turn: 0 },   // the houses' stone dressing (arch.js)
   treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
   vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 },
-  cypressLod: { file: 'tree_cypress_lod', turn: 0 }, pineLod: { file: 'tree_pine_lod', turn: 0 },   // far versions (tools/blender/lods.py) rock: { file: 'prop_rock', turn: 0 },
+  cypressLod: { file: 'tree_cypress_lod', turn: 0 }, pineLod: { file: 'tree_pine_lod', turn: 0 },   // far versions (tools/blender/lods.py)
+  rock: { file: 'prop_rock', turn: 0 },
   wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
   wreckCar: { file: 'wreck_car', turn: 3 }, wreckHalftrack: { file: 'wreck_halftrack', turn: 3 },
   wreckPlane: { file: 'wreck_plane', turn: 0 },
@@ -156,6 +158,7 @@ export function treeParts(k, shade = {}) {
 // A copy of prop `k` fitted into `size` ({ x, y, z } in metres; give one for a uniform scale, or
 // several with stretch: true to fill a box exactly). own: its own materials (a wreck blackens it).
 // bright: multiplies its colour (for a texture that came out too dark).
+let rockProp = null;
 export function propModel(k, size, { stretch = false, own = false, turn = 0, bright = 1 } = {}) {
   const outer = new THREE.Group();
   const src = assets.models[k]?.scene;
@@ -166,6 +169,7 @@ export function propModel(k, size, { stretch = false, own = false, turn = 0, bri
     if (!o.isMesh) return;
     if (own || bright !== 1) o.material = o.material.clone();
     if (bright !== 1) o.material.color.multiplyScalar(bright);      // (a dark texture lifted)
+    if (k === 'rock') o.material = rockProp ??= rockMaterial({ ...ROCK_LOOK, scale: 0.8 });   // (stone.js, like the ground's stones)
     if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
     o.material.envMapIntensity = 0.6;
     o.castShadow = o.receiveShadow = true;

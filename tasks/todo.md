@@ -994,3 +994,6 @@ Cost per skin as built now: ~15 min on the M2 Max and ~1.5 MB; a terraced row ne
 - [x] Haze like air (src/world/atmosphere.js): three's fog chunks replaced; the map's fog still sets the amount; thicker low down, blue fades first, glow toward the sun. Checked forest (FogExp2), vineyard (linear), winter town: no shader errors.
 - [x] Leafy mips (src/world/foliage-mips.js): tree leaf cards and model-tree cards keep their coverage and colour at a distance (visible from above the forest: far crowns fuller).
 - [ ] Next candidates: tree LODs by on-screen size + shadow-aware culling; procedural plaster facades for background houses.
+- [x] Coppi roofs (src/world/roof-tiles.js, after Athenaion's terracotta.js): rows down the slope from world position + normal (no attributes), courses, mixed tiles, lichen, bleaching; fades to the average when sub-pixel (clean at 250 m through a 6° scope). Snow still lies on them.
+- [x] Rock material (src/world/stone.js, after Athenaion's stone.js) on ground.js's stones and the rock prop; warmer/darker than Athenaion's. ~1 ms/step over the live build in the town (noise level).
+- [x] Fixed: the rock prop's PROPS entry was inside a comment (props.js), so the rocks placed in vineyard, forest, flak, bridge and railway never appeared.

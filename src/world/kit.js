@@ -2,6 +2,7 @@
 // each solid mesh for bullet raycasts (`solids`) and its box for collision (`boxes`).
 import * as THREE from 'three';
 import { textures, worldUVs } from './textures.js';
+import { roofTiles } from './roof-tiles.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hasArch, houseLook, dressWindow, dressBalcony, dressBlock, dressGable, dressHip, dressStreetFloor, dressShrine, dressLaundry } from './arch.js';
 
@@ -26,6 +27,7 @@ export const M = {
   vine: new THREE.MeshStandardMaterial({ color: 0x4f6b2c, roughness: 0.95 }),
   earth: textured(T.ground, { color: 0x8a7552, roughness: 1 }, 2),
 };
+roofTiles(M.roof);   // (coppi drawn in the shader; the photo only keeps the UVs the builders expect)
 
 // Terracotta floor tiles (tools/blender/interior.py renders them), for the walk-in houses' ground floors.
 export const COTTO = (() => {

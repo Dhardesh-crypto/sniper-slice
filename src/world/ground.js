@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { heightAt, normalAt, MAP_HALF, keepClear, inPlayArea, activeMap } from './terrain.js';
 import { fbm, makeRng } from './noise.js';
 import { modelParts } from './props.js';
+import { rockMaterial, ROCK_LOOK } from './stone.js';
 
 const CHUNK = 160;      // m: big, or the far-reaching kinds split into dozens of tiny draws
 // range: drawn within this many metres; slope: the steepest ground it sits on (normal's y);
@@ -24,6 +25,7 @@ const KINDS = {
   rock3: { scale: [1.2, 2.2], range: 220, slope: 0.6, sink: 0.2, shade: [0.5, 0.48, 0.45], tilt: true, solid: 0.7 },
 };
 const OPEN = { bush: 1500, rock1: 450, rock2: 1400, rock3: 110 };
+let rockMat = null;
 
 export function buildGround(scene, { boxes = [], water = null }) {
   const parts = modelParts('groundDetail', Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.shade])));
@@ -46,6 +48,7 @@ export function buildGround(scene, { boxes = [], water = null }) {
   const up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3();
   for (const [kind, count] of Object.entries(counts)) {
     const K = KINDS[kind], part = parts[kind];
+    const mat = kind.startsWith('rock') ? (rockMat ??= rockMaterial(ROCK_LOOK)) : part?.material;   // (stones: stone.js)
     if (!K || !part || !count) continue;
     const byChunk = new Map();
     let placed = 0, tries = 0;
@@ -73,7 +76,7 @@ export function buildGround(scene, { boxes = [], water = null }) {
       placed++;
     }
     for (const [k, list] of byChunk) {
-      const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+      const im = new THREE.InstancedMesh(part.geometry, mat, list.length);
       list.forEach((mm, i) => im.setMatrixAt(i, mm));
       im.castShadow = !K.flat && !K.noShadow;
       im.receiveShadow = true;
