@@ -2,7 +2,7 @@
 
 Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for this game; the guards' voices (`vo_*.mp3`, and their small talk `chat_*.mp3`: voices George, Daniel and Bill) with ElevenLabs Multilingual v2 text-to-speech (German).
 
-The air war (`bombers_drone`, `strafe_50cal`, `flak_burst`, `flak88_fire`, `plane_crash`, `radio_static`): ElevenLabs Sound Effects.
+The air war (`bombers_drone`, `strafe_50cal`, `flak_burst`, `flak88_fire`, `plane_crash`, `radio_static`): ElevenLabs Sound Effects (`plane_crash` trimmed to 3.2 s, fading out from 1.8 s).
 
 The shore (`sea_waves`, `sea_distant`, `gull_1`–`gull_3`): ElevenLabs Sound Effects.
 
