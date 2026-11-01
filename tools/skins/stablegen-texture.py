@@ -1,21 +1,46 @@
-# Texture the farmhouse shell with StableGen, unattended (run in Blender with its window open, and
+# Texture a building's shell with StableGen, unattended (run in Blender with its window open, and
 # a ComfyUI server on 127.0.0.1:8188 with StableGen's SDXL package and RealVisXL V5):
-#   Blender --online-mode --python stablegen-texture.py -- <workdir>
-# Steps: import <workdir>/farmhouse.obj (the builder's walls, slab and parapet: export-walls.js in the
+#   Blender --online-mode --python stablegen-texture.py -- <workdir> <name> <style> [seed]
+# Steps: import <workdir>/<name>.obj (the builder's walls, slab and parapet: export-walls.js in the
 # game), keep only the faces seen from outside, cameras square on to every stretch of wall, the
-# ARCHITECTURE preset on RealVisXL, bake to a 4096 texture, export farmhouse_skin.glb.
+# ARCHITECTURE preset on RealVisXL with the region's walls in the prompt, bake, export <name>.glb.
+# <style> is the map's wallStyle (style-textures.py has the same regions).
 import bpy, bmesh, sys, json, math, time, traceback, importlib
 from pathlib import Path
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-WORK = Path(sys.argv[sys.argv.index('--') + 1])
-PROMPT = ('war-damaged rough fieldstone wall of an Italian farmhouse, 1944, close-up, '
-          'heavy shell damage, bullet holes and chipped stones, black scorch marks and soot streaks, '
-          'crumbling lime mortar, broken patches of old ochre plaster, damp stains and moss at the base, '
-          'sharp detailed photograph, overcast daylight')
+ARGS = sys.argv[sys.argv.index('--') + 1:]
+WORK, NAME, STYLE = Path(ARGS[0]), ARGS[1], ARGS[2]
+SEED = int(ARGS[3]) if len(ARGS) > 3 else 1944   # (another seed for a redo when a view goes wrong)
+# The walls of each region, by what the building is made of (its walls' material in the game).
+WALLS = {
+    'tuscany':  {'stone': 'rough Tuscan rubble masonry of sandstone and limestone with a few red bricks',
+                 'plaster': 'pale ochre lime plaster of a Tuscan farmhouse, patched, with rubble stone showing where it has fallen'},
+    'umbria':   {'stone': 'pale pink and grey Umbrian limestone ashlar in courses, a medieval hill town',
+                 'plaster': 'faded cream and rose lime plaster of an Umbrian town house, with pale stone showing where it has fallen'},
+    'liguria':  {'stone': 'grey Ligurian rubble stone and slate, salt-stained',
+                 'plaster': 'salt-weathered pastel painted plaster of a Ligurian harbour building, peeling',
+                 'concrete': 'weathered grey coastal bunker concrete with faint board marks and rust streaks'},
+    'apennine': {'stone': 'dark grey rough Apennine rubble stone, deep mortar joints, lichen',
+                 'plaster': 'rough grey lime render of an Apennine mountain house, with rubble stone showing where it has fallen',
+                 'wood': 'dark weathered timber planks of a mountain hut, on a rough stone base',
+                 'concrete': 'weathered grey military concrete with faint board marks'},
+    'po':       {'stone': 'sooty red brick of a Po valley railway building',
+                 'plaster': 'grimy pale yellow plaster of a railway station, soot streaks, brick showing where it has fallen'},
+    'lombardy': {'stone': 'weathered red brick of a Lombard farm building',
+                 'plaster': 'pale cream plaster of a military building, weathered, rain streaks',
+                 'concrete': 'weathered grey concrete of an airfield building'},
+}
+TIMBER = 'weathered grey timber planks of a 1940s wooden hut, on a low rough stone base'
 NEG = 'window, door, doorway, opening, hole, trees, sky, landscape, house, roof tiles, people, text, blurry, smooth, clean, new, cartoon, painting'
-LOG = WORK / 'drive.log'
+LOG = WORK / f'{NAME}.log'
+KIND, BAKE = 'stone', 4096
+
+def prompt_for(kind):
+    walls = WALLS[STYLE].get(kind) or (TIMBER if kind == 'wood' else WALLS[STYLE]['stone'])
+    return (f'war-damaged old wall, Italy 1944, close-up, {walls}, shell damage, bullet holes and chips, '
+            'soot streaks, crumbling mortar, damp stains at the base, sharp detailed photograph, overcast daylight')
 
 def log(*a):
     with open(LOG, 'a') as f: f.write(time.strftime('%H:%M:%S ') + ' '.join(map(str, a)) + '\n')
@@ -28,15 +53,24 @@ gen = importlib.import_module(pkg + '.texturing.generator')
 def setup():
     prefs = bpy.context.preferences.addons[pkg].preferences
     prefs.server_address = '127.0.0.1:8188'
+    (WORK / 'sg_out').mkdir(exist_ok=True)
     prefs.output_dir = str(WORK / 'sg_out') + '/'
     for o in list(bpy.data.objects): bpy.data.objects.remove(o)   # (the start-up cube, camera, light)
-    bpy.ops.wm.obj_import(filepath=str(WORK / 'farmhouse.obj'))
+    bpy.ops.wm.obj_import(filepath=str(WORK / f'{NAME}.obj'))
     objs = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    # What it's mostly made of (export-walls.js names each part wall<k>_<material>).
+    area = {}
+    for o in objs:
+        kind = o.name.split('_')[-1].split('.')[0]
+        rot = o.matrix_world.to_3x3()
+        area[kind] = area.get(kind, 0) + sum(p.area for p in o.data.polygons if abs((rot @ p.normal).normalized().z) < 0.3)   # (walls, not floors)
+    global KIND
+    KIND = max(area, key=area.get) if area else 'stone'
     for o in objs: o.select_set(True)
     bpy.context.view_layer.objects.active = objs[0]
     bpy.ops.object.join()
     ob = bpy.context.view_layer.objects.active
-    ob.name = 'Farmhouse'
+    ob.name = NAME
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   # (the import's Y-up turn into the mesh: z is up below)
     # Only the faces seen from outside: a ray out along each face's normal must leave the house.
     bm = bmesh.new(); bm.from_mesh(ob.data)
@@ -85,23 +119,42 @@ def setup():
     bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.004)
     bpy.ops.object.mode_set(mode='OBJECT')
-    # Cameras, square on to the walls 4.8 m out: each sees a 5 m stretch from the plinth to the top of
-    # the parapet (twice the detail of one view per wall, and the parapet face on); one straight down
-    # on the roof, two from high up for the parapet's inner faces. The first is the style reference.
+    # Cameras square on to the walls, each seeing a square stretch C metres across from far enough out
+    # (a 35 mm lens sees about as wide as it is far): 5 m on a house (the farmhouse's detail), wider
+    # on a big one so it stays at 16 views at most; as many rows as the walls are tall. A flat
+    # roof gets one view straight down and two from high up for its parapet. The first is the style
+    # reference.
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
     lo, hi = Vector([min(v[i] for v in vs) for i in range(3)]), Vector([max(v[i] for v in vs) for i in range(3)])
-    mid, D, Z = (lo + hi) / 2, 4.8, (lo.z + hi.z) / 2
+    mid, size = (lo + hi) / 2, hi - lo
+    count = lambda C: 2 * (math.ceil(size.x / (C * 0.9)) + math.ceil(size.y / (C * 0.9))) * max(1, math.ceil(size.z / (C * 0.95)))
+    C = 5.0
+    while count(C) > 16: C *= 1.08                               # (a big building: wider views, at most 16)
+    D = C / 1.03
+    rows = max(1, math.ceil(size.z / (C * 0.95)))
+    zs = [lo.z + size.z * (r + 0.5) / rows for r in range(rows)]
+    global BAKE
+    BAKE = 4096 if 2 * (size.x + size.y) * size.z > 150 else 2048
     sc = bpy.context.scene
     sc.render.resolution_x = sc.render.resolution_y = 1024
     shots = []                                                   # (position, look at, lens)
-    for sy in (-1, 1):                                           # the long walls (along x): three each
-        for x in (-3.8, 0, 3.8):
-            p = Vector((mid.x + x, (hi.y if sy > 0 else lo.y) + sy * D, Z)); shots.append((p, p - Vector((0, sy, 0)), 35))
-    for sx in (-1, 1):                                           # the short walls (along y): two each
-        for y in (-2.1, 2.1):
-            p = Vector(((hi.x if sx > 0 else lo.x) + sx * D, mid.y + y, Z)); shots.append((p, p - Vector((sx, 0, 0)), 35))
-    shots.append((Vector((mid.x, mid.y + 0.01, hi.z + 12)), Vector((mid.x, mid.y, hi.z)), 35))
-    for sy in (-1, 1): shots.append((Vector((mid.x, mid.y + sy * 9, hi.z + 7)), Vector((mid.x, mid.y, hi.z)), 30))
+    for ax, length in ((0, size.x), (1, size.y)):                # walls along x (facing ±y), then along y
+        n = max(1, math.ceil(length / (C * 0.9)))
+        for s in (-1, 1):
+            for k in range(n):
+                along = (lo[ax] + length * (k + 0.5) / n) if n > 1 else mid[ax]
+                for z in zs:
+                    p = Vector((0, 0, z)); p[ax] = along
+                    face = hi[1 - ax] if s > 0 else lo[1 - ax]
+                    p[1 - ax] = face + s * D
+                    look = p.copy(); look[1 - ax] -= s
+                    shots.append((p, look, 35))
+    up = sum(f.area for f in ob.data.polygons if f.normal.z > 0.9)
+    if up > 10:
+        top = max(size.x, size.y) * 1.05
+        shots.append((Vector((mid.x, mid.y + 0.01, hi.z + top)), Vector((mid.x, mid.y, hi.z)), 35))
+        for s in (-1, 1): shots.append((Vector((mid.x, mid.y + s * top * 0.75, hi.z + top * 0.6)), Vector((mid.x, mid.y, hi.z)), 30))
+    log('kind', KIND, 'cameras', len(shots), 'C', round(C, 1), 'rows', rows, 'bake', BAKE)
     for i, (p, at, lens) in enumerate(shots):
         cam = bpy.data.objects.new(f'Cam_{i:02d}', bpy.data.cameras.new(f'Cam_{i:02d}'))
         cam.data.lens = lens
@@ -126,8 +179,8 @@ class Run:
         except Exception:
             log('ERROR', traceback.format_exc()); self.done(False); return None
     def done(self, ok):
-        (WORK / 'drive.status').write_text(json.dumps({'ok': ok, 'phase': self.phase, 'seconds': round(time.time() - self.t0)}))
-        bpy.ops.wm.save_as_mainfile(filepath=str(WORK / 'farmhouse.blend'))
+        (WORK / f'{NAME}.status').write_text(json.dumps({'ok': ok, 'phase': self.phase, 'seconds': round(time.time() - self.t0)}))
+        bpy.ops.wm.save_as_mainfile(filepath=str(WORK / f'{NAME}.blend'))
         bpy.ops.wm.quit_blender()
     def step(self):
         sc = bpy.context.scene
@@ -142,8 +195,8 @@ class Run:
             with ui(): ok = bpy.ops.stablegen.apply_preset()
             if ok != {'FINISHED'}: raise RuntimeError('preset failed')
             sc.model_name = 'RealVisXL_V5.0_fp16.safetensors'
-            sc.comfyui_prompt, sc.comfyui_negative_prompt = PROMPT, NEG
-            sc.seed, sc.control_after_generate = 1944, 'fixed'
+            sc.comfyui_prompt, sc.comfyui_negative_prompt = prompt_for(KIND), NEG
+            sc.seed, sc.control_after_generate = SEED, 'fixed'
             for u in sc.controlnet_units: u.strength = 0.95       # (the preset's 0.6 let it invent a bigger house)
             sc.cfg = 2.0                                          # (a little more of the prompt: the damage)
             sc.generation_mode, sc.texture_objects, sc.ask_object_prompts = 'standard', 'selected', False
@@ -164,7 +217,7 @@ class Run:
             B = rendering.BakeTextures
             B._objects, B._current_index, B._phase, B._total_objects = [self.ob], 0, 'unwrap', 1
             with ui():
-                r = bpy.ops.object.bake_textures('EXEC_DEFAULT', texture_resolution=4096, bake_pbr=False, add_material=True,
+                r = bpy.ops.object.bake_textures('EXEC_DEFAULT', texture_resolution=BAKE, bake_pbr=False, add_material=True,
                                                  flatten_for_refine=False, try_unwrap='none', overlap_only=False)
             if r != {'RUNNING_MODAL'}: raise RuntimeError(f'bake did not start: {r}')
             self.phase, self.settle = 'bake', 0
@@ -181,7 +234,7 @@ class Run:
             bm.to_mesh(self.ob.data); bm.free()
             self.ob.data.attributes.remove(self.ob.data.attributes['sg_cap'])
             for o in sc.objects: o.select_set(o == self.ob)
-            with ui(): bpy.ops.export_scene.gltf(filepath=str(WORK / 'farmhouse_skin.glb'), use_selection=True, export_format='GLB',
+            with ui(): bpy.ops.export_scene.gltf(filepath=str(WORK / f'{NAME}.glb'), use_selection=True, export_format='GLB',
                                       export_image_format='WEBP', export_image_quality=82, export_normals=True)
             self.phase = 'exported'; log('exported'); self.done(True); return None
 

@@ -191,6 +191,7 @@ export function textures() {
     plaster: plaster(11, '#ddc9a2'),
     plaster2: plaster(12, '#cfa97c'),
     stone: stone(21),
+    concrete: plaster(13, '#8b8a82'),   // (only drawn: a map's style brings the photograph)
     roof: roofTiles(31),
     wood: wood(41),
     darkWood: wood(42, '#3f2c1c'),
@@ -220,11 +221,13 @@ export function worldUVs(geometry, metres = 2) {
 // Swap the drawn textures for the photographs, with normal maps built from the photos' light and
 // dark. Copies of a texture (the terrain's ground, the trees' bark) share its image and are
 // refreshed too.
-const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0, forestGround: 1.4 };
-export async function usePhotoTextures(scene) {
+const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, concrete: 1.4, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0, forestGround: 1.4 };
+export async function usePhotoTextures(scene, style = null) {
   const T = textures(), loader = new THREE.ImageLoader(), sources = new Set();
+  const load = (f) => loader.loadAsync(`${import.meta.env.BASE_URL}textures/${f}.jpg`).catch(() => null);
   await Promise.all(Object.keys(T).map(async (key) => {
-    const img = await loader.loadAsync(`${import.meta.env.BASE_URL}textures/${key}.jpg`).catch(() => null);
+    // The map's own walls first (its region's stone, plaster, concrete: tools/skins/style-textures.py).
+    const img = (style && await load(`styles/${style}/${key}`)) || await load(key);
     if (!img) return;
     const height = canvas(SIZE);
     const hg = height.getContext('2d');

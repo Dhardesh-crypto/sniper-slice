@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { loadGLB } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { addLods, lodReady } from './lod.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
   enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
@@ -60,6 +61,7 @@ export async function loadAssets(onProgress = () => {}) {
     }
     onProgress(++done / jobs.length);
   }));
+  await lodReady;
   assets.clips.idle = assets.models.guard?.animations[0] ?? assets.models.player?.animations[0];
   buildDerivedClips();
 }
@@ -260,6 +262,7 @@ export class Character {
         }
       }
     });
+    addLods(this.model);
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = {};
     this.base = null;

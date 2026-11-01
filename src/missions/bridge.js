@@ -73,6 +73,7 @@ const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 
 const onBridge = (x, z) => Math.abs(x) < 40 && Math.abs(z) < BW - 0.3;
 
 const map = {
+  wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Bright midday in the mountains: a high sun, crisp shadows in the gorge.
   light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3 },
   fog: { color: 0xb4c7cf },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)

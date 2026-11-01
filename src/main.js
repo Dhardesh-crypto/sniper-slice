@@ -15,6 +15,8 @@ import { Post } from './core/post.js';
 import { loadAssets, assets } from './world/characters.js';
 import { loadProps, dressSite } from './world/props.js';
 import { usePhotoTextures } from './world/textures.js';
+import { skinBuildings } from './world/skins.js';
+import { updateLods } from './world/lod.js';
 import { MapView } from './ui/map.js';
 import { Search } from './player/search.js';
 import { Carry } from './player/carry.js';
@@ -80,6 +82,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.85;
 
 const scene = new THREE.Scene();
+scene.onBeforeRender = (r, s, cam) => updateLods(cam);   // (every camera that draws the world)
 const settings = loadSettings();
 const camera = new THREE.PerspectiveCamera(settings.fov, innerWidth / innerHeight, 0.05, 3000);
 camera.rotation.order = 'YXZ';
@@ -124,7 +127,8 @@ audio.volume = settings.volume;
 audio.musicVolume = settings.music;
 const world = new World(scene, renderer, M.site);
 dressSite(world);
-await usePhotoTextures(scene);                   // the photographs over the drawn textures
+await usePhotoTextures(scene, M.map.wallStyle);                   // the photographs over the drawn textures
+skinBuildings(scene, missionId);                                  // the landmarks' own weathered outsides (world/skins.js)
 const player = new Player(world, input, audio);
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);

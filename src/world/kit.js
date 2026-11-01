@@ -10,6 +10,7 @@ const T = textures();
 const textured = (tex, opts, tile) => Object.assign(new THREE.MeshStandardMaterial({ ...tex, ...opts }), { userData: { tile } });
 export const M = {
   stone: textured(T.stone, { roughness: 0.95 }, 2.5),
+  concrete: textured(T.concrete, { roughness: 0.95 }, 3),
   plaster: textured(T.plaster, { roughness: 0.92 }, 3.5),
   plaster2: textured(T.plaster2, { roughness: 0.92 }, 3.5),
   roof: textured(T.roof, { roughness: 0.8 }, 2.2),

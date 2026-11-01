@@ -74,6 +74,7 @@ const NEEDLES = new THREE.Color(0x4a3a28);
 const inFirebreak = (x, z, m = 0) => Math.abs(x - FB) < 8 + m && Math.abs(z) < 470;
 
 const map = {
+  wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // A wet autumn morning: rain under a low grey sky, the sun no more than a glow in the east.
   light: { zenith: 72, azimuth: 115, sun: 0xdde2e6, sunIntensity: 1.1, turbidity: 10, clouds: 0.95, hemi: 0.7, hemiSky: 0xb8c0c4, env: 0.26, exposure: 0.8 },
   weather: { rain: 1 },   // steady rain: it hides a little of your noise

@@ -57,6 +57,7 @@ const rel = (routes) => Object.fromEntries(Object.entries(routes).map(([k, pts])
 const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Math.max(Math.abs(z - F.z) - HZ - 2, 0));
 
 const map = {
+  wallStyle: 'umbria',                 // its walls' photographs (public/textures/styles/)
   // Late afternoon: a low golden sun from the west, long shadows down the streets.
   light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
   fog: { color: 0xc4c4c0 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)

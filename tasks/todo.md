@@ -947,3 +947,45 @@ The user: the town is far from the start, nothing on the way, no roads, patrols 
 - [x] world/skins.js: the baked skin laid over the walls (polygon offset), walls keep collision/doors/inside
 - [x] Refined: 13 cameras square on to the walls, damage prompt, 4096 bake → 1.3 MB; sharp up close
 - Left: camera views paint slightly different stone where they meet; little scorching; ~11 min per building on the M2 Max
+
+## Building skins for every mission: plan (2026-10-31, waiting for a go)
+Counted in the game (tall builder boxes grouped into buildings; a terraced row counts as one):
+| Mission | Setting | Buildings | Style that fits |
+|---|---|---|---|
+| Vineyard | Tuscany | ~7 | ochre-plastered stone farmhouses, terracotta |
+| Bell Tower (town) | Umbria | ~29 (mostly terraced rows) | pale limestone and faded plaster, hill town |
+| Low Tide (harbour) | Liguria | ~12 (5 big warehouses) | painted plaster, salt-stained, brick warehouses |
+| Black Pine (forest) | Apennines | ~5 | dark rough stone, timber, mountain huts |
+| Iron Road (railway) | Po valley | ~17 | red brick, soot, rail depot |
+| Broken Span (bridge) | Serchio valley | ~3 | river stone, mill |
+| Night Owl (airfield) | Lombardy | ~5 | concrete and brick hangar buildings |
+| Sea Wall (radar) | Ligurian coast | ~4 | camouflage-painted concrete bunkers |
+| Flak Line | Apennine foothills | ~4 more | rubble stone (farmhouse done) |
+About 85 groups, ~60 of them real houses (the rest walls, platforms, sheds).
+Cost per skin as built now: ~15 min on the M2 Max and ~1.5 MB; a terraced row needs 2-3x the cameras.
+- A. Every building: ~20 h of generation (overnight batches), ~+100 MB download (town alone ~+35 MB).
+- B. Landmarks only (~15: the buildings you enter or snipe at): ~4-5 h, ~+20 MB; the rest unchanged.
+- C. Landmarks as unique skins + a StableGen-made texture set per style for all other houses: ~6-7 h, ~+30 MB.
+- Chosen: C (2026-10-31).
+
+## Landmark skins + style sets (2026-10-31 → 11-01)
+- [x] Style texture sets per region (public/textures/styles/<style>/: plaster, plaster2, stone, concrete) from
+      SDXL Lightning with wrap-around padding (tools/skins/style-textures.py + a small ComfyUI node); each map
+      names its wallStyle; reviewed and the bad tiles redone
+- [x] 20 walk-in landmarks exported from the built records (buildings.js `built`), batch-textured overnight
+      (tools/skins/skin-all.sh); skins.js puts them on by mission and centre (SKINNED)
+- [x] Checked in the game: aligned, no trees/sky on the walls, no flicker through the scope at 250 m
+- Note: the Mac slept overnight and stalled the batch for 8 h; keep it awake for long runs
+
+## Guard detail levels (2026-11-01)
+- [x] world/lod.js: two simplified triangle lists per character model (30%, 10%; meshoptimizer, UV-weighted so
+      the texture doesn't smear across Meshy's seams), sharing the full mesh's vertices; switched per camera
+      in scene.onBeforeRender by on-screen size (scope zoom keeps the full mesh), ±10% hysteresis
+- [x] X-ray ghost always uses the full mesh (fullGeometry); hits use the separate hit meshes, so unaffected
+- [x] Town: skinned triangles 345k → 90k (−74%), in the main and shadow passes; 30 m level 1 looks identical,
+      80 m level 2 keeps the silhouette; kill cam runs clean
+
+### Skins: batch finished (2026-11-01)
+- [x] All 20 landmark skins generated and in SKINNED; railway, town, vineyard checked in the game.
+- [x] town/80_-87 (church annex) redone with seed 7 (stablegen-texture.py takes an optional seed): the two faces now match (pink plaster).
+- [ ] town/80_-87 still has a painted landscape patch on the courtyard side (a doorway-sized area, probably an inside face kept because a ray through the doorway leaves the house). Fix in stablegen-texture.py's outside-face test.

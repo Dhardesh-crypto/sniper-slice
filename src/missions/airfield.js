@@ -51,6 +51,7 @@ const inTaxi = (x, z) => (Math.abs(z - TAXI_Z) < 8 && x > -268 && x < 208) || ((
 const inApron = (x, z) => x > -130 && x < 130 && z > 78 && z < 175;
 
 const map = {
+  wallStyle: 'lombardy',                 // its walls' photographs (public/textures/styles/)
   // Dawn after the night's flying: the sun just up in the east, cold blue shadows.
   light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95 },
   fog: { color: 0xe0bcae },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)

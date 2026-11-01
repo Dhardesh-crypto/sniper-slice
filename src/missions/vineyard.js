@@ -76,6 +76,7 @@ export default {
   props: ['generator', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
   map: {
+    wallStyle: 'tuscany',               // its walls' photographs (public/textures/styles/)
     ...VINEYARD_MAP,
     // Late morning in Tuscany: high, warm sun through a light haze.
     light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4 },

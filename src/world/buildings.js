@@ -24,6 +24,8 @@ const RISE = 0.24, RUN = 0.3;
 
 // Every upper floor built, for the guards' route maps (ai/nav.js; world.js takes the list).
 export const storeys = [];
+// Every walk-in building made, where and how big (tools/skins/export-walls.js finds the landmarks by it).
+export const built = [];
 let buildingCount = 0;
 const DOOR_MAT = M.darkWood;
 
@@ -32,6 +34,7 @@ export function building(b, o) {
   const mat = isPlaster(o.mat ?? M.plaster) ? plasterFor(x, z) : o.mat;     // a plastered house gets its own colour
   const doors = [];
   const out = { doors, floorY: (f) => y + f * h, top: y + floors * h, x, z, w, d };
+  built.push({ x, z, y, w, d, floors, h, roof });
   const openings = o.openings ?? [];
   // The outer walls, one per side, broken around their openings on each floor.
   const sides = {

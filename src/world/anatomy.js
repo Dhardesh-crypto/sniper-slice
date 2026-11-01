@@ -6,6 +6,7 @@
 // (tools/blender/anatomy.py → anatomy.glb); until that has loaded, simple shapes stand in.
 import * as THREE from 'three';
 import { assets } from './characters.js';
+import { fullGeometry } from './lod.js';
 
 export const XRAY_LAYER = 1;
 
@@ -138,7 +139,7 @@ export function buildXray(soldier) {
   // Ghost: a see-through copy of the real skinned body, sharing its skeleton.
   const sk = soldier.char.skinned;
   if (sk) {
-    const ghost = onLayer(new THREE.SkinnedMesh(sk.geometry, GHOST));
+    const ghost = onLayer(new THREE.SkinnedMesh(fullGeometry(sk), GHOST));
     ghost.bind(sk.skeleton, sk.bindMatrix);
     ghost.frustumCulled = false;
     ghost.position.copy(sk.position);

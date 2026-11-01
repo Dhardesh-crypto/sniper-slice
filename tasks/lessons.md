@@ -103,3 +103,5 @@ Count two frames and halve (tools/bench.js), and compare against the old commit 
 worktree, not against numbers noted earlier. Fire page-reloading benchmarks one per message: sent
 together they ran in each other's pages and filed results under the wrong mission.
 
+- Long unattended GPU batches (StableGen skins): hold the Mac awake (`caffeinate -i -w <batch pid>`); idle sleep
+  stretched 10-minute buildings to 8 hours overnight (2026-11-01).

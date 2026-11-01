@@ -61,6 +61,7 @@ function heightAt(x, z) {
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
+  wallStyle: 'liguria',                 // its walls' photographs (public/textures/styles/)
   // Dusk before the landings: a low sun in the west under heavy cloud, haze over the sea.
   light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95 },
   fog: { color: 0xa6adb2, near: 180, far: 1100 },
@@ -115,7 +116,7 @@ function site(scene, world) {
   };
   const hidden = new THREE.MeshBasicMaterial({ visible: false });
   const steel = new THREE.MeshStandardMaterial({ color: 0x4d4f4b, roughness: 0.5, metalness: 0.7 });
-  const concrete = new THREE.MeshStandardMaterial({ color: 0x8b8a82, roughness: 0.95 });
+  const concrete = M.concrete;
   const place = (m, x, y, z, rotY = 0) => { if (m) { m.position.set(x, y, z); m.rotation.y = rotY; b.group.add(m); } return m; };
 
   // ---- the radars on their concrete pads (each: its cabin is the weak spot) ----
