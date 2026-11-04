@@ -997,3 +997,11 @@ Cost per skin as built now: ~15 min on the M2 Max and ~1.5 MB; a terraced row ne
 - [x] Coppi roofs (src/world/roof-tiles.js, after Athenaion's terracotta.js): rows down the slope from world position + normal (no attributes), courses, mixed tiles, lichen, bleaching; fades to the average when sub-pixel (clean at 250 m through a 6° scope). Snow still lies on them.
 - [x] Rock material (src/world/stone.js, after Athenaion's stone.js) on ground.js's stones and the rock prop; warmer/darker than Athenaion's. ~1 ms/step over the live build in the town (noise level).
 - [x] Fixed: the rock prop's PROPS entry was inside a comment (props.js), so the rocks placed in vineyard, forest, flak, bridge and railway never appeared.
+
+### Ruins: pilot block in the town (2026-11-04)
+References: Ortona street photos, Bundesarchiv Cassino, Charles Comfort's painting of Ortona (Wikimedia Commons).
+- [x] src/world/ruins.js: ruinWall (ragged extruded wall, hidden box strips under it; plaster/stone mixed from the map's photos by a per-wall field; floors' ghosts inside), rubble (mound + walkable stepped boxes, no cell more than 0.45 m above its neighbour + debris), charred, ruinPiece.
+- [x] tools/blender/ruin_kit.py → public/models/ruin_kit.glb (lumps, slab, bricks, coppo shard, beam, bent girder).
+- [x] town.js shelledBlock: corner house collapsed (one tall pier, party wall with both houses' rooms), burnt house beside it (no roof or floors, slogan on the east wall), mouse-hole through the party wall, rubble across the south street with a cleared lane.
+- [x] Checked: no leftover window, door or frame in the footprint (scan of every mesh and instance; the neighbour's side-wall dressing is buried by a 0.8 m party wall); 2,514 debris pieces, none hovering; east breach, west door, mouse-hole and the heaps walked; bullets stop on walls, pass windows; South patrol does its whole round through the lane; winter compiles with snow.
+- [ ] Next if the pilot's liked: same in the railway yard and harbour; sandbagged windows; a Fascist-era building.

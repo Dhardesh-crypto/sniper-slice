@@ -15,6 +15,7 @@ import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { propModel, dressProps } from '../world/props.js';
+import { ruinWall, rubble, charred, ruinPiece } from '../world/ruins.js';
 
 const F = { x: 80, z: -60 };                  // the town centre (the piazza)
 const START = { x: -300, z: 300 };             // the ridge you start from
@@ -55,6 +56,94 @@ const H = base(F.x, F.z) + 1;                  // the town's ground level
 const roadZ = (x) => F.z + Math.sin((x - F.x) * 0.011) * 26 * smoothstep(-80, -200, x - F.x);
 const rel = (routes) => Object.fromEntries(Object.entries(routes).map(([k, pts]) => [k, pts.map(([x, z, w]) => [x - F.x, z - F.z, w])]));
 const outside = (x, z) => Math.hypot(Math.max(Math.abs(x - F.x) - HX - 2, 0), Math.max(Math.abs(z - F.z) - HZ - 2, 0));
+
+// The block a shell found, east of the piazza. The corner house came down into the street and the
+// house behind it burnt out: no roof, no floors, the walls left standing, and between them the
+// party wall with the marks of both houses' rooms on it, knocked through at the foot by someone
+// who didn't want to use the street. Its rubble lies across the south street; the lane through
+// it is where the garrison cleared a way for the patrol. (Ortona, December 1943, is the model.)
+const SHELLED = ['28,35', '28,26'];
+function shelledBlock(b, y, P) {
+  const X0 = 23, X1 = 33, ZN = 21.75, ZP = 30.72, ZS = 40.05;      // the block, relative to the piazza
+  const [wx0, wz0] = P(X0, 0), [wx1] = P(X1, 0), zN = P(0, ZN)[1], zP = P(0, ZP)[1], zS = P(0, ZS)[1];
+  const ochre = '#dcb98a', rose = '#d9a78e';
+  const wall = (x0, z0, x1, z1, o) => ruinWall(b, { x0, z0, x1, z1, y, ...o });
+  // The party wall: both houses' rooms, gable and all. Its north face is the burnt house's.
+  wall(wx0, zP, wx1, zP, {
+    t: 0.5, seed: 3, full: 8.2, burnt: true,
+    top: [[0, 6.5], [1.5, 6.9], [5, 8.1], [6.6, 7.6], [8.4, 6.2], [10, 3.9]],
+    holes: [{ u: 7.2, v: 0, w: 1.6, h: 2.3, kind: 'blast' }],
+    back: { kind: 'in', rooms: ['#c9d0b8', '#c7a7a0'], paper: 1, flue: 3.2, stairs: [8.6, -1] },
+    front: { kind: 'in', rooms: ['#d7cdb0', '#a9bcc0'], flue: 6.8 },
+    pocks: 26,
+  });
+  // The corner house: the west front comes down in steps and rises again to the corner...
+  wall(wx0, zP + 0.25, wx0, zS, {
+    seed: 5, top: [[0, 6.3], [1.6, 5.9], [3.4, 3.3], [5.2, 1.3], [6.6, 1.9], [8.2, 3.9], [9.33, 3.6]],
+    holes: [{ u: 1.6, v: 1.0, w: 1.1, h: 1.4, kind: 'win' }, { u: 1.5, v: 4.1, w: 1.1, h: 1.3, kind: 'win' }, { u: 7.7, v: 0, w: 1.2, h: 2.2, kind: 'door' }],
+    front: { kind: 'out', tint: ochre }, back: { kind: 'in', rooms: ['#d7cdb0', '#a9bcc0'] },
+  });
+  // ...the south front is a stump...
+  wall(wx0 + 0.22, zS - 0.22, wx0 + 5.6, zS - 0.22, {
+    seed: 7, top: [[0, 3.5], [1.3, 2.9], [2.6, 1.5], [4, 0.9], [5.38, 0.25]],
+    front: { kind: 'out', tint: ochre }, back: { kind: 'in', rooms: ['#d7cdb0'] },
+  });
+  // ...and of the east front one tall pier stands, like a chimney with nothing to hold it.
+  wall(wx1, zP + 0.25, wx1, zP + 3.3, {
+    seed: 9, t: 0.55, full: 7, top: [[0, 6.6], [0.9, 6.9], [1.7, 5.2], [2.5, 3.1], [3.05, 1.1]],
+    holes: [{ u: 1.2, v: 1.0, w: 0.9, h: 1.3, kind: 'win' }],
+    back: { kind: 'out', tint: ochre }, front: { kind: 'in', rooms: ['#d7cdb0', '#a9bcc0'] },
+  });
+  // The burnt house: four walls, the sky for a roof, soot over every window.
+  const facade = (at) => [-3, 0, 3].map(u => ({ u: 4.5 + u, v: at ? 4.1 : 1.0, w: 1.1, h: 1.4, kind: 'win' }));
+  wall(wx0, zN + 0.25, wx0, zP - 0.25, {
+    seed: 11, burnt: true, full: 6.4,
+    top: [[0, 6.4], [3.2, 6.4], [4.6, 5.6], [5.7, 6.3], [8.5, 6.4]],
+    holes: [...facade(1), { u: 1.5, v: 1.0, w: 1.1, h: 1.4, kind: 'win' }, { u: 4.5, v: 0, w: 1.2, h: 2.2, kind: 'door' }, { u: 7.5, v: 1.0, w: 1.1, h: 1.4, kind: 'win' }, { u: 6.1, v: 3.2, w: 0.7, h: 0.7, kind: 'shell' }],
+    front: { kind: 'out', tint: rose }, back: { kind: 'in', rooms: ['#c9d0b8', '#c7a7a0'], paper: 1 },
+  });
+  wall(wx1, zN + 0.25, wx1, zP - 0.25, {
+    seed: 13, burnt: true, full: 6.4,
+    top: [[0, 6.4], [2.6, 6.2], [3.8, 4.8], [5.4, 4.2], [6.8, 5.6], [8.5, 6.3]],
+    holes: [{ u: 1.6, v: 4.1, w: 1.1, h: 1.3, kind: 'win' }, { u: 7.2, v: 4.1, w: 1.1, h: 1.3, kind: 'win' }, { u: 7.2, v: 1.0, w: 1.1, h: 1.4, kind: 'win' }, { u: 3.9, v: 0, w: 3.0, h: 2.7, kind: 'blast' }],
+    back: { kind: 'out', tint: rose, slogan: 'CREDERE  OBBEDIRE  COMBATTERE', at: [0.7, 3.25, 0.34] }, front: { kind: 'in', rooms: ['#c9d0b8', '#c7a7a0'], paper: 1 },
+  });
+  // Against the next house, which still stands: the party wall, with the marks of what went. Thick
+  // enough to bury that house's window frames and cornice on this side (up to 0.65 m out from it),
+  // which the house that's gone used to hide: nothing of theirs may show here, hanging in the air.
+  wall(wx0 + 0.25, zN + 0.42, wx1 - 0.25, zN + 0.42, {
+    seed: 17, t: 0.8, burnt: true, top: [[0, 6.4], [9.5, 6.4]], pocks: 14,
+    front: { kind: 'in', rooms: ['#c9d0b8', '#c7a7a0'], paper: 1, flue: 4.6 }, back: { kind: 'in', rooms: ['#c9d0b8'] },
+  });
+  // What's left of the first floor and the roof over it.
+  const fy = y + 3.05, zm = (zN + zP) / 2;
+  for (let i = 0; i < 6; i++) { const z = zN + 1 + i * 0.5; charred(b, [wx0 + 0.2, fy, z], [wx0 + 3.4 + (i % 3) * 0.7, fy - 0.04 * i, z], 0.17); }   // (each end in its pocket or resting on its neighbours)
+  b.box(2.3, 0.05, 2.6, M.darkWood, wx0 + 1.35, fy + 0.085, zN + 2.1, { solid: false });
+  for (const [dz, len] of [[-2.8, 3.4], [-1.7, 2.2], [2.9, 4]]) charred(b, [wx0 + 0.1, y + 6.1, zm + dz], [wx0 + len, y + 5.7 - len * 0.16, zm + dz - 0.2], 0.19);   // (rafters: hanging from where the wall still holds them)
+  charred(b, [wx1 - 0.1, y + 5.3, zm - 2.6], [wx1 - 2.6, y + 4.5, zm - 2.3], 0.19);
+  // Its floors and roof, fallen inside.
+  rubble(b, {
+    y, seed: 21, burnt: true,
+    lobes: [{ x: wx0 + 7, z: zm - 2, r: 2.9, h: 1.0 }, { x: wx0 + 2.2, z: zm + 2.4, r: 2.6, h: 0.75 }, { x: wx1 + 1.2, z: zm - 0.4, r: 2.6, h: 0.9 }],
+    keepOff: [[wx0 + 0.3, zm - 1.4, wx0 + 3.6, zm + 0.6], [wx1 - 2.4, zm - 1.4, wx1 + 4, zm + 0.6]],   // (the way in from the door and through the breach)
+  });
+  // The corner house, spilled over its own ground and out to the east.
+  rubble(b, {
+    y, seed: 23,
+    lobes: [{ x: wx0 + 6.5, z: zS - 4.2, r: 5.4, h: 2.7 }, { x: wx1 + 2.5, z: zS - 5.2, r: 4.6, h: 1.9 }, { x: wx0 + 2.6, z: zS - 3.6, r: 3, h: 1.4 }],
+    keepOff: [[wx0 - 3, zS + 0.05, wx1 + 12, zS + 2.2], [wx0 + 5.8, zP + 0.3, wx0 + 8.6, zP + 2]],
+    scatter: [[wx1 + 7, zS - 6, 9, 60], [wx0 - 5, zS - 5, 6, 26]],
+  });
+  // Across the south street: the rest of it, with the lane cleared along the near side.
+  rubble(b, {
+    y, seed: 29,
+    lobes: [{ x: wx0 + 9, z: zS + 6, r: 4.6, h: 2.1 }, { x: wx0 + 12.5, z: zS + 6.4, r: 4, h: 1.7 }, { x: wx0 + 6, z: zS + 5.8, r: 2.6, h: 1 }],
+    keepOff: [[wx0 - 6, zS - 1, wx1 + 16, zS + 2.2]],
+    scatter: [[wx0 + 12, zS + 1.2, 12, 50]],
+  });
+  ruinPiece(b, 'girder', wx1 + 1.2, y + 0.9, zS - 4.4, [0.1, 2.3, 0.05], 1);
+  ruinPiece(b, 'beam', wx0 + 10.6, y + 1.3, zS + 5, [0.2, 0.7, 0.5], 1);
+}
 
 const map = {
   wallStyle: 'umbria',                 // its walls' photographs (public/textures/styles/)
@@ -229,6 +318,7 @@ function site(scene) {
   const house = (cx, cz, w, d, floors, flat, enter) => {
     rng();                                           // (the draw that used to pick its plaster: keeps the town's layout as it was)
     const hgt = floors * 3.2, mat = plasterFor(cx, cz);   // each house its own colour
+    if (SHELLED.includes(`${Math.round(cx - F.x)},${Math.round(cz - F.z)}`)) return { cx, cz, top: y + hgt, flat: false, w, d };   // (shelledBlock, below)
     if (enter) {
       const hb = building(b, { x: cx, z: cz, y, w, d, floors: 2, h: 3.2, mat, roof: flat ? 'flat' : 'gable',
         openings: [{ side: enter, at: 0, w: 1.2, door: true }, { side: enter, at: w / 2 - 1.5, w: 1.0, window: true, floor: 1 }],
@@ -287,6 +377,7 @@ function site(scene) {
     ladders.push(ladder(b, { x: r.cx + 1.5, z: r.cz + s * (r.d / 2 + 0.08), y, top: r.top, face: r.face }));
     r.ladder = true; nLadders++;
   }
+  shelledBlock(b, y, P);
   const walkIns = roofs.filter(r => r.hb);
 
   // Vehicles: the Gestapo's staff car outside the town hall, a truck inside the gate.
@@ -595,4 +686,4 @@ const briefing = `
   <p class="brief">A farm lane runs down off the ridge, through the farmyard, to the crossroads. The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', props: ['fountain', 'vineRow', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', props: ['ruinKit', 'fountain', 'vineRow', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

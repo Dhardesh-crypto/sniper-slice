@@ -81,6 +81,7 @@ export const PROPS = {
   vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 },
   cypressLod: { file: 'tree_cypress_lod', turn: 0 }, pineLod: { file: 'tree_pine_lod', turn: 0 },   // far versions (tools/blender/lods.py)
   rock: { file: 'prop_rock', turn: 0 },
+  ruinKit: { file: 'ruin_kit', turn: 0 },   // debris for ruins.js (tools/blender/ruin_kit.py)
   wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
   wreckCar: { file: 'wreck_car', turn: 3 }, wreckHalftrack: { file: 'wreck_halftrack', turn: 3 },
   wreckPlane: { file: 'wreck_plane', turn: 0 },

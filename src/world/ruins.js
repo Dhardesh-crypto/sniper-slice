@@ -1,0 +1,419 @@
+// Shelled houses, after the photographs of Ortona and Cassino: the outline is what gives a ruin away,
+// so a broken wall is really broken. What you see is one extruded shape with a ragged top, window
+// holes and blast holes; what stops you and your bullets is a row of plain boxes under it, as
+// everywhere else (collision, bullets, the guards' grid all work on boxes), cut to the same gaps.
+//
+// The surface is the map's own photographs: plaster over stone, mixed in the shader by a field
+// worked out for each wall. The plaster has come off near every break, along the foot of the wall
+// and round each shell strike; soot rises over the windows of a burnt house. Inside faces show what
+// the floors left behind: a colour for each room, the line of the floor, the holes the joists sat
+// in, the flue, the ghost of the stairs. Party walls outlive the houses either side of them.
+//
+// A ruin takes none of the kit's dressing: its windows and doors are holes, so no frame, shutter or
+// door can be left hanging when the wall round it goes. Taking a house out of a row uncovers its
+// neighbours' side walls, and their dressing with them: a party wall has to bury that (town.js).
+//
+// ruinWall(b, opts): one run of wall, from (x0, z0) to (x1, z1), along x or along z.
+// rubble(b, opts):   a walkable heap: a mound, stepped boxes under it, debris (tools/blender/ruin_kit.py) over it.
+// charred(b, a, c):  a burnt beam from a to c.
+import * as THREE from 'three';
+import { textures } from './textures.js';
+import { fbm, makeRng } from './noise.js';
+import { modelParts } from './props.js';
+import { proceduralHooks } from './procedural.js';
+import { rockMaterial } from './stone.js';
+
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+const PLASTER_TILE = 3.5, STONE_TILE = 1.5;   // metres per repeat of the photographs
+const STRIDE = 0.45;                          // the most one metre of rubble may rise (world.js STEP is 0.55)
+const MASK_W = 512, MASK_H = 256;             // the field, both faces side by side (the shader adds the fine edge)
+const PAINT_W = 1024, PAINT_H = 512;          // the colours of both faces
+
+const HEAD = /* glsl */ `
+uniform sampler2D uMask;      // r: plaster left (0.5 is its edge), g: soot, b: dust
+uniform sampler2D uPaint;     // the plaster's colour
+uniform sampler2D uStone;
+uniform sampler2D uStoneN;
+varying vec2 vRuin;
+float ruinBare;
+`;
+const COLOR = /* glsl */ `
+vec4 m = texture2D(uMask, vRuin);
+vec2 q = vMapUv * ${PLASTER_TILE.toFixed(1)};                       // metres on the wall
+float f = m.r + (cgVnoise2(q * 5.0) - 0.5) * 0.17 + (cgVnoise2(q * 19.0) - 0.5) * 0.07;
+float pl = smoothstep(0.485, 0.515, f);
+ruinBare = 1.0 - pl;
+vec3 stone = texture2D(uStone, q / ${STONE_TILE.toFixed(1)}).rgb * vec3(0.74, 0.66, 0.56);
+vec3 col = mix(stone, diffuseColor.rgb * texture2D(uPaint, vRuin).rgb, pl);
+col *= 1.0 - 0.5 * smoothstep(0.42, 0.5, f) * (1.0 - pl);          // the shadow under the broken edge of the plaster
+col = mix(col, vec3(0.8, 0.76, 0.68), 0.16 * (1.0 - smoothstep(0.515, 0.55, f)) * pl);   // and its fresh lip
+col = mix(col, vec3(0.74, 0.70, 0.63), m.b * 0.55);
+col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.15), m.g * (0.75 + 0.5 * cgVnoise2(q * 2.3)));
+diffuseColor.rgb = col;
+`;
+const NORMAL = /* glsl */ `
+#ifdef USE_NORMALMAP_TANGENTSPACE
+  vec3 sN = texture2D(uStoneN, vMapUv * ${PLASTER_TILE.toFixed(1)} / ${STONE_TILE.toFixed(1)}).xyz * 2.0 - 1.0;
+  normal = normalize(mix(normal, normalize(tbn * sN) * (gl_FrontFacing ? 1.0 : -1.0), ruinBare));
+#endif
+`;
+
+function wallMaterial(mask, paint) {
+  const T = textures();
+  const mat = new THREE.MeshStandardMaterial({ map: T.plaster2.map, normalMap: T.plaster2.normalMap, roughness: 0.96, envMapIntensity: 0.25 });
+  return proceduralHooks(mat, {
+    key: 'ruinwall',
+    uniforms: { uMask: { value: mask }, uPaint: { value: paint }, uStone: { value: T.stone.map }, uStoneN: { value: T.stone.normalMap } },
+    vertexHead: 'attribute vec2 aRuin; varying vec2 vRuin;',
+    vertexPre: 'vRuin = aRuin;',
+    head: HEAD, color: COLOR, normal: NORMAL,
+  });
+}
+
+let edge = null;
+const edgeMaterial = () => {
+  const T = textures();
+  return edge ??= new THREE.MeshStandardMaterial({ ...T.stone, color: 0xc4b6a0, roughness: 1, envMapIntensity: 0.2 });
+};
+
+const lerpAt = (pts, u) => {
+  for (let i = 1; i < pts.length; i++) if (u <= pts[i][0]) {
+    const [u0, h0] = pts[i - 1], [u1, h1] = pts[i];
+    return h0 + (h1 - h0) * (u - u0) / Math.max(1e-6, u1 - u0);
+  }
+  return pts[pts.length - 1][1];
+};
+
+// The top edge: runs of courses at one height with a step between, as masonry breaks, and rougher
+// the further the wall has come down from `full`.
+function raggedTop(pts, L, full, rng) {
+  const out = [];
+  let u = 0;
+  while (u < L) {
+    const un = Math.min(L, u + 0.12 + rng() * 0.5), h0 = lerpAt(pts, (u + un) / 2);
+    const rough = 0.04 + 0.36 * Math.min(1, Math.max(0, (full - h0) / 1.2));
+    const h = Math.max(0.08, h0 + (rng() - 0.5) * 2 * rough);
+    out.push([u, h]);
+    if (rng() < 0.65) out.push([un, h]);
+    u = un;
+  }
+  out.push([L, Math.max(0.08, lerpAt(pts, L))]);
+  return out;
+}
+
+const blastOutline = (o, rng) => {
+  const n = 18, pts = [], rx = o.w / 2, ry = o.h / 2, cy = o.v + ry;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2, k = 0.72 + rng() * 0.42;
+    pts.push([o.u + Math.cos(a) * rx * k, Math.max(0.03, cy + Math.sin(a) * ry * k)]);
+  }
+  return pts;
+};
+
+// The plaster field and the soot, for one face. `at(u)`: wall u of a column of pixels on this face.
+function paintField(px, face, { L, H, top, holes, pocks, burnt, seed }, at, x0, x1) {
+  const inside = face.kind === 'in';
+  for (let j = 0; j < MASK_H; j++) {
+    const v = (1 - (j + 0.5) / MASK_H) * H;
+    for (let i = x0; i < x1; i++) {
+      const u = at((i - x0 + 0.5) / (x1 - x0) * L);
+      let f = (inside ? 0.84 : 0.88) + 0.62 * (fbm(u * 0.33 + seed, v * 0.33, 3) - 0.5) + 0.4 * (fbm(u * 1.2, v * 1.2 + seed, 2) - 0.5);
+      f -= 0.7 * Math.exp(-Math.max(0, top(u) - v) / 0.42);          // off along the break
+      f -= 0.42 * Math.exp(-v / 0.5);                                // and along the foot of the wall
+      let soot = 0;
+      for (const o of holes) {
+        const dx = Math.max(0, Math.abs(u - o.u) - o.w / 2), dy = Math.max(0, o.v - v, v - o.v - o.h), d = Math.hypot(dx, dy);
+        if (o.kind === 'blast') f -= 0.8 * Math.exp(-d / 0.5);
+        else if (o.kind !== 'shell') f -= 0.2 * Math.exp(-d / 0.18);
+        if (burnt && o.kind !== 'shell' && v > o.v + o.h * 0.6) {     // smoke out of the window and up the wall
+          const up = v - o.v - o.h, half = o.w * (0.55 + Math.max(0, up) * 0.14);
+          soot = Math.max(soot, Math.exp(-(((u - o.u) / half) ** 2)) * Math.exp(-Math.max(0, up) / 1.7));
+        }
+      }
+      for (const p of pocks) { const d = Math.hypot(u - p[0], v - p[1]); if (d < p[2] * 3) f -= 0.8 * Math.exp(-((d / p[2]) ** 2)); }
+      if (burnt) soot = Math.max(soot, 0.3 * Math.exp(-Math.max(0, top(u) - v) / 0.9));
+      const k = (j * MASK_W + i) * 4;
+      px[k] = Math.max(0, Math.min(1, f)) * 255;
+      px[k + 1] = Math.min(1, soot * (inside ? 0.65 : 1)) * 255;
+      px[k + 2] = Math.min(1, Math.exp(-v / 1.1) * 0.7 + 0.16) * 255;
+      px[k + 3] = 255;
+    }
+  }
+}
+
+// The colours of one face, in a canvas box (x, w): `flip` for the back of the wall, so its text reads.
+function paintFace(g, face, { L, H, holes, pocks, rng }, x, w, flip) {
+  const PX = (u) => x + (flip ? 1 - u / L : u / L) * w, PY = (v) => (1 - v / H) * PAINT_H, sx = w / L, sy = PAINT_H / H;
+  const rect = (u, v, uw, vh, c) => { g.fillStyle = c; g.fillRect(Math.min(PX(u), PX(u + uw)), PY(v + vh), uw * sx, vh * sy); };
+  if (face.kind === 'out') {
+    rect(0, 0, L, H, face.tint ?? '#e8d6b0');
+    for (let i = 0; i < 60; i++) {                                     // old patches and repairs
+      g.globalAlpha = 0.05 + rng() * 0.08;
+      rect(rng() * L, rng() * H, 0.5 + rng() * 2.6, 0.3 + rng() * 1.6, rng() < 0.5 ? '#ffffff' : '#7a6a50');
+    }
+    g.globalAlpha = 0.5; rect(0, 0, L, 0.95, face.base ?? '#8d8474'); // the painted dado along the street
+    g.globalAlpha = 0.16;                                              // rain stains under the sills
+    for (const o of holes) if (o.kind === 'win') for (let i = 0; i < 4; i++) rect(o.u - o.w / 2 + rng() * o.w, Math.max(0, o.v - 1.6), 0.06 + rng() * 0.12, 1.6, '#3c3226');
+    g.globalAlpha = 1;
+    if (face.slogan) {                                                 // the regime's words on the wall, faded
+      const [u, v, size] = face.at;
+      g.save();
+      g.translate(PX(u), PY(v));
+      g.scale(sx / sy, 1);
+      g.font = `bold ${size * sy}px "Arial Narrow", Arial, sans-serif`;
+      g.fillStyle = '#1e1a16'; g.globalAlpha = 0.72;
+      g.fillText(face.slogan, 0, 0);
+      g.restore(); g.globalAlpha = 1;
+    }
+  } else {
+    (face.rooms ?? ['#cfd6c4', '#d9b9a8']).forEach((c, i, all) => {    // a colour for each storey it once closed
+      const v0 = i * 3.2, v1 = i === all.length - 1 ? H : v0 + 3.2;
+      rect(0, v0, L, v1 - v0, c);
+      if (i && face.paper === i) {                                     // this room was papered
+        g.globalAlpha = 0.14;
+        for (let u = 0.06; u < L; u += 0.14) rect(u, v0, 0.045, v1 - v0, '#5a3f34');
+        g.globalAlpha = 1;
+      }
+    });
+    for (let i = 1; i * 3.2 < H && i < (face.rooms?.length ?? 2); i++) {
+      const v = i * 3.2;
+      g.globalAlpha = 0.85; rect(0, v - 0.2, L, 0.2, '#6d5f4e');       // where the floor met the wall
+      g.globalAlpha = 1;
+      for (let u = 0.25; u < L - 0.1; u += 0.48) rect(u, v - 0.2, 0.16, 0.2, '#1a1612');   // the joists' pockets
+      g.globalAlpha = 0.5; rect(0, v - 3.1 + 0.02, L, 0.16, '#3b352c'); g.globalAlpha = 1; // the skirting's shadow
+    }
+    if (face.flue) { g.globalAlpha = 0.5; rect(face.flue - 0.25, 1.0, 0.5, H, '#1c1814'); g.globalAlpha = 1; }
+    if (face.stairs) {                                                 // the ghost of the flight: its line up the wall
+      const [u0, dir] = face.stairs;
+      g.globalAlpha = 0.45;
+      for (let i = 0; i < 13; i++) rect(u0 + dir * i * 0.27, i * 0.245, 0.27 * dir, 0.5, '#74695a');
+      g.globalAlpha = 1;
+    }
+  }
+  g.globalAlpha = 0.8;                                                 // shell splinters: a dark bite, a pale ring
+  for (const p of pocks) {
+    g.fillStyle = '#d8ccb6'; g.beginPath(); g.arc(PX(p[0]), PY(p[1]), p[2] * 1.7 * sx, 0, 7); g.fill();
+    g.fillStyle = '#2c2620'; g.beginPath(); g.arc(PX(p[0]), PY(p[1]), p[2] * 0.8 * sx, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+// opts: x0, z0, x1, z1, y; t (thickness); full (the wall's height when whole);
+//   top: [[u, h], …] the broken top from u = 0 to the wall's length;
+//   holes: [{ u (centre), v (bottom), w, h, kind: 'win' | 'door' | 'blast' | 'shell' }];
+//   front, back: { kind: 'out', tint, slogan, at } or { kind: 'in', rooms, paper, flue, stairs }
+//     (front faces left of the way the wall runs: −x for one along +z, +z for one along +x);
+//   burnt; solid: false for a face against something already solid; seed.
+export function ruinWall(b, o) {
+  const { x0, z0, x1, z1, y, t = 0.45, full = 6.4, burnt = false, solid = true, seed = 1 } = o;
+  const rng = makeRng(seed * 7919 + 13), L = Math.hypot(x1 - x0, z1 - z0);
+  const top = (u) => lerpAt(o.top, u), H = Math.max(...o.top.map(p => p[1])) + 0.6;
+  const holes = (o.holes ?? []).filter(h => h.v + h.h < top(h.u) - 0.1);
+  const pocks = (n) => Array.from({ length: n }, () => [rng() * L, 0.3 + rng() * (H - 1), 0.04 + rng() ** 3 * 0.17]).filter(p => p[1] < top(p[0]));
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0); shape.lineTo(L, 0);
+  for (const [u, h] of raggedTop(o.top, L, full, rng).reverse()) shape.lineTo(u, h);
+  shape.closePath();
+  for (const h of holes) {
+    const pts = h.kind === 'blast' || h.kind === 'shell' ? blastOutline(h, rng)
+      : [[h.u - h.w / 2, Math.max(0.03, h.v)], [h.u + h.w / 2, Math.max(0.03, h.v)], [h.u + h.w / 2, h.v + h.h], [h.u - h.w / 2, h.v + h.h]];
+    shape.holes.push(new THREE.Path(pts.map(([u, v]) => new THREE.Vector2(u, v))));
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false, curveSegments: 1 });
+  geo.translate(0, 0, -t / 2);
+  const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv, ruin = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const u = pos.getX(i), v = pos.getY(i), nz = nrm.getZ(i);
+    if (Math.abs(nz) > 0.5) {
+      uv.setXY(i, u / PLASTER_TILE, v / PLASTER_TILE);
+      ruin[i * 2] = nz > 0 ? u / L * 0.5 : 0.5 + (1 - u / L) * 0.5;
+      ruin[i * 2 + 1] = v / H;
+    } else uv.setXY(i, uv.getX(i) / STONE_TILE, uv.getY(i) / STONE_TILE);
+  }
+  geo.setAttribute('aRuin', new THREE.BufferAttribute(ruin, 2));
+
+  // The field and the colours, both faces side by side (the back mirrored, as you see it from there).
+  const shared = { L, H, top, holes, burnt, seed };
+  const pocksFront = pocks(o.pocks ?? 40), pocksBack = pocks(o.pocks ?? 40);
+  const maskCv = document.createElement('canvas'); maskCv.width = MASK_W; maskCv.height = MASK_H;
+  const mg = maskCv.getContext('2d'), img = mg.createImageData(MASK_W, MASK_H);
+  paintField(img.data, o.front, { ...shared, pocks: pocksFront }, (u) => u, 0, MASK_W / 2);
+  paintField(img.data, o.back, { ...shared, pocks: pocksBack, seed: seed + 31 }, (u) => L - u, MASK_W / 2, MASK_W);
+  mg.putImageData(img, 0, 0);
+  const paintCv = document.createElement('canvas'); paintCv.width = PAINT_W; paintCv.height = PAINT_H;
+  const pg = paintCv.getContext('2d');
+  paintFace(pg, o.front, { L, H, holes, pocks: pocksFront, rng }, 0, PAINT_W / 2, false);
+  paintFace(pg, o.back, { L, H, holes, pocks: pocksBack, rng }, PAINT_W / 2, PAINT_W / 2, true);
+  const mask = new THREE.CanvasTexture(maskCv), paint = new THREE.CanvasTexture(paintCv);
+  paint.colorSpace = THREE.SRGBColorSpace;
+  for (const tx of [mask, paint]) tx.anisotropy = 4;
+
+  const mesh = new THREE.Mesh(geo, [wallMaterial(mask, paint), edgeMaterial()]);
+  mesh.position.set(x0, y, z0);
+  mesh.rotation.y = Math.atan2(-(z1 - z0), x1 - x0);
+  mesh.castShadow = mesh.receiveShadow = true;
+  b.group.add(mesh);
+
+  // What it is to bullets and boots: strips up to a metre wide, cut at the openings' edges.
+  if (!solid) return mesh;
+  const cuts = new Set([0, L]);
+  const gaps = holes.filter(h => h.kind !== 'shell').map(h => ({ a: h.u - h.w * (h.kind === 'blast' ? 0.36 : 0.5), c: h.u + h.w * (h.kind === 'blast' ? 0.36 : 0.5), lo: h.v < 0.1 ? 0 : h.v + (h.kind === 'blast' ? h.h * 0.14 : 0), hi: h.v + h.h * (h.kind === 'blast' ? 0.86 : 1) }));
+  for (const g of gaps) { cuts.add(Math.max(0, g.a)); cuts.add(Math.min(L, g.c)); }
+  for (let u = 1; u < L; u += 1) cuts.add(u);
+  const at = [...cuts].sort((p, q) => p - q), dx = (x1 - x0) / L, dz = (z1 - z0) / L;
+  for (let i = 1; i < at.length; i++) {
+    const a = at[i - 1], c = at[i], len = c - a, um = (a + c) / 2;
+    if (len < 0.05) continue;
+    let spans = [[0, (top(a) + top(um) + top(c)) / 3]];
+    for (const g of gaps) if (um > g.a && um < g.c) spans = spans.flatMap(([lo, hi]) => [[lo, Math.min(hi, g.lo)], [Math.max(lo, g.hi), hi]]);
+    for (const [lo, hi] of spans) {
+      if (hi - lo < 0.12) continue;
+      const cx = x0 + dx * um, cz = z0 + dz * um;
+      if (dx) b.box(len, hi - lo, t, HIDDEN, cx, y + lo, cz);
+      else b.box(t, hi - lo, len, HIDDEN, cx, y + lo, cz);
+    }
+  }
+  return mesh;
+}
+
+// The debris, once per map: the kit's meshes on the map's stone photograph, tinted by their vertex colours.
+let kit = null, moundMat = null;
+function debris() {
+  if (kit) return kit;
+  const parts = modelParts('ruinKit');
+  if (!parts) return null;
+  // Masonry is the rock shader (crust, pits, fracture), pale and dusty; the rest is its vertex colours under the dust.
+  const masonry = rockMaterial({ tint: new THREE.Color(1.75, 1.66, 1.5), scale: 2.2, moss: 0, lichen: 0.06, streaks: 0, strata: 0, ochre: 0, variation: 0.3 });
+  Object.assign(masonry, { vertexColors: true, flatShading: true });
+  for (const k of ['lump1', 'lump2', 'lump3', 'slab']) parts[k].material = masonry;
+  for (const [k, c] of [['bricks', 0xc9bcae], ['tile', 0xb7a999], ['beam', 0xffffff], ['girder', 0xffffff]])
+    Object.assign(parts[k].material, { vertexColors: true, map: null, normalMap: null, roughness: 1, envMapIntensity: 0.2 }).color.set(c);
+  return kit = parts;
+}
+
+// opts: y; lobes: [{ x, z, r, h }] (the heap is the highest of them, a little lumpy);
+//   keepOff: [[x0, z0, x1, z1]] where it stops (a lane cleared through it, a doorway);
+//   scatter: [[x, z, r, n]] loose debris lying round about; seed; burnt: more charred timber.
+export function rubble(b, o) {
+  const { y, lobes, keepOff = [], seed = 1 } = o;
+  const rng = makeRng(seed * 104729 + 7);
+  const inKeepOff = (x, z, pad = 0) => keepOff.some(([a, c, e, f]) => x > a - pad && x < e + pad && z > c - pad && z < f + pad);
+  const height = (x, z) => {
+    let h = 0;
+    for (const l of lobes) {
+      const d = Math.hypot(x - l.x, z - l.z) / l.r;
+      if (d < 1) h = Math.max(h, l.h * (1 - d) ** 0.85 * (1 + 0.4 * d));
+    }
+    if (h <= 0) return 0;
+    h *= 0.56 + 0.88 * fbm(x * 0.45 + seed, z * 0.45, 3);
+    for (const [a, c, e, f] of keepOff) {                                // falls away at a cleared edge
+      const d = Math.max(a - x, x - e, c - z, z - f);
+      if (d < 0) return 0;
+      h = Math.min(h, d * 0.9);
+    }
+    return h;
+  };
+  // The mound.
+  let X0 = Infinity, X1 = -Infinity, Z0 = Infinity, Z1 = -Infinity;
+  for (const l of lobes) { X0 = Math.min(X0, l.x - l.r); X1 = Math.max(X1, l.x + l.r); Z0 = Math.min(Z0, l.z - l.r); Z1 = Math.max(Z1, l.z + l.r); }
+  const nx = Math.ceil((X1 - X0) / 0.3), nz = Math.ceil((Z1 - Z0) / 0.3);
+  const geo = new THREE.PlaneGeometry(X1 - X0, Z1 - Z0, nx, nz).rotateX(-Math.PI / 2).translate((X0 + X1) / 2, 0, (Z0 + Z1) / 2);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), h = height(x, z);
+    pos.setY(i, h > 0.02 ? h + (fbm(x * 1.7, z * 1.7 + seed, 3) - 0.5) * 0.6 * Math.min(1, h * 1.6) : -0.12);
+    const v = 0.62 + fbm(x * 0.9 + 3, z * 0.9, 2) * 0.55;
+    col[i * 3] = v * 1.02; col[i * 3 + 1] = v * 0.96; col[i * 3 + 2] = v * 0.87;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  moundMat ??= Object.assign(rockMaterial({ tint: new THREE.Color(1.55, 1.46, 1.32), scale: 3.5, moss: 0, lichen: 0, streaks: 0, strata: 0, ochre: 0, bump: 2 }), { vertexColors: true });
+  const mound = new THREE.Mesh(geo, moundMat);
+  mound.position.y = y;
+  mound.castShadow = mound.receiveShadow = true;
+  b.group.add(mound);
+  // Under it: metre cells of plain blocks, runs of equal height joined. No cell stands more than a
+  // stride above its neighbours, so all of it can be walked up (the steep faces lie a little under the mound).
+  const cx0 = Math.floor(X0), cz0 = Math.floor(Z0), cw = Math.ceil(X1) - cx0 + 1, cd = Math.ceil(Z1) - cz0 + 1, cells = new Float32Array(cw * cd);
+  for (let j = 0; j < cd; j++) for (let i = 0; i < cw; i++) cells[j * cw + i] = height(cx0 + i + 0.5, cz0 + j + 0.5);
+  for (let pass = 0; pass < 8; pass++) for (let j = 0; j < cd; j++) for (let i = 0; i < cw; i++) {
+    let low = Infinity;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, c = j + dj; low = Math.min(low, a < 0 || c < 0 || a >= cw || c >= cd ? 0 : cells[c * cw + a]); }
+    cells[j * cw + i] = Math.min(cells[j * cw + i], low + STRIDE);
+  }
+  for (let j = 0; j < cd; j++) {
+    let run = null;
+    const end = (i) => { if (run) b.box(i - run.i, run.h, 1, HIDDEN, cx0 + (i + run.i) / 2, y, cz0 + j + 0.5); run = null; };
+    for (let i = 0; i <= cw; i++) {
+      const h = i < cw ? Math.floor(cells[j * cw + i] / 0.15) * 0.15 : 0;
+      if (run && run.h !== h) end(i);
+      if (!run && h >= 0.15) run = { i, h };
+    }
+  }
+  // Over it: the debris, the big pieces first down the slopes, the small everywhere.
+  const parts = debris();
+  if (!parts) return mound;
+  const onHeap = (n) => {
+    const out = [];
+    for (let i = 0; i < n * 12 && out.length < n; i++) {
+      const l = lobes[Math.floor(rng() * lobes.length)], a = rng() * 7, d = Math.sqrt(rng()) * l.r, x = l.x + Math.cos(a) * d, z = l.z + Math.sin(a) * d, h = height(x, z);
+      if (h > 0.03) out.push([x, h, z]);
+    }
+    return out;
+  };
+  const around = (n) => {
+    const out = [];
+    for (const [cx, cz, r, m] of o.scatter ?? []) for (let i = 0; i < m * n && out.length < 4000; i++) {
+      const a = rng() * 7, d = r * Math.pow(rng(), 0.7), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (!inKeepOff(x, z) || rng() < 0.2) out.push([x, height(x, z), z]);
+    }
+    return out;
+  };
+  const drop = (key, spots, s0, s1, { shadow = true, sink = 0.3, lie = false } = {}) => {
+    if (!spots.length) return;
+    const p = parts[key], im = new THREE.InstancedMesh(p.geometry, p.material, spots.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), at = new THREE.Vector3();
+    spots.forEach(([x, h, z], i) => {
+      const k = s0 + rng() * (s1 - s0);
+      e.set(lie ? (rng() - 0.5) * 0.5 : rng() * 6.3, rng() * 6.3, lie ? (rng() - 0.5) * 0.5 : rng() * 6.3);
+      m.compose(at.set(x, y + h - sink * k * 0.3, z), q.setFromEuler(e), s.setScalar(k));
+      im.setMatrixAt(i, m);
+    });
+    im.castShadow = shadow; im.receiveShadow = true;
+    im.computeBoundingSphere();
+    b.group.add(im);
+  };
+  const size = lobes.reduce((s, l) => s + l.r * l.r * l.h, 0);           // (more on a bigger heap)
+  drop('lump1', onHeap(size * 0.16), 0.4, 0.95);
+  drop('lump2', onHeap(size * 1.1), 0.4, 1.0);
+  drop('slab', onHeap(size * 0.7), 0.35, 1.0);
+  drop('lump3', onHeap(size * 7).concat(around(0.7)), 0.35, 1.2, { shadow: false });
+  drop('bricks', onHeap(size * 0.5).concat(around(0.12)), 0.8, 1.1, { shadow: false });
+  drop('tile', onHeap(size * 0.8).concat(around(0.22)), 0.55, 0.85, { shadow: false, sink: 0, lie: true });
+  drop('beam', onHeap(o.burnt ? size * 0.12 : size * 0.05), 0.6, 1.1, { sink: -0.2, lie: true });
+  return mound;
+}
+
+// A charred timber from a to c ([x, y, z]): a joist still in its pocket, a rafter left over a room.
+export function charred(b, a, c, thick = 0.2) {
+  const A = new THREE.Vector3(...a), C = new THREE.Vector3(...c);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.85, A.distanceTo(C), thick), BURNT);
+  mesh.position.copy(A).add(C).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), C.clone().sub(A).normalize());
+  mesh.castShadow = mesh.receiveShadow = true;
+  b.group.add(mesh);
+  return mesh;
+}
+const BURNT = new THREE.MeshStandardMaterial({ color: 0x17130f, roughness: 1, envMapIntensity: 0.1 });
+
+// One piece of the kit, placed by hand (a girder across a heap).
+export function ruinPiece(b, key, x, y, z, rot = [0, 0, 0], scale = 1) {
+  const parts = debris();
+  if (!parts) return null;
+  const mesh = new THREE.Mesh(parts[key].geometry, parts[key].material);
+  mesh.position.set(x, y, z); mesh.rotation.set(...rot); mesh.scale.setScalar(scale);
+  mesh.castShadow = mesh.receiveShadow = true;
+  b.group.add(mesh);
+  return mesh;
+}

@@ -105,3 +105,6 @@ together they ran in each other's pages and filed results under the wrong missio
 
 - Long unattended GPU batches (StableGen skins): hold the Mac awake (`caffeinate -i -w <batch pid>`); idle sleep
   stretched 10-minute buildings to 8 hours overnight (2026-11-01).
+
+## Ruins: nothing may hang in the air (2026-11-04)
+- Taking a house out of a row uncovers the neighbour's side wall, and `Builder.windows`/the kit dress those too (frames, sills, cornice, up to 0.65 m out). They were buried; in a ruin they float. Scan the footprint for leftover meshes (world-space vertices, merged decor included), don't trust the view. A ruin itself takes no dressing: its windows and doors are holes.
