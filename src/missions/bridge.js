@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -73,6 +74,7 @@ const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 
 const onBridge = (x, z) => Math.abs(x) < 40 && Math.abs(z) < BW - 0.3;
 
 const map = {
+  damage: { pads: [[92, -22, 6, 5]], craters: [[-140, 30, 4.5], [-125, 21, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Bright midday in the mountains: a high sun, crisp shadows in the gorge.
   light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3 },
@@ -316,6 +318,8 @@ function site(scene, world) {
   add(gx(-60) - 12, -60, 0, { name: 'Bank patrol', look: 'guardCamo' });
   add(60, 2, -Math.PI / 2, { name: 'East patrol' });
 
+  // A roadman's house above the east bank, shelled when the front reached the river.
+  shellHouse(b, { x: 92, z: -22, y: heightAt(92, -22), w: 8.5, d: 6.5, h: 5.4, seed: 81, tint: '#d6bd96', fallen: 0, doors: ['s'], breach: 'e' });
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
@@ -616,4 +620,4 @@ const briefing = `
     or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
     the mission is lost.</p>`;
 
-export default { id: 'bridge', props: ['stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };
+export default { id: 'bridge', props: ['ruinKit', 'stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };

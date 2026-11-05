@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -74,6 +75,7 @@ const NEEDLES = new THREE.Color(0x4a3a28);
 const inFirebreak = (x, z, m = 0) => Math.abs(x - FB) < 8 + m && Math.abs(z) < 470;
 
 const map = {
+  damage: { pads: [[-142, 62, 5.5, 4.5]], craters: [[13, 190, 4.5], [-12, 172, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // A wet autumn morning: rain under a low grey sky, the sun no more than a glow in the east.
   light: { zenith: 72, azimuth: 115, sun: 0xdde2e6, sunIntensity: 1.1, turbidity: 10, clouds: 0.95, hemi: 0.7, hemiSky: 0xb8c0c4, env: 0.26, exposure: 0.8 },
@@ -311,6 +313,8 @@ function site(scene) {
   add(FB, -160, Math.PI, { name: 'Firebreak patrol' });
   add(mx + 2, mz + 4, 0, { name: 'Meadow sentry' });
 
+  // What the Allied fighters left of the camp's store hut.
+  shellHouse(b, { x: -142, z: 62, y: heightAt(-142, 62), w: 7, d: 5, h: 3.2, seed: 61, tint: '#a8957a', base: '#6e6050', burnt: true, fallen: 3, doors: ['e'], breach: null });
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
@@ -427,4 +431,4 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', props: ['drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', props: ['ruinKit', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

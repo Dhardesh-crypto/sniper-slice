@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { rubble, shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -44,6 +45,7 @@ function heightAt(x, z) {
 const roadZ = (x) => 40 + Math.sin(x * 0.012) * 14 * smoothstep(-260, -330, x);
 
 const map = {
+  damage: { craters: [[-100, 67, 4.5], [-170, 66, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'liguria',                 // its walls' photographs (public/textures/styles/)
   // Evening over the sea: the sun low in the west, orange light on the quay.
   light: { zenith: 76, azimuth: 285, sun: 0xffa868, sunIntensity: 2.4, turbidity: 8, rayleigh: 2.4, clouds: 0.45, hemiSky: 0xc8b8b0, hemiGround: 0x5a4a3a, exposure: 0.95 },
@@ -130,6 +132,10 @@ function site(scene) {
       doors.push(...wh.doors);
       for (let i = 0; i < 6; i++) furniture.crates(b, wx - 13 + i * 5, y, wz - 2 + (i % 2) * 5, 3 + (i % 2));
       walkIns.push({ x: wx, z: wz });
+    } else if (wx === -90) {
+      // The raid that missed the ship: a burnt-out shed, its back wall blown in toward the road.
+      shellHouse(b, { x: wx, z: wz, y, w: 34, d: 16, h: 7, seed: 31, tint: '#cdbb9b', burnt: true, fallen: 2, doors: ['n'], breach: 's', windows: 5.6 });
+      rubble(b, { y, seed: 33, burnt: true, lobes: [{ x: wx - 9, z: wz + 2, r: 5.5, h: 1.8 }], keepOff: [[wx - 1.2, wz - 9, wx + 1.2, wz + 10]], scatter: [[wx - 6, wz + 9, 7, 14]] });
     } else {
       b.box(34, 7, 16, M.plaster2, wx, y, wz);
       b.gable(34, 3, 16, M.roof, wx, y + 7, wz);
@@ -502,4 +508,4 @@ const briefing = `
   <p class="brief">The road comes in at the west gate. The south fence has been cut in two places. You can't swim with your kit:
     the water stops you at the quay. A truck of reinforcements comes down the coast road if the siren sounds.</p>`;
 
-export default { id: 'harbour', props: ['ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost', 'rowboat', 'cargoPallet', 'fiat'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
+export default { id: 'harbour', props: ['ruinKit', 'ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost', 'rowboat', 'cargoPallet', 'fiat'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };

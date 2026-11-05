@@ -78,12 +78,56 @@ export function useMap(map) {
   MAP_HALF = map.half; PLAY_HALF = map.playHalf ?? map.half - 25;
   COMPOUND = map.focus; START_HILL = map.start;
   H_COMPOUND = map.heightAt(map.focus.x, map.focus.z);
+  PADS = (map.damage?.pads ?? []).map(([x, z, hw, hd]) => ({ x, z, hw, hd, y: map.heightAt(x, z) }));
+  CRATERS = (map.damage?.craters ?? []).map(([x, z, r]) => ({ x, z, r }));
 }
 export const activeMap = () => MAP;
-export function heightAt(x, z) { return MAP.heightAt(x, z); }
+
+// War damage in the ground (a map's `damage`). pads: [x, z, half width, half depth], the ground
+// levelled under a ruin, so its walls and rubble can stand on one height; it takes the height of the
+// pad's centre and blends back over PAD_BLEND m. craters: [x, z, r], a bowl with a thrown-up rim. The
+// ground mesh is on a 2 m grid, so a crater needs r of 3.5 or more to read as one.
+let PADS = [], CRATERS = [];
+const PAD_BLEND = 6, CRATER_DEPTH = 0.27, CRATER_RIM = 0.2;
+function damaged(x, z, h) {
+  for (const p of PADS) {
+    const e = Math.max(Math.abs(x - p.x) - p.hw, Math.abs(z - p.z) - p.hd, 0);
+    if (e < PAD_BLEND) h += (p.y - h) * (1 - smoothstep(0, PAD_BLEND, e));
+  }
+  for (const c of CRATERS) {
+    const d = Math.hypot(x - c.x, z - c.z) / c.r;
+    if (d > 1.8) continue;
+    const D = c.r * CRATER_DEPTH;
+    if (d < 1) h -= D * (1 - d * d) ** 2;
+    h += D * CRATER_RIM * Math.exp(-(((d - 1) / 0.28) ** 2));
+  }
+  return h;
+}
+// The map's craters, for the finer ground laid over them (ruins.js craters()).
+export const craterList = () => CRATERS;
+export const CRATER_EDGE = 1.75;      // how far (in radii) the finer ground reaches
+// The 2 m mesh would cut across a bowl and through that finer ground, so it sinks under it, deepest in the bowl.
+function sunk(x, z) {
+  let s = 0;
+  for (const c of CRATERS) s = Math.max(s, 0.7 * (1 - smoothstep(1.05, 1.5, Math.hypot(x - c.x, z - c.z) / c.r)));
+  return s;
+}
+// Dust and churned earth round a ruin: 1 at its walls, 0 a few metres out.
+function dusted(x, z) {
+  let s = 0;
+  for (const p of PADS) {
+    const e = Math.max(Math.abs(x - p.x) - p.hw, Math.abs(z - p.z) - p.hd, 0);
+    s = Math.max(s, 1 - smoothstep(0, 4.5, e + (fbm(x * 0.3, z * 0.3, 2) - 0.5) * 3));
+  }
+  return s;
+}
+const clearOfDamage = (x, z, m) => PADS.some(p => Math.abs(x - p.x) < p.hw + 2 + m && Math.abs(z - p.z) < p.hd + 2 + m)
+  || CRATERS.some(c => Math.hypot(x - c.x, z - c.z) < c.r * 1.3 + m);
+
+export function heightAt(x, z) { return damaged(x, z, MAP.heightAt(x, z)); }
 export function roadCenterZ(x) { return MAP.roadCenterZ ? MAP.roadCenterZ(x) : NaN; }
 export function laneDistance(x, z) { return MAP.laneDistance ? MAP.laneDistance(x, z) : Infinity; }
-export function keepClear(x, z, margin = 0) { return MAP.keepClear ? MAP.keepClear(x, z, margin) : false; }
+export function keepClear(x, z, margin = 0) { return clearOfDamage(x, z, margin) || (MAP.keepClear ? MAP.keepClear(x, z, margin) : false); }
 
 export function normalAt(x, z, out = new THREE.Vector3()) {
   const e = 0.75;
@@ -96,7 +140,7 @@ export function buildTerrain() {
   const geo = new THREE.PlaneGeometry(MAP_HALF * 2, MAP_HALF * 2, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
+  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)) - sunk(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
 
   const nrm = geo.attributes.normal;
@@ -116,6 +160,7 @@ export function buildTerrain() {
     c.lerp(rock, smoothstep(0.28, 0.5, slope) * 0.85);                  // rock only where it's steep
     if (MAP.winter) _pre.copy(c);
     MAP.paint?.(c, x, z, { yard, road, mowed, rock, dirt, dry, y, slope });
+    if (PADS.length) c.lerp(dirt, dusted(x, z) * 0.8);
     if (MAP.winter) {
       // Snow where it's level enough to lie, thinner in drifts' lee; trodden to slush where the map
       // paints a yard, a road or a path (wherever its own colours changed the ground).

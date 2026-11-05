@@ -6,6 +6,8 @@ import { VINEYARD_MAP, heightAt, roadCenterZ } from '../world/terrain.js';
 import { dressProps } from '../world/props.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { buildCompound, buildRange } from '../world/compound.js';
+import { Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 export const VINEYARD_SAFE = { id: 'oberst-safe', name: "THE OBERST'S SAFE", combination: '18 – 04 – 37' };
 
 export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission }) {
@@ -73,9 +75,10 @@ function dressing() {
 
 export default {
   id: 'vineyard',
-  props: ['generator', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
+  props: ['ruinKit', 'generator', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',
   map: {
+    damage: { pads: [[62, -8, 7, 6]], craters: [[20, -75, 5], [31, -84, 4], [8, -83, 3.5]] },   // the ground the war left (terrain.js)
     wallStyle: 'tuscany',               // its walls' photographs (public/textures/styles/)
     ...VINEYARD_MAP,
     // Late morning in Tuscany: high, warm sun through a light haze.
@@ -85,9 +88,11 @@ export default {
   },
   // The compound and the firing range by the start hill.
   site(scene) {
-    const c = buildCompound(scene), r = buildRange(scene);
-    const boxes = [...c.boxes, ...r.boxes], d = dressProps(scene, dressing(), heightAt, boxes, vehicleModel);
-    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...d.solids], boxes: [...boxes, ...d.boxes], spawn: r.spawn };
+    const c = buildCompound(scene), r = buildRange(scene), w = new Builder(scene);
+    // The farm's old byre, east of the wall: a shell found it when the front came through.
+    shellHouse(w, { x: 62, z: -8, y: heightAt(62, -8), w: 9, d: 7, h: 5.2, seed: 21, tint: '#dcc397', fallen: 1, doors: ['s'], breach: 'w' });
+    const boxes = [...c.boxes, ...r.boxes, ...w.boxes], d = dressProps(scene, dressing(), heightAt, boxes, vehicleModel);
+    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...w.solids, ...d.solids], boxes: [...boxes, ...d.boxes], spawn: r.spawn };
   },
   def: {},            // the original objectives (see mission.js)
   intel: placeVineyardIntel,

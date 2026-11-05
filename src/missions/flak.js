@@ -13,7 +13,8 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
-import { building, furniture } from '../world/buildings.js';
+import { shellHouse } from '../world/ruins.js';
+import { furniture } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { hasProp, propModel, dressProps } from '../world/props.js';
@@ -61,6 +62,7 @@ function heightAt(x, z) {
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
+  damage: { pads: [[-150, 215, 7, 5.5]], craters: [[-147, 205, 4.5], [40, 205, 5], [-60, 200, 5], [-20, 212, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Late autumn in the foothills: a low, pale sun through haze, the far ridges blue.
   light: { zenith: 72, azimuth: 205, sun: 0xffd9a8, sunIntensity: 2.2, turbidity: 7, rayleigh: 1.8, clouds: 0.55, hemiSky: 0xb7c3cf, hemi: 0.55, exposure: 0.9 },
@@ -170,11 +172,11 @@ function site(scene, world) {
 
   // ---- the ruined farmhouse below the line (where the tunnel starts) ----
   const fy = heightAt(FARM.x, FARM.z);
-  const farm = building(b, { x: FARM.x, z: FARM.z, y: fy, w: 11, d: 8, floors: 1, h: 3.2, mat: M.stone, roof: 'flat',
-    openings: [{ side: 'n', at: -2, w: 1.2, door: true }, { side: 's', at: 2, w: 1.1, door: true }, { side: 'e', at: 0, w: 1.0, window: true }, { side: 'w', at: 1, w: 1.0, window: true }] });
-  doors.push(...farm.doors);
+  // No roof, the south-east corner down; Marco's table, the bench and the parts in what's left of the room.
+  shellHouse(b, { x: FARM.x, z: FARM.z, y: fy, w: 11, d: 8, h: 3.6, seed: 41, tint: '#b8ad9a', base: '#8a8172', fallen: 2, doors: ['n', 'w'], breach: null,
+    keepOff: [[FARM.x - 5.2, FARM.z - 3.7, FARM.x + 3.6, FARM.z + 2.2]] });
   furniture.table(b, FARM.x + 2, fy, FARM.z - 1, 1.6, 0.9);
-  farm.docs = { note: new THREE.Vector3(FARM.x + 2, fy + 0.79, FARM.z - 1) };
+  const farm = { docs: { note: new THREE.Vector3(FARM.x + 2, fy + 0.79, FARM.z - 1) } };
 
   // The searchlight on the crest, behind the guns; an observation tower over the line.
   place(propModel('searchlight', { y: 2.6 }), -30, heightAt(-30, -95), -95, 2.6);
@@ -323,5 +325,5 @@ const briefing = `
   <p class="brief">Below the guns a trench line runs along the slope, with two belts of barbed wire in front: cut a way through
     (wire cutters make it quick and quiet: look in their stores), or find the old drain under it the partisans talk about.</p>`;
 
-export default { id: 'flak', props: ['flak88', 'flak', 'searchlight', 'mgNest', 'wire', 'sandbags', 'supplies', 'drums', 'tent', 'kitchen', 'generator', 'truck', 'halftrack', 'motorcycle', 'rock'],
+export default { id: 'flak', props: ['ruinKit', 'flak88', 'flak', 'searchlight', 'mgNest', 'wire', 'sandbags', 'supplies', 'drums', 'tent', 'kitchen', 'generator', 'truck', 'halftrack', 'motorcycle', 'rock'],
   subtitle: 'Operation Flak Line · Apennine foothills, 1944', map, site, def, intel, briefing };

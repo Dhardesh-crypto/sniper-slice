@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -61,6 +62,7 @@ function heightAt(x, z) {
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
+  damage: { pads: [[105, 72, 8.5, 5.5]], craters: [[-150, 40, 5], [140, 30, 5], [128, 42, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'liguria',                 // its walls' photographs (public/textures/styles/)
   // Dusk before the landings: a low sun in the west under heavy cloud, haze over the sea.
   light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95 },
@@ -172,7 +174,9 @@ function site(scene, world) {
   const hy = heightAt(60, 70);
   furniture.bed(b, 55, hy, 72); furniture.bed(b, 60, hy, 72); furniture.table(b, 65, hy, 70, 1.6, 0.9);
   hut.docs = { diary: new THREE.Vector3(65.2, hy + 0.79, 70) };
-  for (const hx of [-90, 105]) { const yy = heightAt(hx, 72); b.box(14, 3, 7, M.wood, hx, yy, 72); b.gable(14, 1.4, 7, M.roof, hx, yy + 3, 72); }
+  { const yy = heightAt(-90, 72); b.box(14, 3, 7, M.wood, -90, yy, 72); b.gable(14, 1.4, 7, M.roof, -90, yy + 3, 72); }
+  // The other was hit in the raid on the radars: block walls, no roof left.
+  shellHouse(b, { x: 105, z: 72, y: heightAt(105, 72), w: 14, d: 7, h: 3.4, seed: 71, tint: '#a39a8a', base: '#7c7568', burnt: true, fallen: 1, doors: ['s'], breach: null, windows: 3.4 });
 
   // ---- the lighthouse, a lookout on its gallery; an iron ladder down the sheer cliff below ----
   const ly = heightAt(LIGHT.x, LIGHT.z);
@@ -361,5 +365,5 @@ const briefing = `
   <p class="brief">The cliffs can't be climbed: go up the gully at the west end of the cove, or the iron ladder below the lighthouse,
     where a lookout stands on the gallery. Down on the beach, the surf covers your shots.</p>`;
 
-export default { id: 'radar', props: ['freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost', 'rowboat', 'rock'],
+export default { id: 'radar', props: ['ruinKit', 'freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost', 'rowboat', 'rock'],
   subtitle: 'Operation Sea Wall · Ligurian coast, 1944', map, site, def, intel, briefing };

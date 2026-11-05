@@ -108,3 +108,8 @@ together they ran in each other's pages and filed results under the wrong missio
 
 ## Ruins: nothing may hang in the air (2026-11-04)
 - Taking a house out of a row uncovers the neighbour's side wall, and `Builder.windows`/the kit dress those too (frames, sills, cornice, up to 0.65 m out). They were buried; in a ruin they float. Scan the footprint for leftover meshes (world-space vertices, merged decor included), don't trust the view. A ruin itself takes no dressing: its windows and doors are holes.
+
+## Testing renders from the console (2026-11-05)
+
+**What happened:** buildings vanished from test shots, with GL_INVALID_OPERATION on sampler types. It looked like a game bug; it was `renderer.setSize()` in my screenshot helper. With the pane hidden the page's own image also lagged a shot behind.
+**Pattern:** render at the game's own size and POST `toDataURL` to a local receiver; don't resize the renderer for a test shot, and don't trust a screenshot of a hidden pane. `import('/src/…')` in the console can load a second copy of a module with its own state, so read state through `window.game`.

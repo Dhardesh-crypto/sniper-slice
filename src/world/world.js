@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { setAtmosphere } from './atmosphere.js';
+import { craters } from './ruins.js';
 import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
 import { buildGround, cullGround } from './ground.js';
@@ -74,6 +75,7 @@ export class World {
     // Ground detail (Blender): stones and scrub, or ferns, needles, stumps and branches in a forest.
     // Stumps are solid: they join the trees for walking into and the solids for bullets.
     const ground = buildGround(scene, { boxes: b.boxes, water: activeMap().waterLevel ?? null });
+    craters(scene);
     this.groundChunks = ground.chunks;
     this.solids.push(...ground.solids);
     for (const t of ground.trees) {

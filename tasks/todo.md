@@ -1005,3 +1005,27 @@ References: Ortona street photos, Bundesarchiv Cassino, Charles Comfort's painti
 - [x] town.js shelledBlock: corner house collapsed (one tall pier, party wall with both houses' rooms), burnt house beside it (no roof or floors, slogan on the east wall), mouse-hole through the party wall, rubble across the south street with a cleared lane.
 - [x] Checked: no leftover window, door or frame in the footprint (scan of every mesh and instance; the neighbour's side-wall dressing is buried by a 0.8 m party wall); 2,514 debris pieces, none hovering; east breach, west door, mouse-hole and the heaps walked; bullets stop on walls, pass windows; South patrol does its whole round through the lane; winter compiles with snow.
 - [ ] Next if the pilot's liked: same in the railway yard and harbour; sandbagged windows; a Fascist-era building.
+
+## War damage in every mission (2026-11-05)
+
+The town's block was the model. Every other mission now has ruins and craters.
+
+Shared
+- [x] `shellHouse()` in ruins.js: a free-standing ruin from a few numbers (ruinWall, rubble, charred); no kit dressing, so nothing can hang in the air. Walls over 18 m are split into an odd number of runs so the middle opening survives
+- [x] `map.damage` in terrain.js: `pads` level the ground under a ruin, `craters` dig a bowl with a rim. heightAt and keepClear include them, so boots, trees and grass follow
+- [x] `craters()` in ruins.js: finer ground over each bowl (the 2 m mesh sinks under it), clods round it, snowed in on winter maps
+- [x] `ruinDust`: the rubble's paleness per map (1 in the town's low sun, 0.42 elsewhere); the walls follow it
+- [x] Rubble keeps only the heap's triangles (on falling ground the flat sheet round it stood clear of the grass)
+
+Sites
+- [x] Vineyard: shelled byre at (62,-8), three craters north of the wall
+- [x] Harbour: burnt warehouse in place of the plain box at (-90,30), craters by the back road
+- [x] Forest: burnt store hut at the logging camp (-142,62), two craters in the meadow
+- [x] Flak: the farmhouse (-150,215) is now really a ruin, its skin gone; table, bench and parts still in the room; the hatch sits in a real shell-hole; craters in the wire belt
+- [x] Railway: houses at x 18 and 39 of the row at z -54 shelled; craters by the yard
+- [x] Bridge: shelled roadman's house at (92,-22); craters near the camp
+- [x] Airfield: wrecked crew hut (190,150); five bomb craters well off the runway
+- [x] Coast: barracks hut (105,72) bombed; craters on the plateau
+
+Checked in the game, every mission: walked in through each door and breach and in and out of a crater (on foot, in all 8 missions); bullets stop on a ruin wall; guards keep patrolling for 12 s with no alarm; no prop in a crater; forest, coast, railway and bridge seen under snow, the rest in summer or evening light. `npm test` 3/3, production build passes.
+Not caused by this: route points the guards' paths can't reach in flak (trench, z 162-166) and the airfield (385,-185); neither is near any damage. Guards can't path through the 1.3 m ruin doors (players can): they use the breaches, where there is one.

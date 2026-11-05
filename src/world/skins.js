@@ -10,7 +10,6 @@ import { built } from './buildings.js';
 export const SKINNED = new Set([
   'airfield/-150_170', 'airfield/40_112',
   'bridge/-140_58',
-  'flak/-150_215',
   'forest/-10_190', 'forest/-120_75', 'forest/95_-45',
   'harbour/-140_30', 'harbour/-40_30', 'harbour/0_25',
   'radar/-30_30', 'radar/60_70',

@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -45,6 +46,7 @@ function heightAt(x, z) {
 }
 
 const map = {
+  damage: { craters: [[130, 38, 5], [0, 38, 4.5], [20, 37, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'po',                 // its walls' photographs (public/textures/styles/)
   // An overcast noon on the plain: soft light, faint shadows.
   light: { zenith: 42, azimuth: 200, sun: 0xfff0e0, sunIntensity: 1.5, turbidity: 9, rayleigh: 1.2, clouds: 0.85, hemi: 0.8, hemiSky: 0xd0d6dc, env: 0.32, exposure: 0.92 },
@@ -228,7 +230,12 @@ function site(scene, world) {
   const rng = makeRng(77);
   for (let x = -150; x <= 60; x += 21) {
     const w = 12 + rng() * 6, d = 9, h = 6 + rng() * 4;
-    b.box(w, h, d, rng() < 0.5 ? M.plaster : M.plaster2, x, Y, -54);
+    const mat = rng() < 0.5 ? M.plaster : M.plaster2;
+    if (x === 18 || x === 39) {                                       // the bombs meant for the yard
+      shellHouse(b, { x, z: -54, y: Y, w, d, h, seed: 50 + x, tint: x === 18 ? '#d8bd92' : '#d3ab92', burnt: x === 39, fallen: x === 18 ? 3 : 2, doors: ['n'], breach: 's' });
+      continue;
+    }
+    b.box(w, h, d, mat, x, Y, -54);
     b.gable(w, 2.4, d, M.roof, x, Y + h, -54);
   }
 
@@ -570,4 +577,4 @@ const briefing = `
   <p class="brief">If the train gets away with the gun, the mission is lost. A moving train is loud: it covers your shots.
     The ground round the junction is open; a lookout stands on the water tower.</p>`;
 
-export default { id: 'railway', props: ['locomotive', 'wreckTiger', 'wreckHalftrack', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost', 'waterCrane', 'handcar', 'rock'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
+export default { id: 'railway', props: ['ruinKit', 'locomotive', 'wreckTiger', 'wreckHalftrack', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost', 'waterCrane', 'handcar', 'rock'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };

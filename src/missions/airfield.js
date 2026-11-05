@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
+import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
@@ -51,6 +52,7 @@ const inTaxi = (x, z) => (Math.abs(z - TAXI_Z) < 8 && x > -268 && x < 208) || ((
 const inApron = (x, z) => x > -130 && x < 130 && z > 78 && z < 175;
 
 const map = {
+  damage: { pads: [[190, 150, 6.5, 5]], craters: [[-200, -100, 6], [-185, -113, 5], [220, -90, 6], [250, 130, 5.5], [236, 118, 4.5]] },   // the ground the war left (terrain.js)
   wallStyle: 'lombardy',                 // its walls' photographs (public/textures/styles/)
   // Dawn after the night's flying: the sun just up in the east, cold blue shadows.
   light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95 },
@@ -298,6 +300,8 @@ function site(scene, world) {
   add(wx, wz - 0.3, Math.PI * 0.75, { y: wtop, name: 'Tower lookout', stance: 'alert', look: 'guardCamo' });
   add(-150, 162, 0, { name: 'Mess guard', look: 'guardLuftwaffe' });
 
+  // A crew hut the last raid found.
+  shellHouse(b, { x: 190, z: 150, y: heightAt(190, 150), w: 9, d: 6, h: 3.4, seed: 91, tint: '#b5ab9b', base: '#7f786c', burnt: true, fallen: 0, doors: ['s'], breach: 'e', windows: 3 });
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
@@ -426,5 +430,5 @@ const briefing = `
   <p class="brief">The field is flat and open; the fence is cut on the north side and the east side. When the mechanics run an engine
     up on the apron, nobody near the hangars hears a shot.</p>`;
 
-export default { id: 'airfield', props: ['bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
+export default { id: 'airfield', props: ['ruinKit', 'bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
   subtitle: 'Operation Night Owl · Lombardy, 1944', map, site, def, intel, briefing };

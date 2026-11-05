@@ -16,12 +16,14 @@
 // ruinWall(b, opts): one run of wall, from (x0, z0) to (x1, z1), along x or along z.
 // rubble(b, opts):   a walkable heap: a mound, stepped boxes under it, debris (tools/blender/ruin_kit.py) over it.
 // charred(b, a, c):  a burnt beam from a to c.
+// shellHouse(b, o):  a whole free-standing ruin from a few numbers, out of the three above.
 import * as THREE from 'three';
 import { textures } from './textures.js';
 import { fbm, makeRng } from './noise.js';
 import { modelParts } from './props.js';
 import { proceduralHooks } from './procedural.js';
 import { rockMaterial } from './stone.js';
+import { activeMap, heightAt, craterList, CRATER_EDGE } from './terrain.js';
 
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const PLASTER_TILE = 3.5, STONE_TILE = 1.5;   // metres per repeat of the photographs
@@ -61,6 +63,7 @@ const NORMAL = /* glsl */ `
 function wallMaterial(mask, paint) {
   const T = textures();
   const mat = new THREE.MeshStandardMaterial({ map: T.plaster2.map, normalMap: T.plaster2.normalMap, roughness: 0.96, envMapIntensity: 0.25 });
+  mat.color.setScalar(Math.min(1, dust() + 0.33));
   return proceduralHooks(mat, {
     key: 'ruinwall',
     uniforms: { uMask: { value: mask }, uPaint: { value: paint }, uStone: { value: T.stone.map }, uStoneN: { value: T.stone.normalMap } },
@@ -277,6 +280,9 @@ export function ruinWall(b, o) {
   return mesh;
 }
 
+// How pale the dust is: tuned in the town's low sun; a map under a high one (the default) burns it white.
+const dust = () => activeMap().ruinDust ?? 0.42;
+
 // The debris, once per map: the kit's meshes on the map's stone photograph, tinted by their vertex colours.
 let kit = null, moundMat = null;
 function debris() {
@@ -284,11 +290,11 @@ function debris() {
   const parts = modelParts('ruinKit');
   if (!parts) return null;
   // Masonry is the rock shader (crust, pits, fracture), pale and dusty; the rest is its vertex colours under the dust.
-  const masonry = rockMaterial({ tint: new THREE.Color(1.75, 1.66, 1.5), scale: 2.2, moss: 0, lichen: 0.06, streaks: 0, strata: 0, ochre: 0, variation: 0.3 });
+  const masonry = rockMaterial({ tint: new THREE.Color(1.75, 1.66, 1.5).multiplyScalar(dust()), scale: 2.2, moss: 0, lichen: 0.06, streaks: 0, strata: 0, ochre: 0, variation: 0.3 });
   Object.assign(masonry, { vertexColors: true, flatShading: true });
   for (const k of ['lump1', 'lump2', 'lump3', 'slab']) parts[k].material = masonry;
   for (const [k, c] of [['bricks', 0xc9bcae], ['tile', 0xb7a999], ['beam', 0xffffff], ['girder', 0xffffff]])
-    Object.assign(parts[k].material, { vertexColors: true, map: null, normalMap: null, roughness: 1, envMapIntensity: 0.2 }).color.set(c);
+    Object.assign(parts[k].material, { vertexColors: true, map: null, normalMap: null, roughness: 1, envMapIntensity: 0.2 }).color.set(c).multiplyScalar(Math.min(1, dust() + 0.15));
   return kit = parts;
 }
 
@@ -327,8 +333,12 @@ export function rubble(b, o) {
     col[i * 3] = v * 1.02; col[i * 3 + 1] = v * 0.96; col[i * 3 + 2] = v * 0.87;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  // Only the heap itself: on falling ground the flat sheet round it would stand clear of the grass.
+  const idx = geo.index.array, keep = [];
+  for (let i = 0; i < idx.length; i += 3) if ([idx[i], idx[i + 1], idx[i + 2]].some(k => pos.getY(k) > -0.1)) keep.push(idx[i], idx[i + 1], idx[i + 2]);
+  geo.setIndex(keep);
   geo.computeVertexNormals();
-  moundMat ??= Object.assign(rockMaterial({ tint: new THREE.Color(1.55, 1.46, 1.32), scale: 3.5, moss: 0, lichen: 0, streaks: 0, strata: 0, ochre: 0, bump: 2 }), { vertexColors: true });
+  moundMat ??= Object.assign(rockMaterial({ tint: new THREE.Color(1.55, 1.46, 1.32).multiplyScalar(dust()), scale: 3.5, moss: 0, lichen: 0, streaks: 0, strata: 0, ochre: 0, bump: 2 }), { vertexColors: true });
   const mound = new THREE.Mesh(geo, moundMat);
   mound.position.y = y;
   mound.castShadow = mound.receiveShadow = true;
@@ -416,4 +426,132 @@ export function ruinPiece(b, key, x, y, z, rot = [0, 0, 0], scale = 1) {
   mesh.castShadow = mesh.receiveShadow = true;
   b.group.add(mesh);
   return mesh;
+}
+
+// A free-standing ruin, for the maps that have no block to knock about by hand: four walls that fall
+// away toward one corner, the heap that made, openings as holes, and joists leaning from the wall
+// that kept them. Nothing of the kit, so nothing can be left hanging.
+// opts: x, z (centre), y, w (along x), d (along z), h (the eaves when whole), seed; tint, base (outside
+//   colours); burnt; rooms (inside colours); t (thickness); fallen: the corner that went, 0 NW 1 NE 2 SE 3 SW;
+//   doors: sides with a door ('n', 'e', 's', 'w'); breach: a side blown open at the foot, or null;
+//   windows: their spacing along a wall, 0 for none; keepOff: more lanes the rubble must leave clear.
+export function shellHouse(b, o) {
+  const { x, z, y, w, d, h = 6.4, seed = 1, tint = '#dcc8a0', base, burnt = false, t = 0.45, fallen = 0,
+    doors = ['s'], breach = 'n', windows = 3.1, rooms = ['#cfd6c4', '#d9b9a8'], keepOff = [] } = o;
+  const rng = makeRng(seed * 6151 + 3), hx = w / 2, hz = d / 2, two = h > 4.5, sideOf = { n: 0, e: 1, s: 2, w: 3 };
+  // The corners, NW NE SE SW: low where it fell, whole opposite.
+  const corner = [0, 1, 2, 3].map(i => {
+    const away = Math.min((i - fallen + 4) % 4, (fallen - i + 4) % 4);
+    return h * [0.1 + rng() * 0.1, 0.5 + rng() * 0.25, 0.92 + rng() * 0.08][away];
+  });
+  const profile = (hA, hB, L) => {
+    const n = Math.max(2, Math.ceil(L / 2.3)), pts = [];
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, s = k * k * (3 - 2 * k), ends = i === 0 || i === n;
+      pts.push([k * L, Math.min(h, Math.max(0.25, (hA + (hB - hA) * s) * (ends ? 1 : 0.76 + rng() * 0.32)))]);
+    }
+    return pts;
+  };
+  // Runs of up to 18 m (the wall's field and paint are per run, and stretch over a longer one), an odd
+  // number of them, so the opening in the middle of the wall falls inside a run.
+  const side = (name, x0, z0, x1, z1, hA, hB, outFront) => {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(L / 18) | 1;
+    let top = profile(hA, hB, L);
+    const opening = [];
+    if (doors.includes(name)) opening.push({ u: L / 2, v: 0, w: 1.3, h: 2.2, kind: 'door' });
+    if (breach === name) opening.push({ u: L / 2, v: 0, w: 3.2, h: Math.min(2.8, h - 0.8), kind: 'blast' });
+    for (const q of opening) {                                          // the wall stands over its ways in
+      const a = q.u - q.w / 2 - 0.6, c = q.u + q.w / 2 + 0.6, need = q.h + 0.7, stand = (u) => Math.max(need, lerpAt(top, u));
+      top = [...top.filter(p => p[0] < a || p[0] > c), [a, stand(a)], [c, stand(c)]].sort((p, q2) => p[0] - q2[0]);
+    }
+    const at = (u) => lerpAt(top, u), under = (p) => Math.min(at(p.u - p.w / 2), at(p.u), at(p.u + p.w / 2)) > p.v + p.h + 0.55;   // (the ragged edge mustn't reach it)
+    const holes = [];
+    if (windows) for (let u = windows * 0.6; u < L - 0.9; u += windows) {
+      holes.push({ u, v: 1, w: 1.1, h: 1.4, kind: 'win' });
+      if (two) holes.push({ u, v: 4.1, w: 1.1, h: 1.3, kind: 'win' });
+    }
+    const clear = holes.filter(p => !opening.some(q => Math.abs(p.u - q.u) < (p.w + q.w) / 2 + 0.4 && p.v < q.v + q.h));
+    const all = [...clear, { u: L * (0.3 + rng() * 0.4), v: h * 0.45, w: 0.7, h: 0.7, kind: 'shell' }].filter(under).concat(opening);
+    const out = { kind: 'out', tint, base }, inn = { kind: 'in', rooms: two ? rooms : rooms.slice(0, 1), paper: burnt ? 1 : 0, flue: rng() < 0.5 ? L * 0.4 : 0 };
+    for (let i = 0; i < n; i++) {
+      const a = L * i / n, c = L * (i + 1) / n, k0 = a / L, k1 = c / L;
+      const part = [[0, at(a)], ...top.filter(p => p[0] > a + 0.05 && p[0] < c - 0.05).map(p => [p[0] - a, p[1]]), [c - a, at(c)]];
+      ruinWall(b, {
+        x0: x0 + (x1 - x0) * k0, z0: z0 + (z1 - z0) * k0, x1: x0 + (x1 - x0) * k1, z1: z0 + (z1 - z0) * k1,
+        y, t, full: h, burnt, seed: seed * 17 + sideOf[name] * 5 + i, top: part,
+        holes: all.filter(p => p.u - p.w / 2 > a + 0.2 && p.u + p.w / 2 < c - 0.2).map(p => ({ ...p, u: p.u - a })),
+        front: outFront ? out : inn, back: outFront ? inn : out,
+      });
+    }
+  };
+  const e = t / 2;
+  side('n', x - hx, z - hz, x + hx, z - hz, corner[0], corner[1], false);
+  side('s', x - hx, z + hz, x + hx, z + hz, corner[3], corner[2], true);
+  side('w', x - hx, z - hz + e, x - hx, z + hz - e, corner[0], corner[3], true);
+  side('e', x + hx, z - hz + e, x + hx, z + hz - e, corner[1], corner[2], false);
+
+  // The heap: in the fallen corner and out over the low walls; the ways in stay clear to the middle.
+  const fx = fallen === 1 || fallen === 2 ? 1 : -1, fz = fallen >= 2 ? 1 : -1, cx = x + fx * hx, cz = z + fz * hz;
+  const r = Math.min(Math.max(Math.min(w, d) * 0.62, 3), 6.5), hh = Math.min(2.4, 0.9 + h * 0.2);
+  const lane = { n: [x - 1.1, z - hz - 3, x + 1.1, z], s: [x - 1.1, z, x + 1.1, z + hz + 3], w: [x - hx - 3, z - 1.1, x, z + 1.1], e: [x, z - 1.1, x + hx + 3, z + 1.1] };
+  const ways = [...doors, ...(breach ? [breach] : [])].map(k => lane[k]);
+  rubble(b, {
+    y, seed: seed + 40, burnt,
+    lobes: [{ x: cx - fx * r * 0.45, z: cz - fz * r * 0.45, r, h: hh }, { x: cx + fx * r * 0.25, z: cz + fz * r * 0.25, r: r * 0.7, h: hh * 0.5 },
+      { x: x - fx * hx * 0.4, z: z - fz * hz * 0.3, r: r * 0.55, h: hh * 0.3 }],
+    keepOff: [...ways, ...keepOff],
+    scatter: [[x, z, Math.max(w, d) * 0.85, Math.round(w + d)]],
+  });
+  // Joists still in the pockets of the wall that stood, their far ends down on the floor.
+  if (two) {
+    const wx = x - fx * hx + fx * 0.2, zs = z - fz * hz + fz * 1.2;
+    for (const k of [0, 1, 3]) { const zz = zs + fz * k * (0.5 + rng() * 0.25); charred(b, [wx, y + 3.05, zz], [wx + fx * (1.7 + rng() * 1.9), y + 0.1, zz + (rng() - 0.5) * 1.3], 0.17); }
+  }
+}
+
+// The map's craters (terrain.js digs them): finer ground over each, broken by the blast, burnt in the
+// middle and fading out at the edge, and clods of it thrown round about. Its height follows the
+// ground that boots walk on, with lumps of a few centimetres, so nobody sinks or floats.
+export function craters(scene) {
+  const list = craterList();
+  if (!list.length) return;
+  const T = textures()[activeMap().groundTexture ?? 'ground'], winter = activeMap().winter;
+  const mat = new THREE.MeshStandardMaterial({ map: T.map.clone(), normalMap: T.normalMap.clone(), roughness: 1, envMapIntensity: 0.15, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  for (const t of [mat.map, mat.normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); t.needsUpdate = true; }
+  const dark = new THREE.Color(0x2a2219), earth = new THREE.Color(0x5e4a35), pale = new THREE.Color(0x8d7a60), snow = new THREE.Color(0xd9dde4), c = new THREE.Color();
+  const clods = [];
+  list.forEach((k, n) => {
+    const R = k.r * CRATER_EDGE, seg = Math.ceil(R * 2 / 0.3);
+    const geo = new THREE.PlaneGeometry(R * 2, R * 2, seg, seg).rotateX(-Math.PI / 2).translate(k.x, 0, k.z);
+    const pos = geo.attributes.position, uv = geo.attributes.uv, col = new Float32Array(pos.count * 4);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i), ang = Math.atan2(z - k.z, x - k.x);
+      const wob = 1 + 0.2 * (fbm(Math.cos(ang) * 1.6 + n * 3, Math.sin(ang) * 1.6, 3) - 0.5);     // no blast is a circle
+      const d = Math.hypot(x - k.x, z - k.z) / k.r / wob;
+      const lump = fbm(x * 1.5 + n, z * 1.5, 3) - 0.5, fine = fbm(x * 4.5, z * 4.5 + n, 2) - 0.5;
+      pos.setY(i, heightAt(x, z) + 0.05 + (lump * 0.34 + fine * 0.1) * Math.max(0, 1 - Math.abs(d - 1) * 0.9));
+      uv.setXY(i, x / 4, z / 4);
+      c.copy(dark).lerp(earth, Math.min(1, Math.max(0, (d - 0.25) / 0.65)) * (0.7 + lump)).lerp(pale, Math.max(0, 1 - Math.abs(d - 1.12) / 0.22) * 0.55);
+      if (winter) c.lerp(snow, Math.min(0.92, 0.5 + 0.35 * d + lump * 2.2));                       // snowed in since, the earth showing through
+      c.multiplyScalar(0.85 + fine * 0.9);
+      col[i * 4] = c.r; col[i * 4 + 1] = c.g; col[i * 4 + 2] = c.b;
+      col[i * 4 + 3] = 1 - Math.min(1, Math.max(0, (d + lump * 0.7 - 1.15) / 0.42));                 // ragged at the edge
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.receiveShadow = true; mesh.renderOrder = 1;
+    scene.add(mesh);
+    const rng = makeRng(n * 977 + 5), m = Math.round(k.r * 16);
+    for (let i = 0; i < m; i++) { const a = rng() * 6.3, d = k.r * (0.82 + rng() ** 2 * 0.95), x = k.x + Math.cos(a) * d, z = k.z + Math.sin(a) * d; clods.push([x, heightAt(x, z), z, 0.3 + rng() * rng() * 0.75, rng]); }
+  });
+  const parts = debris();
+  if (!parts) return;
+  const clod = new THREE.MeshStandardMaterial({ color: winter ? 0x8b8580 : 0x54432f, roughness: 1, envMapIntensity: 0.1, flatShading: true });
+  const im = new THREE.InstancedMesh(parts.lump3.geometry, clod, clods.length);
+  const M4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), at = new THREE.Vector3();
+  clods.forEach(([x, y, z, k, rng], i) => { M4.compose(at.set(x, y + 0.02, z), q.setFromEuler(e.set(rng() * 6, rng() * 6, rng() * 6)), s.setScalar(k)); im.setMatrixAt(i, M4); });
+  im.castShadow = false; im.receiveShadow = true;
+  im.computeBoundingSphere();
+  scene.add(im);
 }
