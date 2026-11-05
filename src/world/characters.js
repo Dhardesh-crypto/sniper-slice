@@ -21,6 +21,7 @@ const CLIP_FILES = {
   throw: 'anim_throw', throwCrouch: 'anim_throw_crouch', place: 'anim_place', // grenades, bottles; charges at your feet
   search: 'anim_search', kneelWork: 'anim_kneel_work',                     // searching a body; bandaging, repairs
   hitReact: 'anim_hit_react', lookAround: 'anim_look_around',              // a guard hit; a guard searching
+  surrender: 'anim_surrender', duckCover: 'anim_duck_cover', dragBody: 'anim_drag_body',   // hands up; a blast close by; a wounded man hauled out of the open
 };
 // Arm bones driven by the "holding a rifle" layer instead of the base clip.
 const HOLD_BONES = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
@@ -97,6 +98,14 @@ function buildDerivedClips() {
   const c = assets.clips;
   for (const k of ['throw', 'throwCrouch', 'place', 'search', 'kneelWork', 'hitReact', 'lookAround']) inPlace(c[k], 'xz');
   for (const k of ['ladderClimb', 'climbWall']) inPlace(c[k], 'xyz');
+  for (const k of ['surrender', 'duckCover']) inPlace(c[k], 'xz');
+  // One stride of the backward shuffle, cut where it meets itself, so it loops.
+  if (c.dragBody) {
+    c.dragBody = THREE.AnimationUtils.subclip(c.dragBody, 'dragBody', 109, 133, 30);
+    inPlace(c.dragBody, 'xz');
+    const v = c.dragBody.tracks.find(t => t.name === 'Hips.position').values, x = v[0], z = v[2];   // (cut from mid-walk: back over his feet)
+    for (let i = 0; i < v.length; i += 3) { v[i] -= x; v[i + 2] -= z; }
+  }
   if (c.idle) {
     c.idle = c.idle.clone();
     const SQUARE = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck'];

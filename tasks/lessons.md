@@ -113,3 +113,10 @@ together they ran in each other's pages and filed results under the wrong missio
 
 **What happened:** buildings vanished from test shots, with GL_INVALID_OPERATION on sampler types. It looked like a game bug; it was `renderer.setSize()` in my screenshot helper. With the pane hidden the page's own image also lagged a shot behind.
 **Pattern:** render at the game's own size and POST `toDataURL` to a local receiver; don't resize the renderer for a test shot, and don't trust a screenshot of a hidden pane. `import('/src/…')` in the console can load a second copy of a module with its own state, so read state through `window.game`.
+
+## Tests that say "fine" while the thing is broken (2026-11-05)
+Dragging the wounded: `world.raycastSegment` also hits soldiers' hit zones, so a ray from a man's feet hit his own
+leg and every drag was called off as "a wall in the way". For walls use `world.boxAlong`. `nav` paths end up to
+a cell short, so "arrived" can be 2 m off: close the last steps by eye. A sight line to a man on the ground needs
+to aim above him, or it hits the ground beside him. A collision count read zero while a frame showed the man on the
+far side of a wall: look at the picture as well as the number, and prove the feature fires, not just that nothing broke.

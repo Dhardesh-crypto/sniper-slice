@@ -1043,3 +1043,20 @@ Not caused by this: route points the guards' paths can't reach in flak (trench, 
 - [x] ai/dogs.js: from 9 to 5 m it now trots at 3.6 m/s with its nose down (it was galloping at
       6.5 with its head in the grass), then rushes you. `lie()` gave way to the die clip.
 
+
+## Guards surrender, duck blasts and drag the wounded (2026-11-05)
+Three clips from NVIDIA Kimodo run with no text model (poses and paths only, on the Mac's CPU), retargeted in
+Blender: ~/Documents/Valexos/Research/kimodo-test (`run/moves.py`, `run/retarget.py`). No credits.
+- [x] anim_surrender, anim_duck_cover, anim_drag_body (33-40 KB each). The drag is cut to one stride (frames
+      109-133) so it loops, and set back over his feet (it was cut from mid-walk, 2.2 m along).
+- [x] Duck: guards out of a blast's reach, inside 4 radii × size, cover their helmets for 3.1 s and hold fire;
+      those at the stun edge do it too, after the shove.
+- [x] Surrender (`checkYield`): alone (no armed comrade in 18 m), within 9 m, spotted and alerted, you facing him.
+      One roll per stand-off, 55 %, 85 % if wounded. Rifle thrown down; he stays out of alarm, nest, repair and
+      medic duty. Go 35 m away and he runs, shouting. Saved and restored.
+- [x] Drag (`dragToSafety`): a helper who finds the wounded man in your sight hauls him up to 10 m to cover,
+      or straight away from you, then bandages him. Out of your sight he bandages him where he lies, as before.
+
+Checked in the game: all three in the first mission, town and harbour (no errors); airfield and forest before
+the last drag fixes; save and load of a surrendered man; rules for surrender case by case. 11.9 s haul on open
+ground with no wall between them in 191 samples. Not done: playing it by hand. No surrender voice line yet.

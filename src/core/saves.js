@@ -103,6 +103,7 @@ export class Saves {
         pos: v3(s.root.position), yaw: s.root.rotation.y, homeYaw: s.warm?.yaw ?? s.homeYaw, home: v3(s.warm?.home ?? s.home),   // (warming his hands at a barrel: his post is where he came from)
         searched: !!s.searched, hidden: !!s.hidden, found: !!s.found, tagged: !!s.tagged, quietDeath: !!s.quietDeath, stripped: !!s.stripped, bloodied: !!s.bloodied, uniformRuined: !!s.uniformRuined,
         deathClip: s.deathClip ?? null,
+        surrendered: s.alive && s.surrendered ? { fled: s.surrendered.fled } : null,
         rifle: s.drop ? { pos: s.char.rifle.position.toArray(), quat: s.char.rifle.quaternion.toArray() } : null,
         downed: s.alive && s.downed ? { away: s.downed.away.toArray(), crawled: s.downed.crawled, max: s.downed.max, bandaged: !!s.downed.bandaged, bleed: s.bleed ?? 0 } : null,
         aware: s.aware && { state: s.aware.state, meter: s.aware.meter, stimulus: v3(s.aware.stimulus), why: s.aware.why ?? null, bodiesSeen: s.aware.bodiesSeen ? [...s.aware.bodiesSeen].map(b => world.soldiers.indexOf(b)) : [] },
@@ -177,6 +178,7 @@ export class Saves {
       else {
         s.hp = sd.hp;
         if (sd.downed) s.restoreDowned(sd.downed, sd.rifle);   // (wounded on the ground)
+        if (sd.surrendered) s.restoreSurrendered(sd.surrendered, sd.rifle);
         if (sd.aware) Object.assign(s.aware, { state: sd.aware.state, meter: sd.aware.meter, stimulus: toV(sd.aware.stimulus), why: sd.aware.why, lastNews: stealth.time });
         if (sd.aware?.state !== 'calm') s.react(sd.aware.state, toV(sd.aware.stimulus));
         if (sd.brain && s.brain) { s.brain.routeI = sd.brain.routeI ?? 0; s.brain.lastSeen = toV(sd.brain.lastSeen); }

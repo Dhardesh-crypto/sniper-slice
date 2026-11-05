@@ -6,12 +6,15 @@
 //   search      alerted, lost sight of you: run to where you were last seen, sweep around it
 //   combat      alerted and you're in sight: find cover nearby, duck, rise and fire
 //   alarm       the one guard sent running to the siren post to sound it
-//   flee        the officer: unarmed, he runs for the villa's back wall
+//   flee        the officer: unarmed, he runs for the villa's back wall (and a man who gave up, once you've left him)
+//   cover       a blast close by: hands over his helmet till it's passed
+//   yield       alone with your gun on him at a few paces: rifle down, hands up
 //   repair      sent to restart the generator after you shot it (a lure into the open)
+//   help        sent to a wounded man: hauls him out of your sight if he must, then bandages him
 // The siren brings every guard in and a truck with four more. Cut its wire and it can't sound.
 import * as THREE from 'three';
 import { NavGrid } from './nav.js';
-import { Soldier } from '../world/soldier.js';
+import { Soldier, DRAG_SPEED } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
 import { addExhaust } from '../world/exhaust.js';
@@ -19,6 +22,12 @@ import { addGroundMarks } from '../world/groundmarks.js';
 import { ARC, PITCH } from '../world/mgnest.js';
 import { throughCover } from '../weapons/penetration.js';
 import { CHAT } from '../core/audio.js';
+const YIELD_RANGE = 9;      // m: as far off as your gun makes a man think again
+const YIELD_AIM = 0.98;     // how squarely you must have him (cosine: about 11 degrees)
+const YIELD_ALONE = 18;     // m: an armed comrade this near and he won't give up
+const YIELD_LEAVE = 35;     // m: go this far and he runs
+const GRIP = 0.62;          // m from a man hauling a body to the head he has hold of
+const DRAG_MAX = 10;        // m he'll haul him at most
 
 const WALK = 1.4, RUN = 3.8;
 const LOOK_AROUND = 5;          // seconds spent looking around at a spot
@@ -101,6 +110,7 @@ export class GuardAI {
     for (const s of this.guards()) {
       const a = s.aware, b = s.brain;
       if (a.spotted && a.state === 'alerted') { b.lastSeenT = this.time; b.lastSeen = p.pos.clone(); }
+      this.checkYield(s, dt);
       const mode = this.decide(s);
       if (mode !== b.mode) this.enter(s, mode);
       s.nextActivity = null;           // run() says if he's looking around or at work this tick
@@ -119,6 +129,8 @@ export class GuardAI {
 
   decide(s) {
     const a = s.aware, b = s.brain;
+    if (s.surrendered) return s.surrendered.fled ? 'flee' : 'yield';
+    if (s.coverT > 0) return 'cover';    // hands over his helmet till the blast is over
     if (s.officer) return a.state === 'calm' ? 'post' : 'flee';
     if (s.riding) return 'ride';         // in the patrol car (ai/patrol.js moves him; out when he's alarmed)
     if (b.nest) {                      // sent to a machine-gun nest: he holds it while the fight's on
@@ -144,6 +156,7 @@ export class GuardAI {
     b.mode = mode;
     b.path = null; b.goal = null; b.lookT = 0; b.sweeps = 0; b.stuck = 0; b.atCover = false;
     s.aimDir = null;
+    if (s.dragging) { s.dragging = false; s.applyStance(0.25); }   // (he's let go: seen, or the man's dead)
     s.crouchTarget = 0;
     if (mode === 'combat') {
       // Reaction time before the first shot; slower at long range.
@@ -175,7 +188,21 @@ export class GuardAI {
         }
         break;
       }
+      case 'cover': this.stop(s); break;
+      case 'yield': {
+        // Hands up, facing you. Walk away and he's gone, shouting.
+        this.stop(s);
+        s.targetYaw = Math.atan2(p.pos.x - s.root.position.x, p.pos.z - s.root.position.z);
+        if (s.root.position.distanceTo(p.pos) > YIELD_LEAVE) {
+          s.breakAndRun();
+          this.audio.shout('spotted', s.root.position.distanceTo(p.pos));
+          this.stealth.noise?.(s.root.position.clone(), 40, 'shout');
+          this.hud.message('HE BROKE AND RAN', 'wound');
+        }
+        break;
+      }
       case 'help': {
+        if (this.dragToSafety(s, dt)) break;
         // Run to him, kneel at his side and work on him: a while out in the open.
         const w = b.help, aw = w.downed.away, at = w.root.position.clone().addScaledVector(aw, 0.7).add(new THREE.Vector3(-aw.z, 0, aw.x).multiplyScalar(1.15));   // (at his side, by his chest)
         if (!b.helpT && !this.goTo(s, at, a.state === 'calm' ? WALK * 1.5 : RUN, dt)) break;
@@ -254,6 +281,105 @@ export class GuardAI {
         break;
       }
     }
+  }
+
+  // A man on his own with your gun on him at a few paces may give up: he's got nobody near to
+  // back him and you'd have him before he got a shot off. Each stand-off gets one throw of the dice.
+  checkYield(s, dt) {
+    const a = s.aware, b = s.brain, p = this.player;
+    if (s.surrendered || (b.yieldT = (b.yieldT ?? 0) - dt) > 0) return;
+    b.yieldT = 0.4;
+    if (s.officer || s.riding || s.manning || b.nest || b.fixed || s.coverT > 0 || p.dead || !s.char.action('surrender')) return;
+    const to = this.v.copy(s.root.position).sub(p.pos), d = to.length();
+    if (!a.spotted || a.state !== 'alerted' || d > YIELD_RANGE || Math.abs(to.y) > 2) { if (d > YIELD_RANGE * 2) b.yieldAsked = false; return; }
+    if (b.yieldAsked) return;
+    if ((-Math.sin(p.yaw) * to.x - Math.cos(p.yaw) * to.z) / Math.hypot(to.x, to.z) < YIELD_AIM) return;   // (you're not facing him: yaw 0 faces -z)
+    if (this.guards().some(o => o !== s && !o.surrendered && !o.unarmed && o.root.position.distanceTo(s.root.position) < YIELD_ALONE)) return;
+    b.yieldAsked = true;
+    if (Math.random() > (s.wounded ? 0.85 : 0.55)) return;               // (not this one: he fights)
+    s.giveUp(p.pos);
+    if (this.alarm.runner === s) { this.alarm.runner = null; this.alarm.activateT = 0; }
+    if (b.help) { if (b.help.downed) b.help.downed.helper = null; b.help = null; }
+    b.task = null;
+    this.hud.message('HE SURRENDERS', '');
+  }
+
+  // Is there something solid between two points on the ground, at knee height?
+  walled(a, b) {
+    const from = a.clone(), to = b.clone(); from.y += 0.5; to.y = from.y;
+    return this.world.boxAlong(from, to) !== null;                      // (walls and the like: not the men themselves)
+  }
+
+  // A wounded man lying where you can see him: his helper won't kneel there for seven seconds.
+  // He takes him under the arms and hauls him backward to something solid, or just away from
+  // you. True while that's going on; false once it's done, or not needed.
+  dragToSafety(s, dt) {
+    const b = s.brain, w = b.help, d = w.downed, p = this.player;
+    if (d.dragged || !s.char.action('dragBody')) return false;
+    const head = (w.char.bones.Head ?? w.root).getWorldPosition(new THREE.Vector3());
+    const hips = w.bodyPosition(new THREE.Vector3());
+    if (b.dragFor !== w) {
+      b.dragFor = w;
+      const eye = p.pos.clone(); eye.y += 1.6;
+      const back = hips.clone(); back.y += 0.3;                         // (his back, not the ground he's lying on)
+      const hit = this.world.raycastSegment(eye, back);
+      if (hit && hit.distance < eye.distanceTo(back) - 0.5) { d.dragged = true; return false; }   // (out of your sight already)
+    }
+    if (!s.dragging) {
+      // Round to his head first.
+      const out = head.clone().sub(hips).setY(0).normalize();
+      const grab = head.clone().addScaledVector(out, GRIP); grab.y = w.root.position.y;
+      const pos = s.root.position, gap = Math.hypot(grab.x - pos.x, grab.z - pos.z);
+      if (gap > 2.5 || this.walled(pos, grab)) {
+        if (this.goTo(s, grab, s.aware.state === 'calm' ? WALK * 1.5 : RUN, dt) && (Math.hypot(grab.x - pos.x, grab.z - pos.z) > 2.5 || this.walled(pos, grab))) d.dragged = true;   // (no way round: he does what he can where the man lies)
+        return !d.dragged;
+      }
+      if (gap > 0.2) {                                                  // (the path stops a cell short: the last steps by eye)
+        const step = Math.min(gap, WALK * dt), x = pos.x, z = pos.z;
+        pos.x += (grab.x - x) / gap * step; pos.z += (grab.z - z) / gap * step;
+        this.world.collideCircle(pos, 0.36, pos.y, pos.y + 1.7);
+        pos.y = this.world.floorAt(pos.x, pos.z, pos.y + 0.3);
+        s.targetYaw = Math.atan2(grab.x - x, grab.z - z);
+        s.setGait('walk', WALK);
+        b.gripT = Math.hypot(pos.x - x, pos.z - z) < step * 0.4 ? (b.gripT ?? 0) + dt : 0;
+        if (b.gripT > 0.6) { b.gripT = 0; d.dragged = true; return false; }   // (something in the way)
+        return true;
+      }
+      this.stop(s);
+      s.dragging = true;
+      s.applyStance(0.3);
+      b.helpT = 0.001;                                                  // (the wounded man stops crawling)
+      b.path = null;
+      const away = w.root.position.clone().sub(p.pos).setY(0).normalize();
+      b.dragTo = this.findCover(s) ?? s.root.position.clone().addScaledVector(away, DRAG_MAX);
+      b.dragLeft = DRAG_MAX; b.dragT = DRAG_MAX / DRAG_SPEED * 1.5;
+    }
+    const from = s.root.position.clone();
+    let there = this.goTo(s, b.dragTo, DRAG_SPEED, dt);
+    b.dragLeft -= Math.hypot(s.root.position.x - from.x, s.root.position.z - from.z);
+    // He trails from the hands, head first, like anything on a rope; the helper faces him.
+    const to = head.clone().sub(s.root.position).setY(0);
+    if (to.lengthSq() < 1e-4) to.set(Math.sin(s.root.rotation.y), 0, Math.cos(s.root.rotation.y));
+    to.normalize();
+    s.targetYaw = Math.atan2(to.x, to.z);
+    const want = s.root.position.clone().addScaledVector(to, GRIP);
+    if (this.walled(s.root.position, want)) there = true;               // (he won't pull a man through a wall: this is as far as he goes)
+    const local = w.root.worldToLocal(head.clone());
+    const turn = Math.atan2(-to.x, -to.z) - Math.atan2(local.x, local.z) - w.root.rotation.y, dy = Math.atan2(Math.sin(turn), Math.cos(turn));
+    w.root.rotation.y += Math.sign(dy) * Math.min(Math.abs(dy), 2 * dt);   // (swung round as he's pulled, not spun on the spot)
+    w.root.updateMatrixWorld(true);
+    const now = (w.char.bones.Head ?? w.root).getWorldPosition(new THREE.Vector3());
+    w.root.position.x += want.x - now.x; w.root.position.z += want.z - now.z;
+    this.world.collideCircle(w.root.position, 0.3, w.root.position.y, w.root.position.y + 0.5);   // (round a wall, not through it)
+    w.root.position.y = this.world.floorAt(w.root.position.x, w.root.position.z, s.root.position.y + 0.3);
+    w.targetYaw = w.root.rotation.y;
+    if (there || b.dragLeft <= 0 || (b.dragT -= dt) <= 0) {
+      s.dragging = false; d.dragged = true; d.crawled = d.max; b.helpT = 0;
+      d.away.set(Math.sin(w.root.rotation.y), 0, Math.cos(w.root.rotation.y));
+      this.stop(s); s.applyStance(0.3);
+      return false;
+    }
+    return true;
   }
 
   // ---------------------------------------------------------------- combat
@@ -375,7 +501,7 @@ export class GuardAI {
   // post smokes now and then, the puffs rising off him. Each pair rests a while between talks.
   tickIdle(dt) {
     const gs = this.guards(), chats = this.chats ??= [];
-    const idle = (s) => s.aware.state === 'calm' && s.brain.mode === 'post' && (s.speed ?? 0) < 0.2 && !s.manning && !s.officer && !s.kneelT;
+    const idle = (s) => s.aware.state === 'calm' && s.brain.mode === 'post' && (s.speed ?? 0) < 0.2 && !s.manning && !s.officer && !s.kneelT && !s.surrendered;
     for (const s of gs) { s.chatCool = (s.chatCool ?? 10 + Math.random() * 30) - dt; s.smokeCool = (s.smokeCool ?? 5 + Math.random() * 40) - dt; }
     if ((this.idleT = (this.idleT ?? 0) - dt) <= 0) {
       this.idleT = 1;
@@ -450,7 +576,7 @@ export class GuardAI {
       let best = null, bestD = 70;
       for (const s of this.guards()) {
         const b = s.brain;
-        if (s.officer || b.fixed || b.nest || s.riding || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
+        if (s.officer || b.fixed || b.nest || s.riding || s.surrendered || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
         const d = s.root.position.distanceTo(n.seat);
         if (d < bestD) { best = s; bestD = d; }
       }
@@ -544,7 +670,7 @@ export class GuardAI {
       al.pickT = 1;
       let best = null, bestD = Infinity;
       for (const s of this.guards()) {
-        if (s.officer || s.brain.fixed || s.brain.nest || s.riding || s.manning || s.aware.state !== 'alerted' || al.cantReach?.has(s)) continue;
+        if (s.officer || s.brain.fixed || s.brain.nest || s.riding || s.manning || s.surrendered || s.aware.state !== 'alerted' || al.cantReach?.has(s)) continue;
         const d = s.root.position.distanceTo(this.siren.pos);
         if (d < bestD) { best = s; bestD = d; }
       }
@@ -557,7 +683,7 @@ export class GuardAI {
     // For the HUD: who's running for it, and how far he's got with it at the post.
     this.world.alarmRunner = al.runner && !al.on ? { s: al.runner, progress: al.activateT / SIREN_ACTIVATE, working: al.working } : null;
     if (al.on) {
-      const seen = this.guards().some(s => s.aware.spotted && s.aware.state === 'alerted');
+      const seen = this.guards().some(s => !s.surrendered && s.aware.spotted && s.aware.state === 'alerted');
       al.quietT = seen ? 0 : al.quietT + dt;
       if (al.quietT > ALARM_QUIET || !al.working) this.stopAlarm();
       if (!this.reinforced && !this.radioDown && (al.reinforceT -= dt) <= 0) this.sendTruck(); // the radio calls them
@@ -715,7 +841,7 @@ export class GuardAI {
     if (this.guards().some(s => s.brain.task)) return;
     let best = null, bestD = 120;
     for (const s of this.guards()) {
-      if (s.officer || s.brain.fixed || s === this.alarm.runner || s.aware.state === 'alerted') continue;
+      if (s.officer || s.brain.fixed || s.surrendered || s === this.alarm.runner || s.aware.state === 'alerted') continue;
       const d = s.root.position.distanceTo(at);
       if (d < bestD) { best = s; bestD = d; }
     }
@@ -786,7 +912,7 @@ export class GuardAI {
         let best = null, bd = 45;
         for (const g of this.guards()) {
           const gb = g.brain;
-          if (g.officer || gb.fixed || gb.nest || gb.help || g.riding || this.alarm.runner === g || g.aware.spotted || d.refused?.has(g) || Math.abs(g.root.position.y - pos.y) > 2) continue;
+          if (g.officer || gb.fixed || gb.nest || gb.help || g.riding || g.surrendered || this.alarm.runner === g || g.aware.spotted || d.refused?.has(g) || Math.abs(g.root.position.y - pos.y) > 2) continue;
           const dd = g.root.position.distanceTo(pos);
           if (dd < bd) { bd = dd; best = g; }
         }

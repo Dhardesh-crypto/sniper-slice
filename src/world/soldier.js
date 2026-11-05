@@ -8,6 +8,9 @@ import { Character, buildHitZones, solveArmIK } from './characters.js';
 
 const UP = new THREE.Vector3(0, 1, 0), MIDDLE = new THREE.Vector3(0, 0.9, 0);
 
+export const DRAG_SPEED = 0.75;   // m/s: the pace the drag clip was made at
+const COVER_RATE = 1.6;           // the duck clip played a little faster than it was made: a blast is sudden
+
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
   // look: which character model ('guard', 'guardCamo', 'guardSergeant', 'officerLieutenant';
@@ -24,6 +27,10 @@ export class Soldier {
     this.searched = false;
     this.staggerT = 0;
     this.reactT = 0;             // reeling from a hit (the hit-reaction clip)
+    this.coverT = 0;             // hands over his helmet (takeCover)
+    this.surrendered = null;     // { fled }: hands up (giveUp); fled once you've left him
+    this.unarmed = false;        // his rifle's on the ground
+    this.dragging = false;       // hauling a wounded man (guards.js)
     this.activity = null;
 
     this.look = look ?? (officer ? 'officerColonel' : 'guard');   // (also the uniform you'd take off him: disguise.js)
@@ -77,10 +84,15 @@ export class Soldier {
   // Standing still with something to do (`activity`): looking around (alert: the legs and body
   // turn, the arms stay on the rifle) or kneeling at work (the rifle on his back).
   applyStance(fade = 0) {
-    if (this.reactT > 0 || this.downed) return;          // let the hit reaction finish; down, he crawls (guards.js)
+    if (this.reactT > 0 || this.downed || this.coverT > 0 || (this.surrendered && !this.surrendered.fled)) return;   // let the hit reaction, the duck, the raised hands finish; down, he crawls (guards.js)
+    if (this.dragging) {                                 // hauling a wounded man: bent double, going backward
+      this.char.play('dragBody', { fade, timeScale: this.gait === 'walk' ? this.speed / DRAG_SPEED : 0 });
+      this.char.setHoldWeight(0);
+      return;
+    }
     const alert = this.stance === 'alert';
     const c = this.char;
-    let clip = alert ? 'idleLegs' : 'idle', hold = alert ? 1 : 0, rate = 1;
+    let clip = alert && !this.unarmed ? 'idleLegs' : 'idle', hold = alert && !this.unarmed ? 1 : 0, rate = 1;   // (his rifle thrown down: nothing for the arms to hold)
     if (this.gait === 'run') { clip = 'sprint'; hold = 0; rate = Math.max(0.6, this.speed / 4.6); }
     else if (this.gait === 'walk') { clip = alert || !c.action('walk') ? 'walkLegs' : 'walk'; rate = Math.max(0.5, this.speed / 1.35); }
     else if (this.activity === 'kneelWork' && c.action('kneelWork')) { clip = 'kneelWork'; hold = 0; }
@@ -94,7 +106,8 @@ export class Soldier {
   setGait(gait, speed = 0) {
     this.speed = speed;
     if (gait === this.gait) {
-      if (this.char.base) this.char.base.timeScale = gait === 'run' ? speed / 4.6 : gait === 'walk' ? speed / 1.35 : 1;
+      if (this.coverT > 0 || (this.surrendered && !this.surrendered.fled)) return;   // (a one-off clip at its own pace)
+      if (this.char.base) this.char.base.timeScale = this.dragging ? (gait === 'walk' ? speed / DRAG_SPEED : 0) : gait === 'run' ? speed / 4.6 : gait === 'walk' ? speed / 1.35 : 1;
       return;
     }
     this.gait = gait;
@@ -118,6 +131,7 @@ export class Soldier {
     }
     // Where it hit him tells for the rest of the fight: a leg and he goes down on a knee, then limps;
     // an arm and his aim is shaky; the body and he bleeds, and may bleed out a while later.
+    if (this.surrendered && !this.surrendered.fled) return { zone, killed: false, damage };   // (hands up, he takes it where he stands)
     if (zone === 'leg') { this.limp = true; this.kneelT = 1.4; }
     else if (zone === 'arm') { this.armHit = true; this.shakenT = 1.5; }
     else this.bleed = (this.bleed ?? 0) + damage / 60;        // hp a second: half a minute or so
@@ -132,7 +146,7 @@ export class Soldier {
 
   // A round cracked past him: he flinches and ducks for a moment.
   nearMiss() {
-    if (!this.alive || this.riding || this.manning || this.downed) return;
+    if (!this.alive || this.riding || this.manning || this.downed || this.coverT > 0 || this.surrendered) return;
     this.staggerT = Math.max(this.staggerT ?? 0, 0.45);
     this.duckT = 0.9 + Math.random() * 0.8;
   }
@@ -140,15 +154,45 @@ export class Soldier {
   // Caught at the edge of a blast (`k`: 1 just outside the kill radius, 0 far out): shoved back
   // away from it, reeling, down on his haunches and slow to bring his rifle up again.
   blastStun(away, k) {
-    if (!this.alive || this.riding || this.manning || this.downed || k <= 0) return;
+    if (!this.alive || this.riding || this.manning || this.downed || this.surrendered || k <= 0) return;
     k = Math.min(1, k);
     const shove = (0.4 + 1.1 * k), from = this.root.position.clone();
     this.root.position.addScaledVector(away, shove);
     if (this.wallHit) { const a = from.clone(), b = this.root.position.clone(); a.y += 0.9; b.y += 0.9; if (this.wallHit(a, b) !== null) this.root.position.copy(from); }
     if (this.floorAt) this.root.position.y = this.floorAt(this.root.position.x, this.root.position.z, from.y + 0.5);
     this.staggerT = 0.45;
-    this.duckT = 1.2 + 2 * k;                        // (guards.js holds his fire while he's ducked)
     this.shakenT = Math.max(this.shakenT ?? 0, 1 + 1.5 * k);
+    if (!this.takeCover()) this.duckT = 1.2 + 2 * k;  // (guards.js holds his fire while he's ducked)
+  }
+
+  // A blast close by: down on his haunches with his hands over his helmet, then up again. The
+  // clip has him all the way down and back, so it stands in for the crouch. Guards.js has him
+  // do nothing else till it's over. Returns whether he did.
+  takeCover() {
+    if (!this.alive || this.riding || this.manning || this.downed || this.surrendered || this.dragging || this.coverT > 0 || !this.char.action('duckCover')) return false;
+    this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouchTarget = 0; this.duckT = 0; this.reactT = 0;
+    this.char.setHoldWeight(0);
+    this.char.play('duckCover', { fade: 0.1, once: true, timeScale: COVER_RATE });
+    this.coverT = this.char.base.getClip().duration / COVER_RATE;
+    return true;
+  }
+
+  // Cornered, he throws down his rifle and puts his hands up (guards.js decides when, and what
+  // happens if you walk away). `toward`: where the man with the gun is.
+  giveUp(toward) {
+    this.surrendered = { fled: false };
+    this.unarmed = true;
+    this.aimDir = null; this.gait = 'stand'; this.speed = 0; this.crouchTarget = 0; this.duckT = 0; this.reactT = 0; this.coverT = 0; this.dragging = false;
+    this.char.setHoldWeight(0);
+    if (this.char.rifle.visible) this.dropRifle(new THREE.Vector3(toward.x - this.root.position.x, 0, toward.z - this.root.position.z));
+    this.char.play('surrender', { fade: 0.2, once: true, timeScale: 1.25 });
+  }
+
+  // Left alone, he drops his hands and runs for it (still with no rifle).
+  breakAndRun() {
+    this.surrendered.fled = true;
+    this.stance = 'alert';
+    this.applyStance(0.25);
   }
 
   // What he's doing while standing (set by the guard AI each tick): 'lookAround', 'kneelWork' or null.
@@ -190,6 +234,7 @@ export class Soldier {
     this.downed = { t: 0, away, crawled: 0, max: 3 + Math.random() * 4, callT: 1.5 + Math.random(), helper: null, crawling: false };
     this.root.rotation.y = this.targetYaw = Math.atan2(away.x, away.z);   // he pitches forward, away from the shot
     this.aimDir = null; this.gait = 'stand'; this.speed = 0; this.crouchTarget = 0; this.reactT = 0; this.staggerT = 0;
+    this.surrendered = null; this.coverT = 0; this.dragging = false;
     this.char.setHoldWeight(0);
     if (this.char.rifle.visible) this.dropRifle(bulletDir);
     this.char.play('deathFwd', { fade: 0.08, once: true, timeScale: 1.3 });
@@ -340,6 +385,7 @@ export class Soldier {
   // The rifle leaves his hands: it joins the scene, tumbles and comes to rest lying on
   // its side on whatever is below it (the ground, a tower platform).
   dropRifle(bulletDir) {
+    if (this.drop) return;                 // (already on the ground: he threw it down)
     const r = this.char.rifle;
     this.root.updateMatrixWorld(true);
     this.root.parent.attach(r);
@@ -385,6 +431,7 @@ export class Soldier {
     if (this.drop) this.updateDrop(dt);
     if (!this.alive && (this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
     if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
+    if (this.coverT > 0 && (this.coverT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.staggerT > 0) {
       this.staggerT = Math.max(0, this.staggerT - dt);
       const k = Math.sin((0.45 - this.staggerT) / 0.45 * Math.PI);
@@ -402,7 +449,8 @@ export class Soldier {
       this.hp -= this.bleed * dt;
       if (this.hp <= 0) { this.die(new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y)), { power: 0.2 }); this.bledOut = true; }   // he folds forward
     }
-    if (this.downed) { /* on the ground: the clip has him */ }
+    if (this.downed || this.unarmed) { /* on the ground, or his rifle's on the ground: the clip has him */ }
+    else if (this.alive && (this.coverT > 0 || this.dragging)) this.char.slingRifle();
     else if (this.alive && this.grabClip) { /* struggling: the clip owns his arms, the rifle hangs */ this.char.slingRifle(); }
     else if (this.alive && this.manning) this.onGun(this.manning);
     else if (this.alive && this.activity === 'kneelWork' && this.gait === 'stand') this.char.slingRifle();
@@ -460,6 +508,7 @@ export class Soldier {
     this.fall = this.fly = null;
     this.root.rotation.set(0, this.root.rotation.y, 0);
     this.downed = null;
+    this.surrendered = null; this.unarmed = this.dragging = false; this.coverT = 0;
     if (this.drop) { this.root.add(this.char.rifle); this.drop = null; }
     this.hp = 100;
     this.alive = true;
@@ -507,6 +556,16 @@ export class Soldier {
     this.char.setHoldWeight(0);
     this.char.play('crawl', { fade: 0, timeScale: 0 });
     this.layRifle(rifle);
+    this.char.update(0);
+    this.root.updateMatrixWorld(true);
+  }
+
+  // Hands up from the start (a loaded save), or already off and running.
+  restoreSurrendered(st, rifle) {
+    this.layRifle(rifle);
+    this.giveUp(this.root.position);
+    if (this.char.base) this.char.base.time = this.char.base.getClip().duration;
+    if (st.fled) this.breakAndRun();
     this.char.update(0);
     this.root.updateMatrixWorld(true);
   }

@@ -46,7 +46,7 @@ export class Explosions {
       } else if (v.length() < radius * 2.5 && this.clear(at, s.bodyPosition(new THREE.Vector3()))) {
         // Further out he lives, but the blast knocks him back and stuns him for a moment.
         s.blastStun?.(v.setY(0).normalize(), 1 - (v.length() - radius) / (radius * 1.5));
-      }
+      } else if (v.length() < radius * 4 * size) s.takeCover?.();    // out of its reach, but close enough to throw himself down
     }
     // Those riding on things that aren't guards on foot: a tank commander in his hatch.
     for (const r of this.world.riders ?? []) {
