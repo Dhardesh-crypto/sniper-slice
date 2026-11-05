@@ -12,7 +12,6 @@ const SPECS = {
   horse: { size: { x: 2.4 }, walk: 1.1, run: 9, shy: 10 },
   goat: { size: { x: 1.3 }, walk: 0.8, run: 6, shy: 14 },
   deer: { size: { x: 2.0 }, walk: 1.0, run: 11, shy: 45 },
-  dog: { size: { x: 1.3 }, walk: 1.4, run: 8, shy: 0 },     // a guard's dog (ai/dogs.js drives it)
 };
 
 // The rig, as fractions of the animal's height: where the legs part from the belly; `crown`: the
@@ -23,7 +22,6 @@ const RIGS = {
   horse: { belly: 0.42, withers: 0.15, run: 'gallop' },
   goat: { belly: 0.32, crown: 0.84, run: 'gallop' },
   deer: { belly: 0.32, crown: 0.66, run: 'gallop' },
-  dog: { belly: 0.38, withers: 0.4, run: 'gallop' },
 };
 
 // Gaits: stride (one full cycle) in leg lengths, the share of it each hoof is on the ground, how far
@@ -151,9 +149,8 @@ export function addAnimals(scene, kind, x, z, radius, count = 1) {
   }
 }
 
-// One animal, skinned and standing at (x, z), not yet in the herd: addAnimals puts the farm's in
-// it; a guard's dog is driven by ai/dogs.js instead, which moves it and calls poseAnimal.
-export function makeAnimal(scene, kind, x, z, i = 0) {
+// One animal, skinned and standing at (x, z), not yet in the herd.
+function makeAnimal(scene, kind, x, z, i = 0) {
   const spec = SPECS[kind];
   const model = propModel(kind, spec.size, { own: true });
   if (!model) return null;
@@ -172,7 +169,6 @@ export function makeAnimal(scene, kind, x, z, i = 0) {
     shuffle: 0, idle: 3 + Math.random() * 20, look: 3 + Math.random() * 8, swish: Math.random() * 6, rest: 2 + (i % 2),
   };
 }
-export const poseAnimal = (a, dt) => pose(a, dt);
 
 // Something loud at `at` (heard up to `radius` m): animals within it bolt away.
 export function startle(at, radius) {

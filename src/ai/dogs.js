@@ -3,10 +3,10 @@
 // the wind carries your scent to it, less in the rain. Then it puts its nose down and tracks you,
 // barking, and the barking brings the guards (its handler first, then anyone in earshot); if it
 // reaches you it bites. Kill its handler and it stays by the body barking; shoot it and it yelps
-// and goes down. The dog is an animals.js model, skinned and walked like the farm animals; this
-// moves it and decides what it does.
+// and goes down. The dog itself, its clips and how they play, is world/dog.js; this moves it and
+// decides what it does.
 import * as THREE from 'three';
-import { makeAnimal, poseAnimal } from '../world/animals.js';
+import { makeDog, poseDog, dogBark, dogBite, dogDie } from '../world/dog.js';
 import { activeMap } from '../world/terrain.js';
 import { seeded } from '../core/run.js';
 
@@ -26,9 +26,8 @@ export class Dogs {
     for (let i = 0; i < n && handlers.length; i++) {
       const h = handlers.splice(Math.floor(rnd() * handlers.length), 1)[0];
       const at = h.root.position;
-      const a = makeAnimal(scene, 'dog', at.x - 1, at.z - 1);
+      const a = makeDog(scene, at.x - 1, at.z - 1);
       if (!a) break;
-      a.state = 'walk';
       // Something to shoot: an unseen block over its body, moving with it.
       const hit = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 1.0), HIDDEN);
       hit.position.y = 0.45;
@@ -44,6 +43,7 @@ export class Dogs {
   kill(dog) {
     if (dog.mode === 'dead') return;
     dog.mode = 'dead';
+    dogDie(dog.a);
     this.audio.yelp(dog.a.root.position.distanceTo(this.player.pos));
     const i = this.world.raycastTargets.indexOf(dog.hit);
     if (i >= 0) this.world.raycastTargets.splice(i, 1);
@@ -61,7 +61,7 @@ export class Dogs {
     const p = this.player;
     for (const dog of this.dogs) {
       const { a, handler: h } = dog, pos = a.root.position;
-      if (dog.mode === 'dead') { this.lie(dog, dt); continue; }
+      if (dog.mode === 'dead') { dog.a.v = 0; poseDog(dog.a, dt); continue; }
       const toYou = pos.distanceTo(p.pos);
       // Smell, a few times a second.
       if ((dog.smellT -= dt) <= 0) {
@@ -84,25 +84,29 @@ export class Dogs {
         if ((dog.barkT -= dt) <= 0) { dog.barkT = 2.2 + Math.random(); this.bark(dog, BARK_HEARD * 0.8); }
       } else if (dog.mode === 'track') {
         goal = p.pos;
-        want = toYou > 5 ? 6.5 : toYou > BITE ? 2.5 : 0;
-        a.state = toYou > 5 && toYou < 9 ? 'graze' : 'walk';     // nose down on the scent as it closes
+        const casting = toYou > 5 && toYou < 9;                  // nose down on the scent as it closes
+        want = casting ? 3.6 : toYou > 5 ? 6.5 : toYou > BITE ? 2.5 : 0;
+        a.nose = casting;
         if ((dog.barkT -= dt) <= 0) { dog.barkT = 0.8 + Math.random() * 0.6; this.bark(dog, BARK_HEARD); }
         // Its handler goes where it's pulling; if it can see you, so does everyone near.
         if (h.alive && h.aware.state === 'calm') this.stealth.raise(h, 'suspicious', p.pos.clone(), 'heard');
         if (toYou < BITE + 0.2 && !p.dead && (dog.biteT -= dt) <= 0) {
           dog.biteT = 0.9;
+          dogBite(a);
           p.damage(BITE_DAMAGE, pos);
           this.fx.blood(p.pos.clone().setY(p.pos.y + 0.6), new THREE.Vector3(0, 1, 0));
         }
       }
-      if (dog.mode !== 'track') a.state = 'walk';
+      if (dog.mode !== 'track') a.nose = false;
+      a.watch = dog.mode === 'track' && toYou < 12 ? p.pos : null;    // (it keeps its eyes on you)
       this.move(dog, goal, want, face, dt);
-      poseAnimal(a, dt);
+      poseDog(a, dt);
     }
   }
 
   bark(dog, radius) {
     const at = dog.a.root.position;
+    dogBark(dog.a);
     this.audio.bark(at.distanceTo(this.player.pos));
     this.stealth.noise(at.clone(), radius, 'bark');
   }
@@ -140,15 +144,5 @@ export class Dogs {
   turn(a, want, rate, dt) {
     const d = Math.atan2(Math.sin(want - a.root.rotation.y), Math.cos(want - a.root.rotation.y));
     a.root.rotation.y += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
-  }
-
-  // Shot: it rolls onto its side and lies still.
-  lie(dog, dt) {
-    if (dog.fall >= 1) return;
-    dog.fall = Math.min(1, dog.fall + dt / 0.4);
-    const a = dog.a, k = dog.fall;
-    a.v = 0;
-    a.body.rotation.z = (k * k) * Math.PI / 2 * 0.92;
-    a.body.position.y = 0.2 * k * (1 - k);
   }
 }

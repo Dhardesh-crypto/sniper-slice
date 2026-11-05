@@ -1029,3 +1029,17 @@ Sites
 
 Checked in the game, every mission: walked in through each door and breach and in and out of a crater (on foot, in all 8 missions); bullets stop on a ruin wall; guards keep patrolling for 12 s with no alarm; no prop in a crater; forest, coast, railway and bridge seen under snow, the rest in summer or evening light. `npm test` 3/3, production build passes.
 Not caused by this: route points the guards' paths can't reach in flak (trench, z 162-166) and the airfield (385,-185); neither is near any damage. Guards can't path through the 1.3 m ruin doors (players can): they use the breaches, where there is one.
+
+## The guard dog rigged and animated (2026-11-05)
+- [x] tools/blender/dog_rig.py: a canine skeleton of 34 bones on the Tripo shepherd (three-part spine,
+      shoulder blades, full legs to the toes, two-part neck, jaw, ears, five-part tail), heat-weighted.
+      The static source is models-src/animal_dog.glb (git-ignored, like the rest of models-src).
+- [x] Clips solved in Python, no constraints: walk (true at 1.34 m/s), trot (3.23), rotary gallop
+      (6.52), walk and trot with the nose down, idle, bite, die. Paws follow a path on the ground, IK
+      down to wrist or hock, stance slip 0.06 m/s at the walk, 0.13 at the trot, about 1 at the gallop.
+- [x] The solid mouth cut open on the lip line: palate, tongue-pink floor, four canines.
+- [x] src/world/dog.js plays them (gait by speed, clip speed matched to the ground); bark, the lean
+      into a turn and the head turning to you go on top, bone by bone. The dog left animals.js.
+- [x] ai/dogs.js: from 9 to 5 m it now trots at 3.6 m/s with its nose down (it was galloping at
+      6.5 with its head in the grass), then rushes you. `lie()` gave way to the die clip.
+
