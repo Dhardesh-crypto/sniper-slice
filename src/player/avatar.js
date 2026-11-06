@@ -7,7 +7,7 @@ import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK, assets } 
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
-const CLIP_SPEED = { walk: 1.35, walkFree: 1.45, jog: 3.07, run: 5.4, sprint: 4.6, crouch: 0.95, crawl: 0.55 };
+const CLIP_SPEED = { walk: 1.35, walkFree: 1.45, jog: 3.07, run: 5.4, sprint: 4.6, crouch: 1.42, crawl: 0.6 };
 const GAITS = ['walkFree', 'jog', 'run'];    // cut to start on the same foot, so they change in step
 const JOG_FROM = 2.3;                        // m/s: above this the walk breaks into a jog
 const DRAW = 0.5, DRAW_FAST = 0.22, STOW = 0.45;   // seconds to bring the rifle round, in a hurry, and put it away
@@ -250,7 +250,7 @@ export class Avatar {
       clip = act.clip; rate = act.rate; from = act.from;
     } else if (st.stance === 'prone') {
       clip = 'crawl';
-      rate = moving ? -st.speed / CLIP_SPEED.crawl : 0; // the crawl clip goes backward: play it reversed
+      rate = moving ? st.speed / CLIP_SPEED.crawl : 0;
     } else if (st.sprinting) {
       clip = c.action('run') ? 'run' : 'sprint';
       rate = st.speed / CLIP_SPEED[clip];

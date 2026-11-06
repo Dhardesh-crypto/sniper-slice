@@ -1220,3 +1220,11 @@ Reported after playing: his arms look unnatural when running, like a gorilla. Sh
 - [x] npm test 3/3. Production build: jog at 3.2 m/s and run at 6.2 m/s play with the rifle on his back, seen from the side and behind; no console errors.
 Not done: playing it by hand. Only the free-arm gaits changed: crouch, prone and the rifle-in-hands poses are as they were; guards still use their own clips.
 - [x] Deployed (e3cd42a, Netlify 6aee2d75). The three clips on the live site match the repo by hash.
+
+## A real crouched walk and a leopard crawl (2026-11-06)
+Asked for after the arms: better movement crouched and crawling. Sheet: tasks/crouch-crawl-blender.jpg.
+- [x] Cause: the crawl was `Crawl_Backward_inplace`, a backward crawl played in reverse, mostly one reaching arm. The crouch had a hopping stride, knees wide, arms flung out.
+- [x] tools/blender/low_gaits.py solves both from numbers on his rig, feet and hands placed by two-bone IK; tools/set-low-gaits.mjs builds the clips (13-15 KB). Crouch: narrow, heel to toe, feet planted. Crawl: opposite elbow and knee reach, then pull and push; hips and chest roll against each other.
+- [x] The crawl now plays forward. `CLIP_SPEED.crouch` 1.42, `.crawl` 0.6, set from how fast the feet and hands travel. Wounded guards use the same clip: timeScale 0.55 (it was -0.9).
+- [x] npm test 3/3. Production build: crouch 1.8 m/s, crawl 0.75 m/s, side and behind; stopping from a crouch still gives the kneel; a wounded guard crawled 0.9 m lying flat (hips 0.17 m, head 0.42 m, numbers only: no picture of him). No console errors.
+Not done: playing it by hand. Rifle in hands while crawling keeps both hands on it, so with the rifle out his left arm follows the rifle, not the crawl. Not seen: crawling on slopes or in tunnels; the pistol out while crawling.

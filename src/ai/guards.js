@@ -905,7 +905,7 @@ export class GuardAI {
       pos.y = this.world.floorAt(pos.x, pos.z, pos.y + 0.3);
       const moved = Math.hypot(pos.x - from.x, pos.z - from.z);
       d.crawled += moved < step * 0.4 ? d.max : moved;           // (up against something: he stops there)
-      if (crawl) crawl.timeScale = -0.9;                          // (the clip crawls backward: played reversed)
+      if (crawl) crawl.timeScale = 0.55;                          // (0.32 m/s against the clip's 0.6)
     } else if (crawl) crawl.timeScale = 0;
     if (d.bandaged) return;
     if ((d.callT -= dt) <= 0) {
