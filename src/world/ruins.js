@@ -285,6 +285,15 @@ const dust = () => activeMap().ruinDust ?? 0.42;
 
 // The debris, once per map: the kit's meshes on the map's stone photograph, tinted by their vertex colours.
 let kit = null, moundMat = null;
+// A scanned ground in full colour with its own normal map (public/textures/CREDITS.md). `normalScale`
+// is stronger than the terrain's: from a metre or two its stones are most of what you see.
+function scanned(file, opts) {
+  const L = new THREE.TextureLoader(), at = `${import.meta.env.BASE_URL}textures/${file}`;
+  const map = L.load(`${at}.jpg`), normalMap = L.load(`${at}_n.jpg`);
+  map.colorSpace = THREE.SRGBColorSpace;
+  for (const t of [map, normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
+  return new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.5, 1.5), roughness: 1, envMapIntensity: 0.15, vertexColors: true, ...opts });
+}
 function debris() {
   if (kit) return kit;
   const parts = modelParts('ruinKit');
@@ -338,7 +347,10 @@ export function rubble(b, o) {
   for (let i = 0; i < idx.length; i += 3) if ([idx[i], idx[i + 1], idx[i + 2]].some(k => pos.getY(k) > -0.1)) keep.push(idx[i], idx[i + 1], idx[i + 2]);
   geo.setIndex(keep);
   geo.computeVertexNormals();
-  moundMat ??= Object.assign(rockMaterial({ tint: new THREE.Color(1.55, 1.46, 1.32).multiplyScalar(dust()), scale: 3.5, moss: 0, lichen: 0, streaks: 0, strata: 0, ochre: 0, bump: 2 }), { vertexColors: true });
+  // The scan lies flat over the heap, one tile every 3 m (the heaps are too low for it to stretch).
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 3, pos.getZ(i) / 3);
+  moundMat ??= scanned('rubble');
   const mound = new THREE.Mesh(geo, moundMat);
   mound.position.y = y;
   mound.castShadow = mound.receiveShadow = true;
@@ -515,9 +527,12 @@ export function shellHouse(b, o) {
 export function craters(scene) {
   const list = craterList();
   if (!list.length) return;
-  const T = textures()[activeMap().groundTexture ?? 'ground'], winter = activeMap().winter;
-  const mat = new THREE.MeshStandardMaterial({ map: T.map.clone(), normalMap: T.normalMap.clone(), roughness: 1, envMapIntensity: 0.15, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  for (const t of [mat.map, mat.normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); t.needsUpdate = true; }
+  const T = textures().ground, winter = activeMap().winter;
+  // Summer: scanned earth, its own colour, so the colours below only light and darken it. Winter: the
+  // pale ground detail under the same colours, snowed in (a map's dark photo would turn the snow black).
+  const over = { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
+  const mat = winter ? new THREE.MeshStandardMaterial({ map: T.map.clone(), normalMap: T.normalMap.clone(), roughness: 1, envMapIntensity: 0.15, vertexColors: true, ...over }) : scanned('crater', over);
+  if (winter) for (const t of [mat.map, mat.normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); t.needsUpdate = true; }
   const dark = new THREE.Color(0x2a2219), earth = new THREE.Color(0x5e4a35), pale = new THREE.Color(0x8d7a60), snow = new THREE.Color(0xd9dde4), c = new THREE.Color();
   const clods = [];
   list.forEach((k, n) => {
@@ -534,6 +549,7 @@ export function craters(scene) {
       c.copy(dark).lerp(earth, Math.min(1, Math.max(0, (d - 0.25) / 0.65)) * (0.7 + lump)).lerp(pale, Math.max(0, 1 - Math.abs(d - 1.12) / 0.22) * 0.55);
       if (winter) c.lerp(snow, Math.min(0.92, 0.5 + 0.35 * d + lump * 2.2));                       // snowed in since, the earth showing through
       c.multiplyScalar(0.85 + fine * 0.9);
+      if (!winter) { c.r /= earth.r; c.g /= earth.g; c.b /= earth.b; c.multiplyScalar(0.78); }       // (as a share of plain earth: the scan has the colour)
       col[i * 4] = c.r; col[i * 4 + 1] = c.g; col[i * 4 + 2] = c.b;
       col[i * 4 + 3] = 1 - Math.min(1, Math.max(0, (d + lump * 0.7 - 1.15) / 0.42));                 // ragged at the edge
     }

@@ -1066,3 +1066,61 @@ Blender: ~/Documents/Valexos/Research/kimodo-test (`run/moves.py`, `run/retarget
 Checked in the game: all three in the first mission, town and harbour (no errors); airfield and forest before
 the last drag fixes; save and load of a surrendered man; rules for surrender case by case. 11.9 s haul on open
 ground with no wall between them in 191 samples. Not done: playing it by hand. No surrender voice line yet.
+
+## Scanned ground and rubble test: plan (2026-11-06, waiting for a go)
+Why: most of the ground and stone photographs are Higgsfield-generated; real scans may look better in the
+new craters and ruins. Megascans went free on Fab (5-12 Nov 2026), but its licence is a problem for this game.
+
+Licence, from the full Fab EULA (last updated 1 Oct 2024; Quixel's new terms may not be in it yet):
+- Section 4c: games may include Content for the public, but end users may use it only "in object code", and
+  "you must restrict end users from extracting" it. Section 5a: no standalone sharing except with
+  collaborators in a private repository.
+- This game serves plain .jpg and .glb files from public URLs, so anyone can save them, and the repo is
+  public. Keeping the files out of git isn't enough. Packing them in a scrambled bundle might be, but the
+  decoder would be in the public code. Only Fab can say what counts, so nothing from Megascans ships without
+  a written answer from Fab support.
+- So the test starts with CC0 scans (Poly Haven, already used here; ambientCG): no such limit, they can go in
+  the public repo, and they use the same slots.
+
+Round 1, CC0 (no licence question, can ship):
+- [ ] Work in a separate git worktree, so nothing touches main or the live site until it's approved.
+- [ ] Baseline shots with tools/shot.js at fixed cameras: Flak crater, Town rubble, Vineyard ground, one winter
+      map. Three distances each: on foot, 100 m through the scope, far (for visible tiling). Baseline tools/bench.js.
+- [ ] Ground: 2-3 dry Italian soil and rubble-strewn scans, 1024 px, into the existing `ground` photo slot
+      (textures.js already derives the normal map). Check the tiling from far away and the snow blend.
+- [ ] Stone: 2-3 broken masonry or rock scans in the `stone` slot of one map's style folder. ruin_kit debris is
+      box-mapped to that photo, so the rubble and walls change with no new geometry. Check against ruinDust.
+- [ ] Rubble chunks: 3-4 scanned rock or masonry meshes, cut to about 1-2k triangles (tools/shrink-glb.py,
+      compress-models.mjs), mixed into rubble() as extra debris. Only if the textures alone aren't enough.
+
+Round 2, Megascans (local comparison only, never deployed or committed):
+- [ ] Only if the user has claimed assets: the same slots, same cameras, to show what it would add over CC0.
+- [ ] Only if it's clearly better: the user asks Fab support about web delivery, and the answer decides.
+
+Decide:
+- [ ] One before/after sheet per spot, with load size and frame rate. Budget: under +1.5 MB per mission and no
+      measurable frame-rate loss in tools/bench.js.
+- [ ] Ship only what the user picks: credits in public/textures/CREDITS.md, all nine missions loaded, npm test,
+      build. Deploying needs its own OK.
+
+Round 1 results (2026-11-06; worktree ../sniper-slice-scan-test, branch scan-test, hooks uncommitted, nothing on main or live;
+sheet: tasks/scan-test-round1.jpg; scans all Poly Haven, CC0):
+- Ground slot: no visible gain. The painted vertex colours set the look and ground.jpg is a near-white pattern. Drop it.
+- Crater, full colour + real normal map (dry_ground_rocks): clear gain in Flak and Vineyard. burned_ground_01 went grey.
+- Rubble mound, full colour + real normal map (concrete_debris): the biggest gain, above all in Town.
+- Correction to the plan: rubble and debris use the rock shader in stone.js, not the stone photo. Only the mound was changed.
+- Stone slot (old_stone_wall): better on Vineyard's dry-stone walls, worse on Town's corner stones (blocks turn to a smear).
+  Per map only. Others untested in the game beyond flak, where it barely showed.
+- Winter: craters stay as they are, snow still lies on the rubble, nothing broke.
+- Scanned meshes: not needed, the textures were enough.
+- Cost: 1.72 MB for all four files (over the 1.5 MB budget); same draw calls and triangles. Frame time too noisy to judge on the
+  hidden pane (85-102 ms before, 90-112 ms after): a real check is still owed.
+
+Built (2026-11-06; sheet: tasks/scan-test-final.jpg; test worktree removed):
+- [x] ruins.js: `scanned()`; craters on crater.jpg in summer (colours now a share of plain earth), mounds on rubble.jpg (flat UVs, 3 m a tile).
+- [x] Normal maps at 512 px: 0.81 MB for the four files. styles/tuscany/stone.jpg is now Old Stone Wall, 76 KB smaller.
+      (tools/skins/style-textures.py would overwrite it: put it back if that's ever rerun.)
+- [x] Winter craters always on the pale ground detail: Forest's dark photo turned its crater black on the snow.
+- [x] Production build, all nine missions in summer and Forest in winter: no failed requests, no console errors. npm test 3/3.
+- [x] Render time looking at Town's biggest heap, four runs each, alternating: old 55.3 ms, new 55.2 ms (1920x1080, hidden pane).
+Not done: playing it by hand; the mound no longer takes ruinDust (looked right on every map checked). Winter seen only in Forest on this build.
