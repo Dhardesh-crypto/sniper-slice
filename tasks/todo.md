@@ -1189,3 +1189,4 @@ Open: the stumps stop you but not bullets (their hidden block leaves the bullet 
       apart across the garrison.
 - [x] Checked on a production build (town): 16 lines load; a 40 s firefight played spotted and combat lines
       at most 13 s apart, no console errors. `npm test` passes. Words checked with Whisper, not by ear.
+- [x] The user approved the listening file. Deployed (2b79b94, Netlify 6aedc113): the live `vo_*` files match the repo's.
