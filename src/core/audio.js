@@ -53,6 +53,11 @@ EXTRA.push(...CASINGS);
 // Guards' small talk (German, ElevenLabs Multilingual v2 on fal.ai, three voices): openers, and replies.
 export const CHAT = { open: [1, 2, 3, 4, 5, 6, 7, 8, 9, 12].map(i => `chat_${i}`), reply: ['chat_10', 'chat_11'] };
 EXTRA.push(...CHAT.open, ...CHAT.reply);
+// Kestrel's thoughts, under the breath (English, ElevenLabs Eleven v3, voice Charlie): player/thoughts.js.
+const lines = (kind, n) => Array.from({ length: n }, (_, i) => `th_${kind}_${i + 1}`);
+export const THOUGHTS = { scan: lines('scan', 5), guard: lines('guard', 5), target: lines('target', 3), fuel: lines('fuel', 3), vehicle: lines('vehicle', 3),
+  siren: lines('siren', 1), generator: lines('generator', 1), neartarget: lines('neartarget', 3), nearobj: lines('nearobj', 3), nearexit: lines('nearexit', 2), alarm: lines('alarm', 3) };
+EXTRA.push(...Object.values(THOUGHTS).flat());
 // The music's level under the effects at 100% on the music slider.
 const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];

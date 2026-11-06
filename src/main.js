@@ -46,6 +46,7 @@ import { Stealth } from './stealth/stealth.js';
 import { GuardAI } from './ai/guards.js';
 import { Mission } from './mission/mission.js';
 import { Hotspots } from './world/hotspots.js';
+import { Thoughts } from './player/thoughts.js';
 import { Takedown } from './player/takedown.js';
 import { CounterFire } from './ai/counterfire.js';
 import { Clues } from './stealth/clues.js';
@@ -402,7 +403,8 @@ arsenal.onNearMiss = (s, b) => {
   from.x += (Math.random() - 0.5) * 2 * err; from.z += (Math.random() - 0.5) * 2 * err;
   stealth.raise(s, b.vel.length() > 340 ? 'alerted' : 'suspicious', from, 'heard');
 };
-arsenal.onTag = (s) => hud.message(`TAGGED · ${s.label ? s.label() : s.name.toUpperCase()}`);
+const thoughts = new Thoughts({ audio, arsenal, player, mission, ai, quiet: () => killCam.active });
+arsenal.onTag = (s) => { hud.message(`TAGGED · ${s.label ? s.label() : s.name.toUpperCase()}`); thoughts.tagged(s); };
 
 // A beat of slow motion on every kill that doesn't get the full X-ray kill cam.
 let timeScale = 1, slowmoT = 0;
@@ -590,6 +592,7 @@ function tick(dt) {
   items.tick(dt);      // before the rifle: healing or aiming a throw ties your hands
   arsenal.tick(dt);
   search.tick(dt);
+  thoughts.tick(dt);
   driving.tick(dt);     // before the rest that E works: getting in or out takes the key
   disguise.tick(dt);
   pickups.tick(dt);
@@ -811,7 +814,7 @@ if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) se
 renderer.setAnimationLoop(frame);
 
 // Debug handle for automated play-testing from the console.
-window.game = { audio, seashore, footprints, flags, airwar, disguise, driving,
+window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   counterfire, clues, alarms, orders,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,

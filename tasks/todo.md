@@ -1190,3 +1190,16 @@ Open: the stumps stop you but not bullets (their hidden block leaves the bullet 
 - [x] Checked on a production build (town): 16 lines load; a 40 s firefight played spotted and combat lines
       at most 13 s apart, no console errors. `npm test` passes. Words checked with Whisper, not by ear.
 - [x] The user approved the listening file. Deployed (2b79b94, Netlify 6aedc113): the live `vo_*` files match the repo's.
+
+## Kestrel thinks aloud (2026-11-06)
+- [x] The user: thoughts spoken out loud when assessing, scoping with binoculars, nearing objectives.
+      `src/player/thoughts.js`: 32 whispered lines (`th_*.mp3`, ElevenLabs Eleven v3 on fal.ai, voice Charlie,
+      picked by the user from four; about $0.39 with the audition). Kinds: binoculars held 1.5 s (45 s rest);
+      a tag (guard, target, fuel, vehicle, siren, generator); first time within 40 m of the target or
+      extraction, 25 m of any other compass objective, once each; the alarm or being seen (40 s rest).
+- [x] 14 s of quiet after a line (the target and the alarm skip it); never over another line, a guard's shout or
+      the kill cam; near and scan lines stop while the alarm's on. Each kind uses up its lines before repeating.
+- [x] Checked on a production build (town): 32 lines load; holding B on a guard tagged him and played a guard and
+      a scan line; target, vehicle, siren, near-target and alarm lines played when called directly; no console
+      errors; `npm test` passes. Fuel and generator not played (town has neither): same lookup. Levels in a real
+      mission not judged by ear.
