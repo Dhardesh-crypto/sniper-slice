@@ -120,3 +120,6 @@ leg and every drag was called off as "a wall in the way". For walls use `world.b
 a cell short, so "arrived" can be 2 m off: close the last steps by eye. A sight line to a man on the ground needs
 to aim above him, or it hits the ground beside him. A collision count read zero while a frame showed the man on the
 far side of a wall: look at the picture as well as the number, and prove the feature fires, not just that nothing broke.
+
+## A colour problem can live after the lighting (2026-11-06)
+The blue on Vineyard looked like light or haze and was the bloom. Turn each stage off in a frozen frame before reading its code: a tint that stays on a man 2 m from the camera with the sky fill off isn't fog. "Normal" missions may only be facing the other way: compare the same view of the sun. And check a comparison can fail: old and new bloom "matched" on an explosion because bloom had no effect on that frame at all.

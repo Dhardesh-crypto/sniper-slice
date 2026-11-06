@@ -56,10 +56,13 @@ export class Post {
 
     // Bloom on what's brighter than 8 (the sun, fire), fed only the part above 8 and capped:
     // the stock pass passes a bright pixel's whole value, and the sun's wide halo (up to
-    // ~28,000) then flooded the screen white whenever you looked toward it.
+    // ~28,000) then flooded the screen white whenever you looked toward it. Green and blue are
+    // held to red first: a high sun's clear sky is over 8 in blue alone (3.9, 8.3, 12.2 thirty
+    // degrees off it), and that blue, spread by the blur, dyed everything in front of the sky.
+    // Warm light (fire, flashes) has red on top already and blooms as it always did.
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.12, 0.4, 0);
     const hp = this.bloom.materialHighPassFilter;
-    hp.fragmentShader = hp.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); texel.rgb = min( max( texel.rgb - vec3( 8.0 ), vec3( 0.0 ) ), vec3( 4.0 ) );');
+    hp.fragmentShader = hp.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); texel.rgb = min( max( min( texel.rgb, vec3( texel.r ) ) - vec3( 8.0 ), vec3( 0.0 ) ), vec3( 4.0 ) );');
     hp.needsUpdate = true;
     this.composer.addPass(this.bloom);
     this.grade = new ShaderPass(GradeShader);
