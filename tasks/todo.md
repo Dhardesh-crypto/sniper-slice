@@ -1151,4 +1151,5 @@ Reported: tower blue, trunks purple, far hills deep blue on Vineyard (1920x1080,
 - [x] All nine missions facing the sun, blue added by bloom (mean / 99th percentile, 0-255): vineyard 13.5/114 to 0.3/8, town 7.8/43 to 2.1/16, flak 5.6/39 to 1.4/23, bridge 5.2/52 to -0.2/1, harbour 5.1/37 to 3.1/27, forest 4.6/45 to -0.6/5, railway 3.6/50 to -0.1/1, radar 2.2/39 to 0/5, airfield 0.2/8 to -0.3/7. Vineyard dusk unchanged, winter 1.7/37 to -0.8/2.
 - [x] Warm light unchanged: test spheres at (30, 12, 3) and (40, 30, 12) bloom as before (no difference old to new), white differs by 1 of 255. An ordinary explosion never gets over 8, so it doesn't touch this bloom at all.
 - [x] npm test 3/3, no console errors. Production build of the working tree (it holds other sessions' uncommitted work).
-Not done: deploying (needs the user's OK), playing it by hand.
+- [x] Deployed (ee8d7e7, Netlify 6aed907c): the code differs from what was live only by the bloom line. Same view on the live site: bluest pixel (111, 134, 160), no console errors.
+Not done: playing it by hand.
