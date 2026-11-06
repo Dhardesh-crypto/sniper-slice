@@ -222,12 +222,20 @@ export function worldUVs(geometry, metres = 2) {
 // dark. Copies of a texture (the terrain's ground, the trees' bark) share its image and are
 // refreshed too.
 const PHOTO_NORMALS = { plaster: 1.2, plaster2: 1.2, stone: 2.5, concrete: 1.4, roof: 2.5, wood: 1.6, darkWood: 1.6, ground: 1.0, forestGround: 1.4 };
+// Which photographs exist, so nothing is asked for that isn't there: every style has its own walls,
+// three of them a concrete too, and concrete has no plain photograph (it stays drawn elsewhere).
+const STYLE_WALLS = new Set(['plaster', 'plaster2', 'stone']);
+const STYLE_CONCRETE = new Set(['apennine', 'liguria', 'lombardy']);
+const photoOf = (key, style) => {
+  if (style && (STYLE_WALLS.has(key) || (key === 'concrete' && STYLE_CONCRETE.has(style)))) return `styles/${style}/${key}`;
+  return key === 'concrete' ? null : key;
+};
 export async function usePhotoTextures(scene, style = null) {
   const T = textures(), loader = new THREE.ImageLoader(), sources = new Set();
   const load = (f) => loader.loadAsync(`${import.meta.env.BASE_URL}textures/${f}.jpg`).catch(() => null);
   await Promise.all(Object.keys(T).map(async (key) => {
     // The map's own walls first (its region's stone, plaster, concrete: tools/skins/style-textures.py).
-    const img = (style && await load(`styles/${style}/${key}`)) || await load(key);
+    const file = photoOf(key, style), img = file && await load(file);
     if (!img) return;
     const height = canvas(SIZE);
     const hg = height.getContext('2d');

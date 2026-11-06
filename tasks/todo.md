@@ -1043,6 +1043,12 @@ Not caused by this: route points the guards' paths can't reach in flak (trench, 
 - [x] ai/dogs.js: from 9 to 5 m it now trots at 3.6 m/s with its nose down (it was galloping at
       6.5 with its head in the grass), then rushes you. `lie()` gave way to the die clip.
 
+## No more 404s for textures (2026-11-05)
+- [x] usePhotoTextures tried every texture in the map's style folder first and fell back on the 404,
+      and looked for a plain concrete that has never existed: seven failed requests a load. It now
+      asks only for what's there (`photoOf` in world/textures.js). Checked on a production build:
+      all nine missions, 96–110 assets each, none missing. (Vite's dev server hides these.)
+
 
 ## Guards surrender, duck blasts and drag the wounded (2026-11-05)
 Three clips from NVIDIA Kimodo run with no text model (poses and paths only, on the Mac's CPU), retargeted in
