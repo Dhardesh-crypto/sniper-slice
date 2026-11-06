@@ -163,7 +163,7 @@ const stealth = new Stealth({ world, player, arsenal, masking, audio, hud });
 arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
-const dogs = new Dogs({ scene, world, player, stealth, audio, fx, hud, seed: runSeed });   // a guard dog or two this run
+const dogs = new Dogs({ scene, world, player, stealth, audio, fx, hud, nav: ai.nav, seed: runSeed });   // a guard dog or two this run
 const mission = new Mission({ world, player, arsenal, stealth, ai, search, input, audio, fx, hud, def: M.def });
 mission.title = M.subtitle.split(' · ')[0];
 const explosions = new Explosions({ scene, world, player, stealth, audio, fx, hud, arsenal });

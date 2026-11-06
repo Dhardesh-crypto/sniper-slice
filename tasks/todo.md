@@ -1204,3 +1204,9 @@ Open: the stumps stop you but not bullets (their hidden block leaves the bullet 
       errors; `npm test` passes. Fuel and generator not played (town has neither): same lookup. Levels in a real
       mission not judged by ear.
 - [x] Deployed (7c08aa7, Netlify 6aedc6c5): the live `th_*` files match the repo's and the live build asks for them.
+
+## 6 November 2026: dogs no longer bite through walls
+
+- [x] A bite needs a clear line at mouth height (`Dogs.walled`, over the same boxes that stop it walking).
+- [x] With a wall between you it runs the guards' nav route round it (`Dogs.chase`, new every 0.5 s).
+- [x] Checked by script on Vineyard: 0 bites through a wall in six set-ups. Round the compound's W and E walls it reached and bit in about 6.6 s; through an open door in 9.8 s; a shut door stopped it; on the N wall the route is so long it lost the scent. Not played by hand.

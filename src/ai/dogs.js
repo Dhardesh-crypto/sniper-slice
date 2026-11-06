@@ -2,7 +2,8 @@
 // the run's seed). It walks and runs with him, and it smells you: within about 12 m, further when
 // the wind carries your scent to it, less in the rain. Then it puts its nose down and tracks you,
 // barking, and the barking brings the guards (its handler first, then anyone in earshot); if it
-// reaches you it bites. Kill its handler and it stays by the body barking; shoot it and it yelps
+// reaches you it bites. A wall stops its teeth, not its nose: with one between you it runs the way a
+// guard would walk round, and bites only with nothing in the way. Kill its handler and it stays by the body barking; shoot it and it yelps
 // and goes down. The dog itself, its clips and how they play, is world/dog.js; this moves it and
 // decides what it does.
 import * as THREE from 'three';
@@ -15,10 +16,13 @@ const BARK_HEARD = 45;         // m a bark carries to the guards
 const BITE = 1.3, BITE_DAMAGE = 11;
 const HEEL = new THREE.Vector3(-0.9, 0, -0.9);   // where it walks: at his left, half a pace behind
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+const MOUTH = 0.5;             // m off the ground: what a bite has to get past
+const REROUTE = 0.5;           // s between looks for the way round
+const ray = new THREE.Ray(), meets = new THREE.Vector3(), from = new THREE.Vector3(), to = new THREE.Vector3();
 
 export class Dogs {
-  constructor({ scene, world, player, stealth, audio, fx, hud, seed }) {
-    Object.assign(this, { scene, world, player, stealth, audio, fx, hud });
+  constructor({ scene, world, player, stealth, audio, fx, hud, nav, seed }) {
+    Object.assign(this, { scene, world, player, stealth, audio, fx, hud, nav });
     this.dogs = [];
     const rnd = seeded(seed ^ 0xd065);
     const n = rnd() < 0.35 ? 2 : 1;
@@ -39,7 +43,7 @@ export class Dogs {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 1.0), HIDDEN);
       hit.position.y = 0.45;
       a.root.add(hit);
-      const dog = { a, handler: h, mode: 'heel', barkT: 0, biteT: 0, smellT: Math.random() * 0.3, lostT: 0, hit, fall: 0 };
+      const dog = { a, handler: h, mode: 'heel', barkT: 0, biteT: 0, routeT: 0, smellT: Math.random() * 0.3, lostT: 0, hit, fall: 0 };
       hit.userData.onShot = () => this.kill(dog);
       world.raycastTargets.push(hit);
       h.dog = dog;
@@ -62,6 +66,31 @@ export class Dogs {
     const to = new THREE.Vector3(d.x - p.x, 0, d.z - p.z).normalize(), w = wind.length();
     const downwind = w > 0.1 ? to.dot(wind.clone().setY(0).divideScalar(w)) : 0;
     return SMELL * (1 + 0.6 * downwind * Math.min(1, w / 4)) * (activeMap().weather?.rain ? 0.6 : 1);
+  }
+
+  // Is there a wall (anything that would stop it walking) between its mouth and you?
+  walled(pos) {
+    const p = this.player.pos;
+    from.set(pos.x, pos.y + MOUTH, pos.z);
+    to.set(p.x, p.y + MOUTH, p.z);
+    const len = from.distanceTo(to);
+    if (len < 1e-3) return false;
+    ray.set(from, to.sub(from).divideScalar(len));
+    return this.world.boxes.some(b => ray.intersectBox(b, meets) && meets.distanceTo(from) < len);
+  }
+
+  // Where it runs to reach you: straight at you in the open, else the next corner of the way round.
+  chase(dog, dt) {
+    const pos = dog.a.root.position, p = this.player.pos;
+    if ((dog.routeT -= dt) <= 0) {
+      dog.routeT = REROUTE;
+      dog.route = this.walled(pos) ? this.nav.path(pos, p) : null;
+      dog.routeI = 0;
+    }
+    const r = dog.route;
+    if (!r) return p;
+    while (dog.routeI < r.length - 1 && Math.hypot(r[dog.routeI].x - pos.x, r[dog.routeI].z - pos.z) < 0.8) dog.routeI++;
+    return r[dog.routeI];
   }
 
   tick(dt) {
@@ -90,14 +119,14 @@ export class Dogs {
         want = 3;
         if ((dog.barkT -= dt) <= 0) { dog.barkT = 2.2 + Math.random(); this.bark(dog, BARK_HEARD * 0.8); }
       } else if (dog.mode === 'track') {
-        goal = p.pos;
+        goal = this.chase(dog, dt);
         const casting = toYou > 5 && toYou < 9;                  // nose down on the scent as it closes
-        want = casting ? 3.6 : toYou > 5 ? 6.5 : toYou > BITE ? 2.5 : 0;
+        want = dog.route ? 5 : casting ? 3.6 : toYou > 5 ? 6.5 : toYou > BITE ? 2.5 : 0;
         a.nose = casting;
         if ((dog.barkT -= dt) <= 0) { dog.barkT = 0.8 + Math.random() * 0.6; this.bark(dog, BARK_HEARD); }
         // Its handler goes where it's pulling; if it can see you, so does everyone near.
         if (h.alive && h.aware.state === 'calm') this.stealth.raise(h, 'suspicious', p.pos.clone(), 'heard');
-        if (toYou < BITE + 0.2 && !p.dead && (dog.biteT -= dt) <= 0) {
+        if (toYou < BITE + 0.2 && !p.dead && (dog.biteT -= dt) <= 0 && !this.walled(pos)) {
           dog.biteT = 0.9;
           dogBite(a);
           p.damage(BITE_DAMAGE, pos);
