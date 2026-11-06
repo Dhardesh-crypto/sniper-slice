@@ -1203,3 +1203,4 @@ Open: the stumps stop you but not bullets (their hidden block leaves the bullet 
       a scan line; target, vehicle, siren, near-target and alarm lines played when called directly; no console
       errors; `npm test` passes. Fuel and generator not played (town has neither): same lookup. Levels in a real
       mission not judged by ear.
+- [x] Deployed (7c08aa7, Netlify 6aedc6c5): the live `th_*` files match the repo's and the live build asks for them.
