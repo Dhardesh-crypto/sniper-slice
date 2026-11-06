@@ -1219,3 +1219,4 @@ Reported after playing: his arms look unnatural when running, like a gorilla. Sh
 - [x] Tripo not used: it makes meshes, and the mesh is fine. No credits spent.
 - [x] npm test 3/3. Production build: jog at 3.2 m/s and run at 6.2 m/s play with the rifle on his back, seen from the side and behind; no console errors.
 Not done: playing it by hand. Only the free-arm gaits changed: crouch, prone and the rifle-in-hands poses are as they were; guards still use their own clips.
+- [x] Deployed (e3cd42a, Netlify 6aee2d75). The three clips on the live site match the repo by hash.
