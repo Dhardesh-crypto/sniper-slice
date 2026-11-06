@@ -194,6 +194,7 @@ export class Saves {
       const h = hotspots.list.filter(x => x.title === hs.title)[n];
       if (!h) continue;
       h.hits = hs.hits; h.broken = hs.broken; h.tagged = hs.tagged;
+      if (hs.broken) h.onRestore?.(h);
       if (h.kind === 'siren' && hs.broken) { const [horn] = h.meshes; horn.rotation.x = 0.9; horn.position.y -= 0.15; }
       if (hs.exploded && !h.exploded) {
         if (hs.turret) hotspots.restoreTurret(h, hs.turret);   // (before the wreck: the charred hull stays, no burnt-out model)

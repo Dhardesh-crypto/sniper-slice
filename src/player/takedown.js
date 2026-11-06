@@ -173,6 +173,7 @@ export class Takedown {
       this.active = null;
       p.locked = false;
       this.knife.visible = false;
+      this.search?.takeFrom(s);               // (his kit, as you lower him down)
     }
   }
 
@@ -272,6 +273,9 @@ export class Takedown {
         this.onKill?.(s);
       }
     }
-    if (b.t >= BAYONET_TIME) { this.bayo = null; p.locked = false; }
+    if (b.t >= BAYONET_TIME) {
+      if (b.target.kind === 'soldier' && !b.target.ref.alive) this.search?.takeFrom(b.target.ref);   // (and what he carried)
+      this.bayo = null; p.locked = false;
+    }
   }
 }

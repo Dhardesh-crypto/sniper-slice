@@ -207,6 +207,7 @@ export class Items {
   updateArc() {
     const show = this.aimingThrow;
     this.arc.visible = this.ring.visible = show;
+    this.landing = null;
     if (!show) return;
     const { pts, end, blocked } = this.traceArc();
     const colour = blocked ? 0xff4a3d : 0xffffff;
@@ -216,6 +217,8 @@ export class Items {
     this.arc.geometry = new THREE.BufferGeometry().setFromPoints(pts);
     this.arc.computeLineDistances();
     this.ring.position.copy(end).add(new THREE.Vector3(0, 0.05, 0));
+    // For the HUD: how far it will land from you, along the ground.
+    this.landing = { at: end, blocked, distance: Math.hypot(end.x - this.player.pos.x, end.z - this.player.pos.z) };
   }
 
   cancelThrow() {

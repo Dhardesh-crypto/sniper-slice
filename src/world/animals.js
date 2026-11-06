@@ -170,6 +170,10 @@ function makeAnimal(scene, kind, x, z, i = 0) {
   };
 }
 
+// A herd bolting because you walked up to it (not a noise the guards hear for themselves): main.js
+// tells the guards, who can see that from a way off.
+export const herdEvents = { onBolt: null };
+
 // Something loud at `at` (heard up to `radius` m): animals within it bolt away.
 export function startle(at, radius) {
   for (const a of herd) {
@@ -202,7 +206,7 @@ export function tickAnimals(dt, player) {
       continue;
     }
     a.phase += dt;
-    if (a.state !== 'flee' && player && p.distanceTo(player.pos) < a.spec.shy) startle(player.pos, a.spec.shy + 1);
+    if (a.state !== 'flee' && player && p.distanceTo(player.pos) < a.spec.shy) { startle(player.pos, a.spec.shy + 1); herdEvents.onBolt?.(p.clone()); }
     if (a.state === 'graze' && (a.t -= dt) <= 0) {
       // A few steps to somewhere else in the patch.
       const ang = Math.random() * Math.PI * 2, r = Math.random() * a.radius;

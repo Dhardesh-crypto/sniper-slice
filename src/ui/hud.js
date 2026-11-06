@@ -433,6 +433,48 @@ export class Hud {
       for (const h of hotspots?.tagged() ?? []) marks.push({ pos: h.center(), kind: 'weakspot' });
       this.drawCompass(player, marks);
     }
+    // A throw being aimed: how far off it lands, over the ring at the end of the arc.
+    if (items?.landing) {
+      const at = (this.v5 ?? (this.v5 = new THREE.Vector3())).copy(items.landing.at); at.y += 0.5;
+      const sp = project(at);
+      if (sp) {
+        g.font = `bold ${13 * d}px "Helvetica Neue", Arial, sans-serif`;
+        g.textAlign = 'center';
+        g.lineWidth = 3 * d; g.strokeStyle = 'rgba(0,0,0,0.65)';
+        const text = `${Math.round(items.landing.distance)} m`;
+        g.strokeText(text, sp.x, sp.y - 8 * d);
+        g.fillStyle = items.landing.blocked ? '#ff6a5c' : '#ffffff';
+        g.fillText(text, sp.x, sp.y - 8 * d);
+        g.font = `${11 * d}px "Helvetica Neue", Arial, sans-serif`;
+      }
+    }
+    // Your last shot: a tick over every man who heard it, and how many, for a moment. Any word
+    // from the counter-fire goes with it. A grenade coming at you is marked.
+    const shot = stealth?.lastShot, shotAge = shot ? stealth.time - shot.t : 9;
+    if (shotAge < 2.5) {
+      const fade = Math.min(1, (2.5 - shotAge) / 0.8);
+      g.textAlign = 'center';
+      g.fillStyle = `rgba(255,120,90,${0.95 * fade})`;
+      for (const s of shot.heard ?? []) {
+        if (!s.alive) continue;
+        const sp = project((this.v5 ?? (this.v5 = new THREE.Vector3())).copy(s.root.position).setY(s.root.position.y + 2.15));
+        if (sp && sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H) { g.beginPath(); g.moveTo(sp.x - 5 * d, sp.y - 8 * d); g.lineTo(sp.x + 5 * d, sp.y - 8 * d); g.lineTo(sp.x, sp.y); g.fill(); }
+      }
+      const n = shot.heard?.length ?? 0;
+      g.font = `600 ${12 * d}px "Helvetica Neue", Arial, sans-serif`;
+      g.fillStyle = n ? `rgba(255,150,120,${fade})` : `rgba(190,230,190,${fade})`;
+      g.fillText(`${n ? `HEARD BY ${n}` : 'NOBODY HEARD THAT'}${shot.note ? ` · ${shot.note}` : ''}`, W / 2, H * 0.68);
+      g.font = `${11 * d}px "Helvetica Neue", Arial, sans-serif`;
+    }
+    for (const n of this.grenades?.() ?? []) {
+      const sp = project(n.pos);
+      if (!sp) continue;
+      g.font = `bold ${13 * d}px "Helvetica Neue", Arial, sans-serif`;
+      g.textAlign = 'center';
+      g.fillStyle = '#ff5a48';
+      g.fillText('▼ GRENADE', sp.x, sp.y - 12 * d);
+      g.font = `${11 * d}px "Helvetica Neue", Arial, sans-serif`;
+    }
     // Waypoint: a marker in the world with its distance.
     if (waypoint) {
       const wp = this.v2 ?? (this.v2 = new THREE.Vector3());

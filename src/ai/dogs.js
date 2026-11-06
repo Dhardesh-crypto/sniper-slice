@@ -22,7 +22,14 @@ export class Dogs {
     this.dogs = [];
     const rnd = seeded(seed ^ 0xd065);
     const n = rnd() < 0.35 ? 2 : 1;
-    const handlers = world.soldiers.filter(s => s.alive && !s.officer && !s.range && s.brain && !s.brain.fixed && s.brain.route);
+    this.handlers = world.soldiers.filter(s => s.alive && !s.officer && !s.range && s.brain && !s.brain.fixed && s.brain.route);
+    this.rnd = rnd;
+    this.more(n);
+  }
+
+  // Dogs for `n` more of the men on patrol.
+  more(n) {
+    const { world, scene, rnd, handlers } = this;
     for (let i = 0; i < n && handlers.length; i++) {
       const h = handlers.splice(Math.floor(rnd() * handlers.length), 1)[0];
       const at = h.root.position;

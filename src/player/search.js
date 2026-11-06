@@ -1,5 +1,6 @@
 // Searching bodies for supplies: stand over a dead soldier and hold E. The player
-// crouches over the body; after a short search the supplies go into the reserve.
+// crouches over the body; after a short search the supplies go into the reserve. A man you
+// knife or bayonet is searched as he goes down (takedown.js: takeFrom).
 import * as THREE from 'three';
 
 const REACH = 1.9;          // metres from the body (horizontal)
@@ -64,7 +65,16 @@ export class Search {
   }
 
   finish() {
-    const s = this.target;
+    this.takeFrom(this.target);
+    if (this.wasStance) this.player.setStance(this.wasStance);
+    this.progress = 0;
+    this.wasStance = null;
+    this.target = null;
+  }
+
+  // Everything he has goes into your kit.
+  takeFrom(s) {
+    if (s.searched) return;
     s.searched = true;
     const loot = rollLoot(s);
     // The grenade on his belt, if you have room for it (otherwise it stays on him).
@@ -77,10 +87,6 @@ export class Search {
     if (s.officer && this.pickups?.profile.addWeapon('luger')) got.push('weapon: Luger P08 · fit it at a workbench');  // and his Luger
     this.audio.pickup();
     this.hud.message(got.length ? got.join(' · ').toUpperCase() : 'NOTHING USEFUL');
-    if (this.wasStance) this.player.setStance(this.wasStance);
-    this.progress = 0;
-    this.wasStance = null;
-    this.target = null;
   }
 
   // For the HUD prompt.

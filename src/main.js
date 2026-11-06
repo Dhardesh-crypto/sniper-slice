@@ -47,6 +47,11 @@ import { GuardAI } from './ai/guards.js';
 import { Mission } from './mission/mission.js';
 import { Hotspots } from './world/hotspots.js';
 import { Takedown } from './player/takedown.js';
+import { CounterFire } from './ai/counterfire.js';
+import { Clues } from './stealth/clues.js';
+import { Alarms } from './world/alarms.js';
+import { garrisonOrders, noteHabits } from './mission/garrison.js';
+import { scoreChallenges, challengesHtml } from './mission/challenges.js';
 import { Explosions } from './fx/explosions.js';
 import { Wreckage } from './fx/wreckage.js';
 import { Tank } from './world/tank.js';
@@ -54,7 +59,7 @@ import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
 import { initExhaust, tickExhaust } from './world/exhaust.js';
 import { initGroundMarks, tickGroundMarks } from './world/groundmarks.js';
 import { Weather } from './world/weather.js';
-import { addAnimals, startle, tickAnimals } from './world/animals.js';
+import { addAnimals, startle, tickAnimals, herdEvents } from './world/animals.js';
 import { activeMap } from './world/terrain.js';
 import { Items } from './player/items.js';
 import { Saves } from './core/saves.js';
@@ -222,7 +227,7 @@ const interactions = new Interactions({ scene, world, player, input, hud, audio,
 const guns = new MountedGuns({ world, player, input, arsenal, audio });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
-M.intel?.(interactions, world, { pickups, items, arsenal, mission, scene, player, audio, hud });
+M.intel?.(interactions, world, { pickups, items, arsenal, mission, scene, player, audio, hud, hotspots });
 const wire = new Wire({ scene, world, interactions, stealth, audio, hud, pickups });   // barbed wire: hold E to cut a gap (after the mission's own levers, so saves keep their order)
 interactions.onSafe = (safe) => { if (safe.objective) mission.complete(safe.objective, safe.objectiveText ?? 'SAFE OPENED'); };
 search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
@@ -287,20 +292,39 @@ mission.complete = (id, message) => {
 };
 const takedown = new Takedown({ world, player, avatar, stealth, input, audio, fx, hud, arsenal });
 takedown.dogs = dogs;   // (F knifes a dog that's close)
+takedown.search = search;   // (and a man you knife or bayonet is searched there and then)
 const disguise = new Disguise({ world, player, avatar, arsenal, input, audio, hud, carry, takedown });   // a dead guard's uniform
 stealth.disguise = disguise;
 hud.disguise = disguise;
 saves.g.disguise = disguise;
 const driving = new Driving({ world, player, avatar, input, audio, hud, stealth, camera, patrol, ai, disguise });   // take a truck, car or motorcycle
-takedown.onKill = () => { mission.stats.kills++; mission.stats.takedowns++; };
+takedown.onKill = (s) => { mission.stats.kills++; mission.stats.takedowns++; if (s?.officer) mission.stats.targetBy = 'knife'; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;
 mapView.hotspots = hotspots;
 arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot(); };
+// What the Germans have learnt about you so far, and what they do on the ways in.
+const orders = garrisonOrders(profile.habits);
+if (orders?.sight) stealth.sightK = orders.sight;
+if (orders?.ears) stealth.earsK = orders.ears;
+if (orders?.dogs) dogs.more(orders.dogs);
+const counterfire = new CounterFire({ scene, world, player, stealth, ai, audio, explosions, beltGrenades });
+hud.grenades = () => counterfire.near();
+const clues = new Clues({ world, stealth, interactions });
+if (orders?.mate) clues.mateTime = orders.mate;
+const alarms = new Alarms({ scene, world, player, stealth, ai, interactions, audio, hud, seed: runSeed, extra: orders?.alarms ?? 0 });
+stealth.alarms = alarms;
+herdEvents.onBolt = (at) => stealth.disturbance(at, 80);   // (a guard sees the herd go)
+if (orders) document.getElementById('briefing').insertAdjacentHTML('afterbegin', `<p class="brief"><b>The garrison:</b> ${orders.text}</p>`);
+document.getElementById('briefing').insertAdjacentHTML('beforeend', challengesHtml(mission, profile.challenges(missionId)));
 stealth.onRaise = (why) => mission.onRaise(why);
 const endScreen = document.getElementById('end');
 mission.onComplete = (sum) => {
   profile.completeMission(missionId);     // the next mission unlocks
+  noteHabits(profile, mission.stats, ai.alarm.count);
+  const scored = scoreChallenges({ profile, missionId, mission, pickups, sum: { stats: mission.stats, rating: sum.rating, alarms: ai.alarm.count, time: mission.time, mission } });
+  if (scored.fresh.length) sum.rows.push(['Challenges met', scored.fresh.map(c => c.text).join('\n')]);
+  if (scored.parts.length) sum.rows.push(['Earned', scored.parts.join(', ')]);
   document.getElementById('rating').textContent = `RATING · ${sum.rating}`;
   document.getElementById('end-stats').innerHTML = sum.rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   // Ellis's report: what it's bought, and where it leads.
@@ -488,9 +512,10 @@ function showDispatch(then) {
   playVoice(`story_${missionId}_intro`);
   // Typed out as he speaks (about his pace), all at once on a click.
   let i = 0;
-  const type = setInterval(() => { i = Math.min(story.intro.length, i + 3); body.textContent = story.intro.slice(0, i); if (i >= story.intro.length) clearInterval(type); }, 40);
+  const words = orders ? `${story.intro}\n\n${orders.text}` : story.intro;   // (what the garrison has learnt: mission/garrison.js)
+  const type = setInterval(() => { i = Math.min(words.length, i + 3); body.textContent = words.slice(0, i); if (i >= words.length) clearInterval(type); }, 40);
   const go = () => {
-    if (body.textContent.length < story.intro.length) { clearInterval(type); body.textContent = story.intro; return; }   // (first click: the whole text)
+    if (body.textContent.length < words.length) { clearInterval(type); body.textContent = words; return; }   // (first click: the whole text)
     card.removeEventListener('click', go); window.removeEventListener('keydown', key);
     card.classList.remove('on');
     then();
@@ -578,7 +603,10 @@ function tick(dt) {
   stealth.glint.tick(dt);
   stealth.tick(dt);
   footprints.tick(dt);
+  clues.tick(dt);
+  alarms.tick(dt);
   ai.tick(dt);
+  counterfire.tick(dt);
   dogs.tick(dt);
   patrol.tick(dt);
   searchlights.tick(dt);
@@ -605,15 +633,7 @@ function tick(dt) {
   if (shot && shot !== lastFlush) {
     lastFlush = shot;
     const spots = birds.flush(shot.origin, THREE.MathUtils.clamp(shot.radius / 220, 0.25, 1.5));
-    // A calm guard facing that way sees the birds go up (a quiet shot he didn't hear): he wonders why.
-    for (const at of spots) for (const s of stealth.guards()) {
-      if (s.aware?.state !== 'calm' || s.officer || Math.random() < 0.4) continue;
-      const to = at.clone().sub(s.root.position), d = Math.hypot(to.x, to.z);
-      if (d > 140) continue;
-      const facing = Math.atan2(to.x, to.z) - s.root.rotation.y;
-      if (Math.cos(facing) < Math.cos(1.3)) continue;
-      stealth.raise(s, 'suspicious', at.clone().setY(world.groundAt(at.x, at.z)), 'glimpse');
-    }
+    for (const at of spots) stealth.disturbance(at);   // (a quiet shot he didn't hear: he sees the birds go up)
   }
   if (stealth.lastShot && stealth.time - stealth.lastShot.t < 0.05) birdT = 35;
   if (birdT <= 0) { birdT = 3 + Math.random() * 7; if (!stealth.alarm) audio.birdCall(); }
@@ -793,6 +813,7 @@ renderer.setAnimationLoop(frame);
 // Debug handle for automated play-testing from the console.
 window.game = { audio, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
+  counterfire, clues, alarms, orders,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

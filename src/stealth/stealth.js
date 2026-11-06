@@ -38,6 +38,7 @@ export class Stealth {
     this.mask = { amount: 0, source: null };
     this.alarm = false;          // the siren is sounding: alerted guards stay alerted
     this.wariness = 1;           // rises after each alarm: guards spot you faster
+    this.sightK = 1; this.earsK = 1;   // this mission's orders (mission/garrison.js): how far they see and hear
     this.v = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3() };
     for (const s of world.soldiers) this.enlist(s);
   }
@@ -69,15 +70,29 @@ export class Stealth {
     const p = this.player;
     if (!p.moving || p.underground) return 0;
     const r = p.sprinting ? SPRINT_NOISE : STEP_NOISE[p.stance] * Math.min(1.3, p.speed / 2.5 + 0.4);
-    return r * (1 - 0.7 * this.mask.amount);
+    // Broken glass underfoot (world/alarms.js) carries; the garrison may be listening harder.
+    return r * (this.alarms?.glassAt(p.pos) ? 2.4 : 1) * this.earsK * (1 - 0.7 * this.mask.amount);
   }
 
   // ---- noise events ----
   gunshot(origin, def) {
     const masked = this.masking.loudnessAt(origin).amount;
     const radius = def.noiseRadius * (1 - (1 - MASKED_SHOT) * masked);
-    this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source, origin: origin.clone() };
+    this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source, origin: origin.clone(), heard: [] };
     this.noise(origin, radius, 'shot');
+    this.onGunshot?.(this.lastShot);                // (ai/counterfire.js: are they getting a fix on you?)
+  }
+
+  // Something plain to see over there (birds going up, cattle bolting): a calm guard facing that
+  // way sees it, even if he heard nothing, and wonders why.
+  disturbance(at, reach = 140) {
+    for (const s of this.guards()) {
+      if (s.aware?.state !== 'calm' || s.officer || Math.random() < 0.4) continue;
+      const to = at.clone().sub(s.root.position), d = Math.hypot(to.x, to.z);
+      if (d > reach) continue;
+      if (Math.cos(Math.atan2(to.x, to.z) - s.root.rotation.y) < Math.cos(1.3)) continue;
+      this.raise(s, 'suspicious', at.clone().setY(this.world.groundAt(at.x, at.z)), 'glimpse');
+    }
   }
 
   noise(pos, radius, kind) {
@@ -89,6 +104,7 @@ export class Stealth {
         // Everyone hears a blast; those close by know exactly where it was.
         this.raise(s, d < radius * 0.5 ? 'alerted' : 'suspicious', pos.clone(), 'explosion');
       } else if (kind === 'shot') {
+        this.lastShot?.heard.push(s);
         // Close shots give the direction away; far ones only a rough bearing.
         const fuzz = d * (d < radius * 0.5 ? 0.04 : 0.15);
         const guess = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * fuzz, 0, (Math.random() - 0.5) * fuzz));
@@ -142,6 +158,7 @@ export class Stealth {
       b.deathNoted = true;
       const bp = b.bodyPosition(new THREE.Vector3());
       b.hidden = inTallGrass(this.world.grassPatches, bp.x, bp.z);
+      b.diedAt = bp.clone().setY(this.world.floorAt(bp.x, bp.z, bp.y + 0.5));   // (his blood stays here if he's moved: clues.js)
       this.noise(bp, b.quietDeath ? 2 : 9, 'body'); // a takedown lowers him down almost silently
     }
 
@@ -207,7 +224,7 @@ export class Stealth {
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
     const glint = this.glint?.toward(eye) ?? 0;                 // your scope flashing in the sun (glint.js): seen far off, and through grass
     if (this.concealed && !lit && glint < 0.2 && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
-    let range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1);   // (rain and mist hide you further off)
+    let range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1) * this.sightK;   // (rain and mist hide you further off)
     if (glint > 0) { range = Math.max(range, 340 * glint); vis = Math.max(vis, 0.5 * glint); }
     if (d > range * Math.sqrt(vis) + 3) return 0;
     const to = chest.clone().sub(eye);

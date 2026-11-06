@@ -102,7 +102,7 @@ export class Interactions {
     const t = p.dead || p.climb || p.carrying || p.locked ? null : this.near();
     if (t?.item !== this.target?.item) { this.target = t; this.progress = 0; }
     if (!t) return;
-    if (t.kind === 'door' && this.input.wasPressed('KeyE')) { t.item.toggle(this.world); this.audio.click(0, 600, 0.25); return; }
+    if (t.kind === 'door' && this.input.wasPressed('KeyE')) { t.item.toggle(this.world); t.item.leftOpen = t.item.open; this.audio.click(0, 600, 0.25); return; }   // (leftOpen: guards notice, clues.js)
     if (t.kind === 'doc' && this.input.wasPressed('KeyE')) { this.take(t.item); return; }
     if (t.kind === 'lever') {
       if (!this.input.down('KeyE') || p.moving) { this.progress = 0; return; }

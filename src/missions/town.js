@@ -587,7 +587,7 @@ function layout({ world, on }) {
 // ---- documents, the safe, the objectives ----
 const SAFE = { id: 'gestapo-safe', name: 'THE GESTAPO SAFE', combination: '27 – 11 – 09' };
 
-function intel(it, world, { pickups, arsenal, mission }) {
+function intel(it, world, { pickups, arsenal, mission, hotspots }) {
   const h = world.site.hall;
   it.addSafe({
     ...SAFE, at: h.safe.at, yaw: h.safe.yaw, objective: 'safe', objectiveText: 'THE ARREST LISTS TAKEN',
@@ -627,8 +627,19 @@ function intel(it, world, { pickups, arsenal, mission }) {
   it.addDocument({ id: 'town-transport', title: 'Transport order', at: v.docAt,
     text: 'Aussenkommando, San Vito. One truck, one driver, two men to report to the town hall at 05:00 on Sunday.\n\n' +
       'Twelve persons to be taken to Verona. No stops. The farm people here are to be kept to the house until the truck has gone.\n\n— Scharführer Lenz' });
+  // Cut it by hand, quietly, or put a bullet through the box from wherever you can see it.
+  const phoneDown = () => { v.phoneLine.visible = false; v.phoneCut = true; mission.ai.radioDown = true; };
+  const phoneShot = () => { phoneDown(); v.junction.rotation.z = 0.5; v.junction.position.y -= 0.12; };   // (the box hanging off its bracket)
   it.addLever({ at: v.phoneAt, label: 'CUT THE TELEPHONE LINE TO THE TOWN', busy: 'CUTTING THE LINE…', time: 2.5,
-    onUse: () => { v.phoneLine.visible = false; v.phoneCut = true; mission.ai.radioDown = true; mission.audio.click?.(0, 1800, 0.4); } });
+    onUse: () => { phoneDown(); phoneBox.broken = true; mission.audio.click?.(0, 1800, 0.4); } });
+  const phoneLever = it.levers.at(-1);
+  const phoneBox = hotspots.add({ kind: 'phone', title: 'FIELD TELEPHONE', meshes: [v.junction], onHit: (h) => {
+    phoneShot();
+    phoneLever.used = true;                                  // (nothing left to cut)
+    const at = h.center();
+    mission.fx.emit(at, new THREE.Vector3(0, 1, 0), { color: 0xffe0a0, count: 10, speed: 3, size: 0.06, life: 0.4, grow: 1, gravity: -6 });
+    mission.stealth.noise(at, 18, 'impact');
+  }, onRestore: phoneShot });
   mission.papersDoc = { id: 'town-papers', title: "Weiss's papers", reveals: SAFE.id,
     text: `Service book of SS-Sturmbannführer E. Weiss. A cigarette case. In the lining of the case, a slip of paper: ${SAFE.combination}.` };
   mission.documentsTotal = 10;

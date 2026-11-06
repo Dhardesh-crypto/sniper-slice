@@ -80,5 +80,17 @@ export class Profile {
   }
   intel(missionId) { return this.data.intel?.[missionId] ?? []; }
 
+  // Challenges met in each mission (mission/challenges.js), and what you tend to do (mission/garrison.js).
+  challenges(missionId) { return this.data.challenges?.[missionId] ?? []; }
+  addChallenge(missionId, id) {
+    const list = (this.data.challenges ??= {})[missionId] ??= [];
+    if (list.includes(id)) return false;
+    list.push(id); this.save();
+    return true;
+  }
+  get challengeCount() { return Object.values(this.data.challenges ?? {}).reduce((n, l) => n + l.length, 0); }
+  get habits() { return this.data.habits ?? {}; }
+  setHabits(h) { this.data.habits = h; this.save(); }
+
   get loadout() { return this.data.loadout; }
 }

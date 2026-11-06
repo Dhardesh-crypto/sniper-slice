@@ -1124,3 +1124,20 @@ Built (2026-11-06; sheet: tasks/scan-test-final.jpg; test worktree removed):
 - [x] Production build, all nine missions in summer and Forest in winter: no failed requests, no console errors. npm test 3/3.
 - [x] Render time looking at Town's biggest heap, four runs each, alternating: old 55.3 ms, new 55.2 ms (1920x1080, hidden pane).
 Not done: playing it by hand; the mound no longer takes ruinDust (looked right on every map checked). Winter seen only in Forest on this build.
+
+## Borrowed mechanics and four requests (2026-11-06)
+From tasks/borrow-list.md, all six, plus the user's four. The "later" ideas there aren't in this pass.
+- [x] Field telephone (Bell Tower): a hotspot on its box; a bullet does what cutting it does, the box hangs off its bracket, loads restore it. The only one in the game that does anything.
+- [x] Knife takedown and bayonet kill: `search.takeFrom(s)` when the move ends. Dogs and animals aren't searched.
+- [x] Distance in metres over the ring at the end of the arc (`items.landing`, hud.js); red with the arc when it's blocked. TNT too.
+- [x] Shot feedback: the minimap ring was already there. New: a tick over each man who heard you and "HEARD BY n" for 2.5 s.
+- [x] Animals: shots already flushed birds that guards notice (now `stealth.disturbance`); a herd you walk up to bolts and guards see that too.
+- [x] world/alarms.js: 5 can lines and 3 glass patches from the seed, on open ground (never tall grass; second pass for yard-heavy maps; no glass in winter). Walk through a line on your feet: 34 m rattle. Crouched, or E to cut, is safe. Glass: footsteps x2.4.
+- [x] ai/counterfire.js: shots heard from within 15 m of each other. Second: "THEY HAVE A BEARING". Third: up to 4 men flank (mode 'flank'), 75 s between squads. Masked (60 %+) or unheard shots don't count. Guards with a belt grenade lob it at 9-26 m, 14 s apart at most; a marker warns you.
+- [x] stealth/clues.js: doors you left open, blood where a moved or hidden body fell, a partner gone 75 s. Noticed once each, wary only. Not saved: after a load they can be noticed again.
+- [x] mission/garrison.js: habits in the profile, halved each mission. Over 3, the strongest sets the orders: lookouts (sight x1.2), pairs (hearing x1.3, partner 40 s), dogs (+1), alarms (+3). On the dispatch card as text (no voice) and in the briefing.
+- [x] mission/challenges.js: up to 10 per mission in the briefing and end screen, kept in the profile; a part every 5.
+- [x] Controls page.
+
+Checked in the game: each feature by script, save and load of the telephone and a can line. Production build, all nine missions: no failed requests or console errors, three shots from one spot brought a squad wherever they were heard; grenades thrown in eight of nine.
+Not done: playing it by hand, so the balance is a guess (REST, SQUAD, RATTLE, MATE_TIME). No throwing animation for guards. Spoken dispatch doesn't read the garrison line.

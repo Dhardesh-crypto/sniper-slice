@@ -12,7 +12,7 @@ const WOOD = new THREE.MeshStandardMaterial({ color: 0x8d6a40, roughness: 0.8 })
 const CAP = new THREE.MeshStandardMaterial({ color: 0x3a3a36, roughness: 0.5, metalness: 0.6 });
 
 // The grenade, head up at the belt, handle down along the thigh (origin at the middle).
-function stickGrenade() {
+export function stickGrenade() {
   const g = new THREE.Group();
   const head = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.076, 14), METAL);
   head.position.y = 0.12;

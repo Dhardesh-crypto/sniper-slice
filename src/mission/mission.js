@@ -34,7 +34,7 @@ export class Mission {
       { id: 'safe', text: "Open the Oberst's safe and take his orders", optional: true },
       { id: 'extract', text: 'Get back to the start hill', hidden: true },
     ]).map(o => ({ done: false, ...o }));
-    this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, takedowns: 0, longest: 0, spotted: 0, bodiesFound: 0 };
+    this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, takedowns: 0, longest: 0, longKills: 0, spotted: 0, bodiesFound: 0 };
     this.onComplete = null;
   }
 
@@ -57,6 +57,7 @@ export class Mission {
       this.stats.kills++;
       if (e.zone === 'head') this.stats.headshots++;
       this.stats.longest = Math.max(this.stats.longest, e.distance ?? 0);
+      if ((e.distance ?? 0) >= 150) this.stats.longKills++;
     }
   }
   onRaise(why) {

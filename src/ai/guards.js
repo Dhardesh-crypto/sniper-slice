@@ -6,6 +6,7 @@
 //   search      alerted, lost sight of you: run to where you were last seen, sweep around it
 //   combat      alerted and you're in sight: find cover nearby, duck, rise and fire
 //   alarm       the one guard sent running to the siren post to sound it
+//   flank       alerted, sent to a fix on your firing point: round the side, then in (counterfire.js)
 //   flee        the officer: unarmed, he runs for the villa's back wall (and a man who gave up, once you've left him)
 //   cover       a blast close by: hands over his helmet till it's passed
 //   yield       alone with your gun on him at a few paces: rifle down, hands up
@@ -145,6 +146,7 @@ export class GuardAI {
     if (b.task && a.state !== 'alerted') return 'repair';
     if (a.state === 'alerted') {
       if (this.time - b.lastSeenT < (b.mode === 'combat' ? LOST_SIGHT : 0.4)) return 'combat';
+      if (b.hunt) return 'flank';
       return b.fixed ? 'post' : 'search';
     }
     if (a.state === 'suspicious' && !b.fixed) return 'investigate';
@@ -227,6 +229,7 @@ export class GuardAI {
       case 'search': {
         const target = b.goal ?? b.lastSeen ?? a.stimulus;
         if (!target) { this.lookAround(s, dt); break; }
+        if (b.lastSeen) this.counterfire?.tryGrenade(s, b.lastSeen);   // (you went to ground close by)
         if (b.lookT === 0) {
           if (this.goTo(s, target, b.sweeps === 0 ? RUN : WALK * 1.4, dt)) b.lookT = 0.01;
         } else if (this.lookAround(s, dt)) {
@@ -238,6 +241,7 @@ export class GuardAI {
         }
         break;
       }
+      case 'flank': this.counterfire?.flank(s, dt); break;
       case 'combat': this.combat(s, dt); break;
       case 'gunner': this.gunner(s, dt); break;
       case 'ride': this.stop(s); s.crouchTarget = 1; break;   // sat low in his seat
@@ -398,6 +402,7 @@ export class GuardAI {
     const target = (a.spotted ? p.pos : b.lastSeen ?? p.pos);
     const aimPoint = target.clone(); aimPoint.y += a.headOnly ? p.eye + 0.05 : Math.max(0.3, p.eye * 0.75);
     s.targetYaw = Math.atan2(aimPoint.x - s.root.position.x, aimPoint.z - s.root.position.z);
+    if (!a.spotted && b.lastSeen) this.counterfire?.tryGrenade(s, b.lastSeen);   // behind cover: flush you out
     b.fireT -= dt;
     if (s.shakenT > 0) { s.shakenT -= dt; b.fireT = Math.max(b.fireT, s.shakenT); }
     if (s.duckT > 0) b.fireT = Math.max(b.fireT, s.duckT + 0.3);   // ducking from a near miss: he comes up before he fires   // an arm wound: a moment to bring the rifle up again
