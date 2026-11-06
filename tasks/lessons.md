@@ -127,3 +127,6 @@ The blue on Vineyard looked like light or haze and was the bloom. Turn each stag
 ## A one-way slope is a trap, and a flood fill can miss it (2026-11-06)
 `maxSlope` only stops you going up, so any bank steeper than it can be walked down and not back. A flood fill on 8 directions passed the old bank anyway, because a shallow diagonal along it stays under the limit: nobody plays like that. Walk it for real, both ways, and run a new check against the broken version before trusting it.
 Box3.setFromObject counts children: a block with a model hung on it no longer matches its stored box, so "find it and remove it" quietly removes nothing, and its centre is the model's. And pieces sharing a model's vertices through an index each report the whole model's bounds: a mission whose two targets were 22 m apart had one centre.
+
+## A calm read cannot be filtered into a shout (2026-11-06)
+Direct the performance at generation (Eleven v3 `[shouting]`); filtering or levelling a calm read can't do it. Capitals in Eleven v3 can lose an umlaut ("SANITÄTER" came out "Sanitator"): write such words in normal case, and check each take with speech-to-text.

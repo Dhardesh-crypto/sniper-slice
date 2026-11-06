@@ -38,8 +38,10 @@ const EXTRA = ['bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricoch
   'bombers_drone', 'strafe_50cal', 'flak_burst', 'flak88_fire', 'plane_crash', 'radio_static',   // (the air war: ElevenLabs sound effects)
   'plane_flyover', 'plane_lowpass', 'plane_prop', 'plane_start', 'flak20_fire', 'bomb_fall',
   'sea_waves', 'sea_distant', 'gull_1', 'gull_2', 'gull_3'];   // (the shore: ElevenLabs)   // (planes passing, an engine starting: Pixabay, CREDITS.md)
-// Guards' shouts (German, three voices each): finding a body, spotting you, hearing something.
+// Guards' shouts (German, three voices, ElevenLabs Eleven v3 directed to shout): finding a body,
+// spotting you, hearing something, and the orders yelled in a firefight.
 const SHOUTS = { body: ['vo_body_1', 'vo_body_2', 'vo_body_3'], spotted: ['vo_spotted_1', 'vo_spotted_2', 'vo_spotted_3'], suspicious: ['vo_suspicious_1', 'vo_suspicious_2', 'vo_suspicious_3'],
+  combat: ['vo_combat_1', 'vo_combat_2', 'vo_combat_3'],
   medic: ['vo_medic_1', 'vo_medic_2', 'vo_medic_3', 'vo_medic_4'] };   // a wounded man down, calling for help
 EXTRA.push(...Object.values(SHOUTS).flat());
 // A guard dog's barks (Pixabay, cut from two recordings; see public/sounds/CREDITS.md).
@@ -147,6 +149,15 @@ export class Audio {
     if (this.sample(name, { at: distance / 343, gain: (kind === 'suspicious' ? 0.45 : 0.7) * k ** 0.8, filter: 2500 + 15000 * k, wet: 0.25 })) {
       this.shoutUntil = now + (this.samples[name]?.duration ?? 1.5);
     }
+  }
+
+  // A guard yells an order as he fires: 5-10 s apart across the whole garrison, or a firefight
+  // would be one unbroken shout.
+  combatShout(distance) {
+    const now = this.ctx?.currentTime ?? 0;
+    if (now < (this.combatShoutAt ?? 0)) return;
+    this.combatShoutAt = now + 5 + Math.random() * 5;
+    this.shout('combat', distance);
   }
 
   // Racking the shotgun's pump after a shot.

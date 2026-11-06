@@ -418,7 +418,7 @@ export class GuardAI {
     const raised = b.fireT < 1.0;
     s.aimDir = raised ? aimPoint.clone().sub(s.headPosition(this.v).setY(s.headPosition(this.v).y - 0.2)).normalize() : null;
     if (b.fireT <= 0) {
-      if (a.spotted && !p.dead) { this.fire(s, aimPoint); b.fireT = 2.1 + Math.random() * 1.2; } // only at what he can actually see
+      if (a.spotted && !p.dead) { this.fire(s, aimPoint); this.audio.combatShout(s.root.position.distanceTo(p.pos)); b.fireT = 2.1 + Math.random() * 1.2; } // only at what he can actually see
       else b.fireT = 0.6;
     }
   }

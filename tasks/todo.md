@@ -1176,3 +1176,16 @@ Not done: playing it by hand, so feel and timing are judged from frames. Not see
 - [x] The whole job on foot, bridge standing, no teleports, guards' damage off: from the foot of the west gully to the west pier (36.5 s), satchel, wade under the bridge to the east pier (15 s), satchel, away down the bank (11 s), both blown, bridge down at 68.5 s of the 7:00, then back across through the fallen bridge (22 s).
 - [x] Deployed (e264151, Netlify 6aedbb51). Live site, Bridge: the three new clips load, walk, jog and run play with the rifle on his back, river bed 5.9, piers at x -11.3 and 11, no console errors.
 Open: the stumps stop you but not bullets (their hidden block leaves the bullet targets in `collapse`, as before). A satchel on a pier says "SATCHEL ON THE VEHICLE".
+
+## Guards that shout (2026-11-06)
+- [x] The user: the German lines were far too calm. Multilingual v2 has no way to direct a shout, so all 13
+      `vo_*` lines were redone with ElevenLabs Eleven v3 on fal.ai (`[shouting]` tag, capitals, stability 0.5;
+      voices George, Daniel, Bill; about $0.25 for 77 takes). Median pitch went from about 135-260 Hz to about
+      210-350 Hz. Pauses cut, compressed a little, peak -1.5 dB. Small talk (`chat_*`) stays calm.
+- [x] A guard who hears something now challenges you ("Halt! Wer da?") rather than murmuring; it stays at the
+      quieter gain and is the least intense set.
+- [x] New: orders yelled in a firefight (`vo_combat_1`-`3`: "Los! Los! Vorwärts!", "Feuer frei! Schießt!",
+      "Feuerschutz! Los, vorwärts!"), from `GuardAI.combat` as a guard fires, via `Audio.combatShout`: 5-10 s
+      apart across the garrison.
+- [x] Checked on a production build (town): 16 lines load; a 40 s firefight played spotted and combat lines
+      at most 13 s apart, no console errors. `npm test` passes. Words checked with Whisper, not by ear.
