@@ -1210,3 +1210,12 @@ Open: the stumps stop you but not bullets (their hidden block leaves the bullet 
 - [x] A bite needs a clear line at mouth height (`Dogs.walled`, over the same boxes that stop it walking).
 - [x] With a wall between you it runs the guards' nav route round it (`Dogs.chase`, new every 0.5 s).
 - [x] Checked by script on Vineyard: 0 bites through a wall in six set-ups. Round the compound's W and E walls it reached and bit in about 6.6 s; through an open door in 9.8 s; a shut door stopped it; on the N wall the route is so long it lost the scent. Not played by hand.
+
+## Arms that run like a person's (2026-11-06)
+Reported after playing: his arms look unnatural when running, like a gorilla. Sheet: tasks/run-arms-blender.jpg.
+- [x] Cause, measured: the run's arms were the jog's, stretched to its cycle, and they didn't match: left elbow 41-93°, right 84-138°, the left hand drifting to the middle of the chest. The walk's arms hung nearly straight (162-178°), 30 cm out from the middle.
+- [x] tools/blender/gait_arms.py solves the arms for walk, jog and run against the chest, opposite the legs, the same both sides; the numbers are in `GAITS`. tools/set-gait-arms.mjs writes only the arm bones' rotations, so legs and spine are unchanged. Then `node tools/prepare-models.mjs anim_jog.glb` and so on.
+- [x] Now, left against right: run elbows 73-99° on both, jog 83-107°, walk 146-163°. Files stay about 18 KB. Reviewed on his real model from a locked side and front camera in Blender.
+- [x] Tripo not used: it makes meshes, and the mesh is fine. No credits spent.
+- [x] npm test 3/3. Production build: jog at 3.2 m/s and run at 6.2 m/s play with the rifle on his back, seen from the side and behind; no console errors.
+Not done: playing it by hand. Only the free-arm gaits changed: crouch, prone and the rifle-in-hands poses are as they were; guards still use their own clips.
