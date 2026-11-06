@@ -1228,3 +1228,4 @@ Asked for after the arms: better movement crouched and crawling. Sheet: tasks/cr
 - [x] The crawl now plays forward. `CLIP_SPEED.crouch` 1.42, `.crawl` 0.6, set from how fast the feet and hands travel. Wounded guards use the same clip: timeScale 0.55 (it was -0.9).
 - [x] npm test 3/3. Production build: crouch 1.8 m/s, crawl 0.75 m/s, side and behind; stopping from a crouch still gives the kneel; a wounded guard crawled 0.9 m lying flat (hips 0.17 m, head 0.42 m, numbers only: no picture of him). No console errors.
 Not done: playing it by hand. Rifle in hands while crawling keeps both hands on it, so with the rifle out his left arm follows the rifle, not the crawl. Not seen: crawling on slopes or in tunnels; the pistol out while crawling.
+- [x] Deployed (4058f04, Netlify 6aee3027). Both clips on the live site match the repo by hash.
