@@ -95,6 +95,7 @@ export class World {
     // The sea, if the map has one: a surface bullets splash into (it isn't walked on).
     this.waterLevel = activeMap().waterLevel ?? null;
     this.maxSlope = activeMap().maxSlope ?? null;          // cliffs you can't walk up (a gorge)
+    this.wade = activeMap().wade ?? null;                  // how deep the water you can walk through is (a river; none: stop at the edge)
     if (this.waterLevel != null) {
       // (waves, depth colour, surf: water.js; the sheet itself stays flat for bullets and wading)
       this.sea = makeWater(scene, { level: this.waterLevel, size: MAP_HALF * 2 + 3000, calm: activeMap().waterCalm ?? 1 });

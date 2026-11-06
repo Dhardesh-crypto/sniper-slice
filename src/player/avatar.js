@@ -1,12 +1,17 @@
 // The player's own body, seen in third person: the Higgsfield/Meshy sniper model,
-// animated by stance and speed (idle, walk, rifle sprint, crouch walk, crawl), with the
-// arms holding the rifle on a separate layer. Faces -z at yaw 0, like the camera.
+// animated by stance and speed (idle, walk, jog, run, crouch walk, crawl). On the move the rifle
+// rides on his back and his arms swing free; he brings it round when he stops, aims or fires, and
+// the arms hold it on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
 import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK, assets } from '../world/characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
-const CLIP_SPEED = { walkLegs: 1.35, crouchLegs: 0.95, sprint: 4.6, crawl: 0.55 };
+const CLIP_SPEED = { walk: 1.35, walkFree: 1.45, jog: 3.07, run: 5.4, sprint: 4.6, crouch: 0.95, crawl: 0.55 };
+const GAITS = ['walkFree', 'jog', 'run'];    // cut to start on the same foot, so they change in step
+const JOG_FROM = 2.3;                        // m/s: above this the walk breaks into a jog
+const DRAW = 0.5, DRAW_FAST = 0.22, STOW = 0.45;   // seconds to bring the rifle round, in a hurry, and put it away
+const SETTLE = 0.12;                         // stopped this long before the rifle comes round (not for every pause)
 const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
 // The Welrod: a long silenced tube with the magazine as the grip, a trigger guard, and the
@@ -69,9 +74,10 @@ export class Avatar {
     this.root.add(this.pistol);
     scene.add(this.root);
     this.yaw = 0;
-    this.s = { prone: 0, crouch: 0, kneel: 0, upright: 0, aim: 0, ready: 0, pitch: 0 };
+    this.s = { prone: 0, crouch: 0, kneel: 0, upright: 0, aim: 0, ready: 0, pitch: 0, carry: 1, hold: 1, shoulder: 0, still: 1 };
     this.state = '';
-    this.char.play('idleLegs', { fade: 0 });
+    this.lookDir = new THREE.Vector3(0, 0, -1);
+    this.char.play('idle', { fade: 0 });
     this.buildConcealLook();
   }
 
@@ -183,6 +189,11 @@ export class Avatar {
   muzzle(weapon, out = new THREE.Vector3()) {
     this.root.updateMatrixWorld(true);
     if (weapon === 'pistol') return out.copy(this.pistol.userData.muzzle).applyMatrix4(this.pistol.matrixWorld);
+    // Still on its way round from the back: the shot leaves from where the muzzle's going.
+    if (this.s.carry < 0.8 && this.char.bones.RightArm) {
+      const r = this.char.rifle.userData;
+      return this.char.bones.RightArm.getWorldPosition(out).addScaledVector(this.lookDir, (r.muzzle?.z ?? 0.8) + (r.buttToGrip ?? 0.32));
+    }
     return this.char.muzzleWorld(out);
   }
 
@@ -199,7 +210,7 @@ export class Avatar {
       if (this.state !== 'dead') { this.state = 'dead'; c.setHoldWeight(0); c.play('deathBack', { fade: 0.1, once: true }); }
       c.update(dt);
       this.root.updateMatrixWorld(true);
-      c.placeRifleInHands('low');
+      if (s.carry > 0.5) c.placeRifleInHands('low'); else c.slingRifle();
       return;
     }
 
@@ -215,6 +226,12 @@ export class Avatar {
 
     // Pick the base clip from stance and speed, and match its pace to the real speed.
     const moving = st.speed > 0.25;
+    s.still = moving ? 0 : s.still + dt;
+    // The long gun comes to the hands when he stops, aims, fires or reloads, and stays there in the
+    // lower stances; walking and running it goes on his back.
+    const longGun = st.weapon === 'rifle' || st.weapon === 'heavy';
+    const urgent = st.aiming || st.ready > 0.05 || st.reloading || st.boltT >= 0;
+    const inHands = longGun && !st.sprinting && !st.carrying && (urgent || st.stance !== 'stand' || s.still > SETTLE);
     if (this.oneShot && (this.oneShot.t += dt) > this.oneShot.dur) this.oneShot = null;
     const act = st.stance === 'prone' ? null : this.oneShot ? ACTIONS[this.oneShot.kind]
       : st.throwAim ? ACTIONS[st.stance === 'crouch' ? 'aimCrouch' : 'aim']
@@ -235,29 +252,37 @@ export class Avatar {
       clip = 'crawl';
       rate = moving ? -st.speed / CLIP_SPEED.crawl : 0; // the crawl clip goes backward: play it reversed
     } else if (st.sprinting) {
-      clip = 'sprint';
-      rate = st.speed / CLIP_SPEED.sprint;
+      clip = c.action('run') ? 'run' : 'sprint';
+      rate = st.speed / CLIP_SPEED[clip];
     } else if (st.stance === 'crouch') {
-      clip = 'crouchLegs';
-      rate = moving ? st.speed / CLIP_SPEED.crouchLegs : 0; // hold a crouched stride when still
+      clip = 'crouch';
+      rate = moving ? st.speed / CLIP_SPEED.crouch : 0; // hold a crouched stride when still
     } else if (moving) {
-      clip = 'walkLegs';
-      rate = st.speed / CLIP_SPEED.walkLegs;
+      // Rifle up, a measured walk with the arms on it (their layer covers the clip's); otherwise free.
+      clip = st.speed > JOG_FROM ? 'jog' : inHands || st.weapon === 'pistol' ? 'walk' : 'walkFree';
+      rate = st.speed / CLIP_SPEED[clip];
     } else {
-      clip = 'idleLegs';
+      clip = 'idle';
     }
     if (clip !== this.state) {
+      const phase = GAITS.includes(clip) && GAITS.includes(this.state) && c.base ? c.base.time / c.base.getClip().duration : null;
       c.play(clip, { fade: clip === 'takedownAtk' ? 0.1 : clip === 'crawl' || this.state === 'crawl' ? 0.35 : 0.22, once: clip === 'takedownAtk' || !!act?.once });
       if (from !== null && c.base) c.base.time = from * c.base.getClip().duration;
+      if (phase !== null) c.base.time = phase * c.base.getClip().duration;
       this.state = clip;
     }
     if (c.base) c.base.timeScale = rate;
     const busy = !!(climb || st.takedown || st.mounted || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
 
-    // Arms hold the rifle except while sprinting (the sprint clip carries it) or crawling.
+    // The rifle's way round, and the arms' layer with it: free while it's on his back, holding it
+    // once it's in the hands, always with the pistol out; the crawl and the action clips have their own.
     s.prone = damp(s.prone, st.stance === 'prone' ? 1 : 0, 6, dt);
-    const holdTarget = st.sprinting || st.stance === 'prone' || busy ? 0 : 1;
-    c.setHoldWeight(damp(c.hold?.getEffectiveWeight() ?? 1, holdTarget, 10, dt));
+    if (busy || !longGun) s.carry = 0;
+    else s.carry = THREE.MathUtils.clamp(s.carry + (inHands ? dt / (urgent ? DRAW_FAST : DRAW) : -dt / STOW), 0, 1);
+    const free = st.stance === 'prone' || busy || (st.sprinting && !longGun);
+    const holdTarget = free ? 0 : longGun ? THREE.MathUtils.smoothstep(s.carry, 0.2, 0.8) : 1;
+    s.hold = damp(s.hold, holdTarget, 14, dt);
+    c.setHoldShare(s.hold);
     c.update(dt);
     // Crouched low behind cover; aiming raises you to look over it.
     const peek = st.aiming || st.ready > 0.35;
@@ -282,6 +307,9 @@ export class Avatar {
 
     // Weapon up: after a shot or while aiming, the rifle comes to the shoulder.
     s.ready = damp(s.ready, Math.max(st.ready, st.aiming ? 1 : 0), 14, dt);
+    s.shoulder = damp(s.shoulder, s.ready > 0.35 && !st.reloading && !st.sprinting && st.stance !== 'prone' ? 1 : 0, 16, dt);
+    const cp = Math.cos(st.lookPitch);
+    this.lookDir.set(-Math.sin(st.lookYaw) * cp, Math.sin(st.lookPitch), -Math.cos(st.lookYaw) * cp);
     this.root.updateMatrixWorld(true);
 
     // Weapons: rifle (or heavy weapon) shouldered or carried in both hands, or slung with the pistol drawn.
@@ -290,15 +318,9 @@ export class Avatar {
       c.slingRifle(); // both hands for climbing, the knife, throwing, placing, bandaging, searching
       this.pistol.visible = false;
     } else if (st.weapon === 'rifle' || st.weapon === 'heavy') {
-      const shoulder = s.ready > 0.35 && !st.reloading && !st.sprinting && st.stance !== 'prone';
-      if (shoulder) {
-        const cp = Math.cos(st.lookPitch);
-        const dir = new THREE.Vector3(-Math.sin(st.lookYaw) * cp, Math.sin(st.lookPitch), -Math.cos(st.lookYaw) * cp);
-        const bolt = st.boltT >= 0 ? Math.sin(st.boltT * Math.PI) : 0; // the bolt draws the rifle back a little
-        c.placeRifleShouldered(dir, (st.kick ?? 0) * 0.06 + bolt * 0.03);
-      } else {
-        c.placeRifleInHands(st.stance === 'prone' ? 'prone' : 'port');
-      }
+      const bolt = st.boltT >= 0 ? Math.sin(st.boltT * Math.PI) : 0; // the bolt draws the rifle back a little
+      if (s.carry <= 0.001) c.slingRifle();
+      else c.carryRifle(s.carry, { carry: st.stance === 'prone' ? 'prone' : 'port', dir: this.lookDir, kick: (st.kick ?? 0) * 0.06 + bolt * 0.03, shoulder: s.shoulder > 0.01 ? s.shoulder : 0 });
       this.pistol.visible = false;
     } else {
       c.slingRifle();

@@ -2,9 +2,10 @@
 // column is coming from the east to cross it. Blow the bridge before it does (a satchel or TNT
 // at the foot of each of its two piers), and kill the engineer who could repair it.
 //
-// The gorge: cliffs you can't climb, a river you can't swim, a strip of bank under each cliff.
-// Ways down: the ladders on the piers (from the bridge deck), and two gullies, one each side,
-// where the cliff eases. The other way across: a footbridge low over the river downstream.
+// The gorge: cliffs you can't climb, a strip of shelving bank under each cliff, and a river you
+// can wade: waist deep, slow and in the open. Ways down: the ladders on the piers (from the bridge
+// deck), and two gullies, one each side, where the cliff eases. The dry way across: a footbridge
+// low over the river downstream.
 // The column keeps its own time; if its lead vehicle gets across, the mission is lost. If the
 // bridge goes while vehicles are on it, they go down with it.
 import * as THREE from 'three';
@@ -22,12 +23,13 @@ import { hasProp, propModel, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
 
 const DECK = 40.4, BW = 3.5;                    // the deck's top and half-width
-const WATER = 7;
+const WATER = 7, BED = 5.9;                     // the river: waist deep in the middle
 const START = { x: -320, z: 300 };
 const CAMP = { x: -140, z: 70 };
 const PIER_X = 11;
 const T_DUE = 420, SPEED = 7, GAP = 18;          // the column: in sight at 7:00, 7 m/s, 18 m apart
 const LEAD_STOP = 46;                            // where it stops if the bridge is down
+const STUMP = 0.25;                              // how much of a pier is left standing
 
 const gx = (z) => 25 * Math.sin(z * 0.006);      // the river's line
 // Where the cliff band ends (wider in the two gullies: west at z +120, east at z −140).
@@ -63,7 +65,7 @@ function heightAt(x, z) {
 }
 function ground(x, z) {
   const d = Math.abs(x - gx(z));
-  if (d < 14) return 4 + 4 * smoothstep(8.5, 10.5, d);                 // the river bed, then the bank
+  if (d < 14) return lerp(BED, 8, smoothstep(3.5, 12.5, d));           // the river bed, shelving up to the bank (0.35 at its steepest: walkable both ways)
   let top = plateau(x, z, d);
   const rz = roadZ(x), dr = Math.abs(z - rz);
   if (dr < 12 && d > 30) top = lerp(roadH(x), top, smoothstep(4, 12, dr));
@@ -80,6 +82,7 @@ const map = {
   light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3 },
   fog: { color: 0xb4c7cf },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280, waterLevel: WATER, waterCalm: 0.35,   // (a river in a gorge: ripples, not a sea's waves)
+  wade: WATER - BED + 0.1,               // how deep you can walk: all of it, so nowhere in the river is a dead end
   maxSlope: 0.9,
   heightAt,
   roadCenterZ: roadZ,
@@ -176,10 +179,17 @@ function site(scene, world) {
   const piers = [-1, 1].map(s => {
     const x = s * PIER_X, mesh = b.box(5.4, DECK - 7.5, 9, stone, x, 7.5, 0);
     const pierBox = b.boxes.at(-1);
-    ladders.push(ladder(b, { x: x + s * 1.2, z: 4.5 + 0.35, y: 8, top: DECK, face: 's' }));     // (on the bank side, not over the water)
+    const lad = ladder(b, { x: x + s * 1.2, z: 4.5 + 0.35, y: 8, top: DECK, face: 's' });     // (on the bank side, not over the water)
+    ladders.push(lad);
+    // Hinged at its foot: when the pier goes it topples away from it (runBridge).
+    const hinge = new THREE.Group();
+    hinge.position.set(x + s * 1.2, 8, 4.5 + 0.35);
+    b.group.add(hinge);
+    hinge.updateMatrixWorld(true);
+    for (const part of lad.parts) hinge.attach(part);
     hotspotDefs.push({ kind: 'pier', title: s < 0 ? 'WEST PIER' : 'EAST PIER', explosive: true, armored: true, heavyOnly: true, hitsToExplode: 1,
       meshes: [mesh], parts: [mesh], blast: { radius: 9, hurt: 16, size: 2.4, burn: false, heavy: true, label: `${s < 0 ? 'WEST' : 'EAST'} PIER DESTROYED` } });
-    return { x, mesh, box: pierBox, def: hotspotDefs.at(-1) };
+    return { x, mesh, box: pierBox, def: hotspotDefs.at(-1), ladder: lad, hinge };
   });
   // The modelled bridge: one stone three-arch bridge, cut into its pieces so they can fall as the
   // blocks above do: each side span (with its share of the parapets) hangs in its span's group,
@@ -492,6 +502,16 @@ function collapse(m, instant) {
     if (i >= 0) w.boxes.splice(i, 1);
     if (mesh.material.visible === false) { const j = w.raycastTargets.indexOf(mesh); if (j >= 0) w.raycastTargets.splice(j, 1); }
   }
+  // Each pier's block shrinks to the stump left standing (a modelled pier is a child of its mesh,
+  // so its bounds never matched above), and its ladder is gone: anyone on it falls.
+  for (const p of site.piers) {
+    p.box.max.y = 7.5 + (DECK - 7.5) * STUMP;
+    if (!w.boxes.includes(p.box)) w.boxes.push(p.box);
+    const i = w.ladders.indexOf(p.ladder);
+    if (i >= 0) w.ladders.splice(i, 1);
+    const pl = m.player, c = pl.climb;
+    if (c && (c.ladder === p.ladder || c.then === p.ladder)) { pl.climb = null; pl.grounded = false; pl.fallTop = pl.pos.y; pl.vy = 0; }
+  }
   // Nobody paths across any more.
   const nav = m.ai?.nav;
   if (nav) for (let x = -40; x <= 40; x += 0.5) for (let z = -BW; z <= BW; z += 0.5) { const i = nav.ix(x), j = nav.iz(z); if (nav.inside(i, j)) nav.blocked[j * nav.n + i] = 1; }
@@ -516,11 +536,12 @@ function runBridge(m, dt) {
     site.spans[0].group.rotation.z = -1.2 * kk; site.spans[0].group.position.y = DECK - 6 * kk;
     site.spans[2].group.rotation.z = 1.2 * kk; site.spans[2].group.position.y = DECK - 6 * kk;
     site.spans[1].group.position.y = DECK - 34 * kk; site.spans[1].group.rotation.x = 0.15 * kk;
-    for (const p of site.piers) { p.mesh.scale.y = 1 - 0.75 * k; p.mesh.position.y = 7.5 + (DECK - 7.5) * (1 - 0.75 * k) / 2; }
+    for (const p of site.piers) {
+      const h = 1 - (1 - STUMP) * k;
+      p.mesh.scale.y = h; p.mesh.position.y = 7.5 + (DECK - 7.5) * h / 2;
+      p.hinge.rotation.set(1.5 * kk, 0, -0.05 * Math.sign(p.x) * kk);   // down across the bank, away from the pier
+    }
   }
-  // Fallen in the river: you scramble out onto the nearest bank.
-  const pp = m.player.pos;
-  if (!m.player.dead && pp.y < WATER + 0.5 && Math.abs(pp.x - gx(pp.z)) < 9) pp.set(gx(pp.z) + Math.sign(pp.x - gx(pp.z) || 1) * 11.8, 8, pp.z);
 }
 
 function runColumn(m, dt) {
@@ -616,8 +637,8 @@ const briefing = `
       take the river survey from his safe (the combination is written down somewhere, and Hahn carries it); take his papers.</li>
     <li><b>Then</b> get back to the hill you started from, where green smoke marks the pick-up.</li>
   </ul>
-  <p class="brief">You can't climb the gorge's cliffs or swim the river. Ways down: the ladders on the piers, from the bridge (guarded at both ends),
-    or the gullies, one on each side, where the cliff eases. A footbridge crosses the river downstream. If the column's lead vehicle gets across,
-    the mission is lost.</p>`;
+  <p class="brief">You can't climb the gorge's cliffs. Ways down: the ladders on the piers, from the bridge (guarded at both ends),
+    or the gullies, one on each side, where the cliff eases. The river is waist deep: you can wade it, slowly and in the open. A footbridge crosses
+    it downstream. If the column's lead vehicle gets across, the mission is lost.</p>`;
 
 export default { id: 'bridge', props: ['ruinKit', 'stoneBridge', 'tiger', 'halftrack', 'wreckTiger', 'wreckPanzer', 'wreckHalftrack', 'tent', 'pontoons', 'sentryBox', 'mgNest', 'generator', 'motorcycle', 'pak40', 'searchlight', 'sandbags', 'kitchen', 'supplies', 'drums', 'barrels', 'wire', 'pole', 'signpost', 'pontoonSection', 'assaultBoat', 'rock'], subtitle: 'Operation Broken Span · Serchio valley, 1944', map, site, def, intel, briefing };

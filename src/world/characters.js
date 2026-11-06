@@ -22,6 +22,7 @@ const CLIP_FILES = {
   search: 'anim_search', kneelWork: 'anim_kneel_work',                     // searching a body; bandaging, repairs
   hitReact: 'anim_hit_react', lookAround: 'anim_look_around',              // a guard hit; a guard searching
   surrender: 'anim_surrender', duckCover: 'anim_duck_cover', dragBody: 'anim_drag_body',   // hands up; a blast close by; a wounded man hauled out of the open
+  walkFree: 'anim_walk_free', jog: 'anim_jog', run: 'anim_run',            // the player's gaits with the rifle on his back, arms swinging (Kimodo, tools/loop-gait.mjs)
 };
 // Arm bones driven by the "holding a rifle" layer instead of the base clip.
 const HOLD_BONES = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
@@ -42,6 +43,8 @@ const RIFLES = {
   piat: { key: 'piat', axis: 'z', muzzleSign: 1, length: 0.99 },                   // the shoulder pad at the back
 };
 const GRIP_FROM_BUTT = 0.29;     // fraction of the length from the butt plate to the grip
+// Which way the barrel points, carried in both hands (model space: left, up, forward).
+const CARRY_DIRS = { port: [0.7, 0.35, 0.62], low: [0.5, -0.2, 0.8], prone: [0.04, 0.02, 1], high: [0.3, 1, 0.22], up: [0.08, 1, 0.02] };
 
 export const assets = { models: {}, clips: {} };
 
@@ -321,6 +324,12 @@ export class Character {
     if (this.hold) this.hold.setEffectiveWeight(w);
   }
 
+  // The arms' share of the hold layer over a base clip that has arms of its own (the mixer shares
+  // by weight, so 1 against the clip's 1 would be half each).
+  setHoldShare(h) {
+    this.setHoldWeight(h >= 0.999 ? 1e4 : h / (1 - h));
+  }
+
   update(dt) {
     // Undo last frame's crouch adjustment first, in case no clip drives these bones.
     if (this._lowered) { for (const [bone, pos, q] of this._lowered) { bone.position.copy(pos); bone.quaternion.copy(q); } this._lowered = null; }
@@ -408,8 +417,7 @@ export class Character {
     rh.getWorldPosition(a);
     this.root.worldToLocal(a);
     this.rifle.position.copy(a);
-    const DIRS = { port: [0.7, 0.35, 0.62], low: [0.5, -0.2, 0.8], prone: [0.04, 0.02, 1], high: [0.3, 1, 0.22], up: [0.08, 1, 0.02] };
-    this.aimRifle(this.modelDir(...DIRS[carry]), this.modelDir(0, 1, 0));
+    this.aimRifle(this.modelDir(...CARRY_DIRS[carry]), this.modelDir(0, 1, 0));
     this.root.updateMatrixWorld(true);
     this.leftHandToForeEnd();
   }
@@ -434,7 +442,8 @@ export class Character {
   }
 
   // Left hand onto the fore-end, as far forward as the arm can actually reach.
-  leftHandToForeEnd() {
+  leftHandToForeEnd(k = 1) {
+    if (k <= 0) return;
     const shoulder = this.bones.LeftArm.getWorldPosition(new THREE.Vector3());
     const reach = this.armLength ?? (this.armLength = shoulder.distanceTo(this.bones.LeftForeArm.getWorldPosition(new THREE.Vector3()))
       + this.bones.LeftForeArm.getWorldPosition(new THREE.Vector3()).distanceTo(this.bones.LeftHand.getWorldPosition(new THREE.Vector3())));
@@ -444,7 +453,46 @@ export class Character {
       if (foreEnd.distanceTo(shoulder) < reach * 0.96) break;
     }
     const pole = shoulder.clone().add(this.modelDir(0.7, -1, -0.25).applyQuaternion(this.root.quaternion));
+    if (k < 1) foreEnd.lerp(this.bones.LeftHand.getWorldPosition(new THREE.Vector3()), 1 - k);   // (on its way to it)
     solveArmIK(this.bones.LeftArm, this.bones.LeftForeArm, this.bones.LeftHand, foreEnd, pole);
+  }
+
+  // The rifle between the back and the hands. u: 0 slung, 1 in the hands; shoulder: 0 carried, 1
+  // at the shoulder (along `dir`, world space). Coming round: the right hand reaches up to where
+  // the rifle crosses the shoulder, swings it over and down, sliding to the grip, and the left
+  // hand takes the fore-end last. Going back is the same played backward.
+  carryRifle(u, { carry = 'port', dir = null, kick = 0, shoulder = 0 } = {}) {
+    const { a } = this._v, b = this.bones, R = b.RightArm, rifle = this.rifle;
+    if (!R || !b.RightHand) return;
+    const ease = (lo, hi) => { const t = THREE.MathUtils.clamp((u - lo) / (hi - lo), 0, 1); return t * t * (3 - 2 * t); };
+    const C = this._carry ??= { p: new THREE.Vector3(), q: new THREE.Quaternion(), hand: new THREE.Vector3(), grip: new THREE.Vector3(), pole: new THREE.Vector3() };
+    this.slingRifle();
+    C.p.copy(rifle.position); C.q.copy(rifle.quaternion);
+    // Where the hands would have it: carried, then at the shoulder.
+    b.RightHand.getWorldPosition(C.hand);
+    rifle.position.copy(this.root.worldToLocal(a.copy(C.hand)));
+    this.aimRifle(this.modelDir(...CARRY_DIRS[carry]), this.modelDir(0, 1, 0));
+    if (shoulder > 0 && dir) {
+      const shoulderAt = R.getWorldPosition(new THREE.Vector3());
+      const grip = shoulderAt.clone().add(this.modelDir(0.08, -0.03, 0.12).multiplyScalar(0.15).applyQuaternion(this.root.quaternion)).addScaledVector(dir, (rifle.userData.buttToGrip ?? 0.32) - kick);
+      const q0 = rifle.quaternion.clone();
+      this.aimRifle(dir.clone().applyQuaternion(this.root.quaternion.clone().invert()).normalize(), this.modelDir(0, 1, 0));
+      rifle.quaternion.slerpQuaternions(q0, rifle.quaternion.clone(), shoulder);
+      rifle.position.lerp(this.root.worldToLocal(grip), shoulder);
+    }
+    const swing = ease(0.3, 1);
+    rifle.position.lerpVectors(C.p, rifle.position.clone(), swing);
+    rifle.quaternion.slerpQuaternions(C.q, rifle.quaternion.clone(), swing);
+    this.root.updateMatrixWorld(true);
+    // The right hand: to the rifle at the shoulder, then down it to the grip.
+    if (u < 0.999 || shoulder > 0) {
+      rifle.localToWorld(C.grip.set(0, 0, 0.46 * (1 - swing)));
+      C.hand.lerp(C.grip, ease(0, 0.3));
+      const out = R.getWorldPosition(new THREE.Vector3());
+      C.pole.copy(out).add(this.modelDir(-0.9, THREE.MathUtils.lerp(0.3, -1, swing), -0.3).applyQuaternion(this.root.quaternion));
+      solveArmIK(R, b.RightForeArm, b.RightHand, C.hand, C.pole);
+    }
+    this.leftHandToForeEnd(ease(0.6, 1));
   }
 
   // Rifle slung on the right shoulder, muzzle up, scope facing out: guards at ease,

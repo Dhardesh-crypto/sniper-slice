@@ -142,13 +142,18 @@ export class Player {
       this.stepT -= dt * horiz;
       if (this.stepT <= 0) {
         this.stepT = this.stance === 'prone' ? 1.2 : 1.6;
-        this.audio.step(this.stance);
+        if (this.world.wade && this.pos.y < this.world.waterLevel - 0.2) this.audio.wade(); else this.audio.step(this.stance);
       }
     }
   }
 
   tickWalk(dt, fwd, strafe, aiming) {
-    const wantsSprint = this.input.down('ShiftLeft') && fwd > 0 && !aiming && !this.carrying && this.grounded;
+    // Wading a river (maps with `wade`): no sprinting past the knees, the lower stances only where
+    // your head stays out, and the deeper it is the slower you go.
+    const wl = this.world.waterLevel, depth = this.world.wade ? Math.max(0, wl - this.pos.y) : 0;
+    if (depth > 0.1 && this.stance === 'prone') this.setStance('crouch');
+    if (depth > 0.55 && this.stance === 'crouch') this.setStance('stand');
+    const wantsSprint = this.input.down('ShiftLeft') && fwd > 0 && !aiming && !this.carrying && this.grounded && depth < 0.4;
     if (wantsSprint && this.stance !== 'stand') this.setStance('stand'); // sprinting stands you up
     this.sprinting = wantsSprint && this.stance === 'stand';
 
@@ -156,6 +161,7 @@ export class Player {
     let speed = this.sprinting ? st.sprint : st.walk;
     if (aiming) speed *= 0.55;
     if (this.carrying) speed *= 0.45; // dragging a body
+    speed *= 1 - 0.55 * Math.min(1, depth / 1.1);
 
     // Wish direction in world space (yaw 0 faces -z).
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -171,8 +177,7 @@ export class Player {
     this.pos.z += this.vel.z * dt;
     this.world.collideCircle(this.pos, this.radius, this.pos.y, this.pos.y + this.eye + 0.15);
     // No swimming with all that kit: the water's edge (a quay, a beach, a ship's rail) stops you.
-    const wl = this.world.waterLevel;
-    if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - 0.3) {
+    if (wl != null && this.world.floorAt(this.pos.x, this.pos.z, this.pos.y) < wl - (this.world.wade ?? 0.3)) {
       const hop = this.grounded && this.hopAcross(ox, oz, wl);
       if (hop) { this.pos.x = hop.x; this.pos.z = hop.z; }
       else { this.pos.x = ox; this.pos.z = oz; this.vel.x = this.vel.z = 0; }

@@ -51,7 +51,8 @@ export class CameraRig {
     this.armLen = allowed < this.armLen ? allowed : this.armLen + (allowed - this.armLen) * (1 - Math.exp(-5 * dt));
     const third = shoulder.addScaledVector(fwd, -this.armLen);
     // Keep the lens above the ground.
-    const g = this.world.floorAt(third.x, third.z, player.pos.y + 0.3) + 0.25;
+    let g = this.world.floorAt(third.x, third.z, player.pos.y + 0.3) + 0.25;
+    if (this.world.wade) g = Math.max(g, this.world.waterLevel + 0.2);   // (and above a river you're wading)
     if (third.y < g) third.y = g;
 
     const eye = player.eyePosition(view.alpha, this._eye);

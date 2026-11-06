@@ -287,6 +287,10 @@ export function splitProp(model, classify) {
     for (const [name, attr] of Object.entries(g.attributes)) piece.setAttribute(name, attr);
     piece.setIndex(idx);
     piece.computeBoundingSphere();
+    // Its bounds from its own triangles (every piece shares the whole model's vertices, so three's
+    // own box would be the whole model: a bridge's two piers both centred mid-span).
+    piece.boundingBox = new THREE.Box3();
+    for (const i of idx) piece.boundingBox.expandByPoint(a.fromBufferAttribute(g.attributes.position, i));
     const mesh = new THREE.Mesh(piece, mat.clone());
     mesh.castShadow = mesh.receiveShadow = true;
     out[key] = mesh;

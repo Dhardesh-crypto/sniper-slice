@@ -297,11 +297,12 @@ export function timberFrame(b, { x, z, y, deck, roof, half, post = 0.25, brace =
 // face (you stand south of it, facing north, and step off northward); 'n' the other way.
 // Returns the climbing data the player uses (push it onto the map's `ladders`).
 export function ladder(b, { x, z, y, top, face = 's' }) {
-  const s = face === 's' ? 1 : -1;
-  for (const dx of [-0.3, 0.3]) b.box(0.07, top - y + 1.0, 0.07, M.wood, x + dx, y, z, { solid: false });
+  const s = face === 's' ? 1 : -1, parts = [];
+  for (const dx of [-0.3, 0.3]) parts.push(b.box(0.07, top - y + 1.0, 0.07, M.wood, x + dx, y, z, { solid: false }));
   const n = Math.floor((top - y) / 0.4);
-  for (let i = 0; i < n; i++) b.box(0.6, 0.05, 0.05, M.wood, x, y + 0.35 + i * 0.4, z, { solid: false });
+  for (let i = 0; i < n; i++) parts.push(b.box(0.6, 0.05, 0.05, M.wood, x, y + 0.35 + i * 0.4, z, { solid: false }));
   return {
+    parts,                                    // (its meshes, for a ladder that can fall)
     foot: new THREE.Vector3(x, y, z + s * 0.45),
     topSpot: new THREE.Vector3(x, top, z - s * 0.7),
     bottom: y, top,

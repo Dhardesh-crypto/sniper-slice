@@ -123,3 +123,7 @@ far side of a wall: look at the picture as well as the number, and prove the fea
 
 ## A colour problem can live after the lighting (2026-11-06)
 The blue on Vineyard looked like light or haze and was the bloom. Turn each stage off in a frozen frame before reading its code: a tint that stays on a man 2 m from the camera with the sky fill off isn't fog. "Normal" missions may only be facing the other way: compare the same view of the sun. And check a comparison can fail: old and new bloom "matched" on an explosion because bloom had no effect on that frame at all.
+
+## A one-way slope is a trap, and a flood fill can miss it (2026-11-06)
+`maxSlope` only stops you going up, so any bank steeper than it can be walked down and not back. A flood fill on 8 directions passed the old bank anyway, because a shallow diagonal along it stays under the limit: nobody plays like that. Walk it for real, both ways, and run a new check against the broken version before trusting it.
+Box3.setFromObject counts children: a block with a model hung on it no longer matches its stored box, so "find it and remove it" quietly removes nothing, and its centre is the model's. And pieces sharing a model's vertices through an index each report the whole model's bounds: a mission whose two targets were 22 m apart had one centre.

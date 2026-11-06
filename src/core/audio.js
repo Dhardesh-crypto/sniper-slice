@@ -753,6 +753,8 @@ export class Audio {
     this.noiseBurst({ dur: 0.09, type: 'bandpass', freq: 500 + Math.random() * 300, q: 0.8, gain });
   }
 
+  wade() { this.noiseBurst({ dur: 0.28, type: 'lowpass', freq: 1100, gain: 0.16, attack: 0.04 }); }   // a stride through water
+
   breathIn() { this.noiseBurst({ dur: 0.5, type: 'bandpass', freq: 900, q: 0.6, gain: 0.06, attack: 0.2 }); }
   breathOut() { this.noiseBurst({ dur: 0.7, type: 'bandpass', freq: 600, q: 0.6, gain: 0.07, attack: 0.05 }); }
 
