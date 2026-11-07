@@ -1254,3 +1254,13 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
       exact), drag; all nine missions with every man killed: no errors, no NaN, all settled.
       One Flak Line trench sentry once ended 0.4 m into the ground; five retries didn't repeat it.
 - [ ] Not played by hand: the feel (push, muscle times) is judged from frames.
+
+## 7 November 2026: triple kills
+
+- [x] A round through a man skipped the rest of its flight step (about 1.3 m), so a man standing
+      right behind him was never hit; and it lost so much speed (45%) that it never reached a third.
+      Now the ray only ignores the man it went through (`raycastSegment(a, b, ignore)`), a round keeps
+      70% of its speed through a body (80% AP) and can go on through three men.
+- [x] Checked by script: three men in line die to one round, heads 0.5 m apart at 40 and 150 m, chests
+      0.6 m apart at 100 m, 1.5 m apart at 200 m; at 300 m, 0.4 m apart, two died and the round
+      passed under the third. A pistol round stops in the first man. Not played by hand.

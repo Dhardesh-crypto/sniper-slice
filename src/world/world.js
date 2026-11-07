@@ -245,7 +245,8 @@ export class World {
   }
 
   // Nearest hit along the segment a→b: terrain, solids, trees or a soldier's body part.
-  raycastSegment(a, b) {
+  // `ignore`: a soldier the ray passes through (a round already through him).
+  raycastSegment(a, b, ignore = null) {
     const dir = new THREE.Vector3().subVectors(b, a);
     const len = dir.length();
     if (len < 1e-6) return null;
@@ -254,7 +255,7 @@ export class World {
     this.raycaster.near = 0;
     this.raycaster.far = len + CHARGE_REACH;
     const all = this.raycaster.intersectObjects(this.raycastTargets, false);
-    const hits = all.filter(h => h.distance <= len);
+    const hits = all.filter(h => h.distance <= len && !(ignore && h.object.userData.soldier === ignore));
     let best = null;
     if (hits.length) {
       // A charge (TNT, a satchel) sits on or against something, partly inside its block: a shot at it

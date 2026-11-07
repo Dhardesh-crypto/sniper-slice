@@ -497,8 +497,9 @@ export class Arsenal {
         b.prev.copy(b.pos);
         integrate(b.pos, b.vel, b.def.drag, this.ballisticWind, h);
         b.time += h;
-        const hit = this.world.raycastSegment(b.prev, b.pos);
-        if (hit?.soldier && hit.soldier === b.ignore) { b.path.push(b.pos.clone()); continue; }   // (the man it just went through)
+        // (the man it just went through doesn't stop it, but whoever stands right behind him does:
+        // skipping the whole step skipped a man within a metre of him, so no triple kills)
+        const hit = this.world.raycastSegment(b.prev, b.pos, b.ignore);
         this.nearMisses(b, b.prev, hit ? hit.point : b.pos);
         if (hit) {
           b.path.push(hit.point.clone());
@@ -604,12 +605,12 @@ export class Arsenal {
     });
   }
 
-  // A full-power round goes on through a man (the double kill): slower and weaker, it can still
-  // wound or kill whoever stands in line behind him. A slow one (a pistol, subsonic, the De Lisle)
-  // stops in the first body; none goes through more than two.
+  // A full-power round goes on through a man (the double and triple kill): slower and weaker, it can
+  // still wound or kill whoever stands in line behind him. A slow one (a pistol, subsonic, the De
+  // Lisle) stops in the first body; none goes on past a third man.
   passThrough(bullet, hit, dir) {
-    const speed = bullet.vel.length() * (bullet.def.ap ? 0.75 : 0.55);
-    if (speed < 230 || (bullet.through ?? 0) >= 2) return;
+    const speed = bullet.vel.length() * (bullet.def.ap ? 0.8 : 0.7);
+    if (speed < 230 || (bullet.through ?? 0) >= 3) return;
     const def = { ...bullet.def, damage: Object.fromEntries(Object.entries(bullet.def.damage).map(([k, v]) => [k, v * 0.8])) };
     const pos = hit.point.clone().addScaledVector(dir, 0.05);
     this.bullets.push({
