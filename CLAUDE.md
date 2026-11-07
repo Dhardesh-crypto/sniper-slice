@@ -29,7 +29,8 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
 - 3D: Blender 5.2 headless scripts in `tools/blender/` (`blender -b -P script.py -- args`): the
   architecture and interior kits, horizon panoramas, tree LODs, anatomy. Prefer Blender or code over
   Higgsfield (Higgsfield costs credits; use it only when asked).
-- Music: MusicGen (AudioCraft) per mission plus an alarm layer, `public/sounds/music_*.mp3`, credits
+- Music: written in SuperCollider (`tools/music/`, README there): a calm loop and a matching alarm loop
+  per mission, `public/sounds/music_*.mp3`, CC0 orchestral samples, piano melodies (CC BY: credit it) + synthesis, credits
   in `public/sounds/CREDITS.md`. No bell-like timbres in the **music** (no chimes, glockenspiel); realistic metallic sound effects (brass cases landing) are fine.
 - The fal.ai key is in `~/.config/fal/key`: never write it into the project (the repo is public).
 

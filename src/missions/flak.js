@@ -67,7 +67,7 @@ const map = {
   // Late autumn in the foothills: a low, pale sun through haze, the far ridges blue.
   light: { zenith: 72, azimuth: 205, sun: 0xffd9a8, sunIntensity: 2.2, turbidity: 7, rayleigh: 1.8, clouds: 0.55, hemiSky: 0xb7c3cf, hemi: 0.55, exposure: 0.9 },
   fog: { color: 0xaab4bb, near: 220, far: 1300 },
-  horizon: 'bridge', music: 'bridge',             // (the Serchio valley's far country and score suit these hills)
+  horizon: 'bridge', music: 'flak',               // (the Serchio valley's far country suits these hills; its own score)
   animals: [['cow', FARM.x + 40, FARM.z + 30, 18, 3]],
   half: 480, playHalf: 450, focus: { x: 0, z: 40, r: 170 }, start: START, navHalf: 330,
   maxSlope: 0.95,

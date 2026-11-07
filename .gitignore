@@ -3,3 +3,4 @@ dist
 models-src
 .DS_Store
 __pycache__/
+tools/music/build/

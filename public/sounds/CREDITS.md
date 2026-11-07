@@ -33,19 +33,18 @@ redistributed as standalone sound files):
 
 ## Music
 
-`music_<mission>.mp3` (one per mission: vineyard, town, harbour, forest, railway, bridge, airfield,
-radar) and `music_alarm.mp3` were generated for this game with Meta's MusicGen (`facebook/musicgen-medium`,
-from AudioCraft, https://github.com/facebookresearch/audiocraft), run locally through Hugging Face
-`transformers`: 30 s from a text prompt, continued once from its last 10 s, then EQ'd (rumble and the
-2–4 kHz voice range pulled back), crossfaded end-into-start for a seamless loop, and levelled.
+`music_<mission>.mp3` (one per mission: vineyard, town, harbour, forest, flak, railway, bridge,
+airfield, radar), `music_alarm_<mission>.mp3` (each mission's alarm layer, same key, tempo and
+length) and `music_alarm.mp3` (a fallback copy of the vineyard alarm) were written for this game
+in code: `tools/music/compose.py` writes the notes, `tools/music/render.scd` plays them in
+SuperCollider (https://supercollider.github.io, GPL; the rendered audio is ours), and
+`tools/music/build.py` folds each loop's tail onto its start, EQs it (rumble and the 2–4 kHz voice
+range pulled back) and levels it. 64 bpm, 16 bars, 60 s loops.
 
-Licence: the MusicGen model weights are released under **CC-BY-NC 4.0** (non-commercial use only).
-This music can't ship in a game that is sold; replace it (e.g. with a commercially licensed model or
-composer) before any commercial release.
-
-Prompts (each began "1940s war film score, slow, sparse, restrained and quiet, ambient underscore,"):
-vineyard: warm low strings and a lonely solo clarinet; town: low pizzicato strings and a muted french horn;
-harbour: deep cellos and bassoon; forest: alto flute over a soft dark string pad; railway: low string
-ostinato and soft distant timpani; bridge: double basses and a solo oboe; airfield: muted trombones and
-low strings; radar: low brass chorale and cellos. Alarm: "tense 1940s war film action score, driving
-low string ostinato, staccato low brass, snare drum and timpani, urgent but dark".
+Instrument samples: VS Chamber Orchestra Community Edition and the Versilian Community Sample
+Library by Versilian Studios / Sam Gossner (https://github.com/sgossner/VSCO-2-CE,
+https://github.com/sgossner/VCSL), both **CC0 1.0**: no attribution required, credited with thanks.
+Piano: "Salamander Grand Piano V3" by Alexander Holm, licensed under CC BY 3.0
+(https://creativecommons.org/licenses/by/3.0/). It plays every melody and the alarms' repeated
+chords. Pads, air and hum are synthesised in SuperCollider. Nothing here limits commercial use;
+the piano needs this credit line wherever the game's credits are shown.

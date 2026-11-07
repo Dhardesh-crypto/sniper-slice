@@ -1264,3 +1264,19 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
 - [x] Checked by script: three men in line die to one round, heads 0.5 m apart at 40 and 150 m, chests
       0.6 m apart at 100 m, 1.5 m apart at 200 m; at 300 m, 0.4 m apart, two died and the round
       passed under the third. A pistol round stops in the first man. Not played by hand.
+
+## 2026-11-07 · Music rewritten in SuperCollider
+
+- [x] Replaced the MusicGen loops (CC-BY-NC weights: couldn't ship in a sold game) with music written
+      in code: `tools/music/` (compose.py → render.scd in SuperCollider → build.py). CC0 orchestral
+      samples (VSCO 2 CE / VCSL) plus synth pads, air and hum; no bells. 64 bpm, 16 bars, 60 s loops.
+- [x] Every mission gets its own alarm loop in its key (`music_alarm_<mission>.mp3`); `audio.js` loads
+      it, falling back to `music_alarm.mp3`. Flak has its own score now (was the bridge's).
+- [x] Levels as before: calm −24 LUFS, alarm −21 LUFS; seams checked (jump at the wrap ≈ one normal
+      sample step); Chrome decodes the mp3s to exactly 60.000 s, so they loop gapless.
+- [x] Checked in the game (flak): both files load, the alarm takes over in ~2.5 s when
+      `stealth.alarm` goes up, and hands back cleanly.
+- [x] User listened: disliked the violin and wind/brass solos. Every melody is now piano (Salamander,
+      CC BY 3.0, credited), the alarms' violin tremolo became repeated piano chords, forest lost its
+      violins. Rebuilt all 18; seams still continuous.
+- [x] User approved the piano versions.

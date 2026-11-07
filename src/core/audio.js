@@ -184,9 +184,11 @@ export class Audio {
   }
 
   // ---- music ----
-  // Each mission has a quiet looping score (public/sounds/music_<mission>.mp3, made with
-  // MusicGen) and shares one tense alarm loop; both play from the start, in step, and the
-  // alarm fades in over the calm one while the siren sounds. The kill cam ducks the lot.
+  // Each mission has a quiet looping score (public/sounds/music_<mission>.mp3) and its own
+  // alarm loop in the same key, tempo and length (music_alarm_<mission>.mp3, falling back to
+  // music_alarm.mp3), both written in SuperCollider (tools/music/). Both play from the start,
+  // in step, and the alarm fades in over the calm one while the siren sounds. The kill cam
+  // ducks the lot.
   // The music sits well under the effects so footsteps and the guards' voices stay clear.
   async startMusic(track) {
     if (!this.ctx || this.music) return;
@@ -201,7 +203,7 @@ export class Audio {
         return await ctx.decodeAudioData(await res.arrayBuffer());
       } catch { return null; }   // missing or undecodable: no music, the game plays on
     };
-    const [calm, alarm] = await Promise.all([load(track), load('alarm')]);
+    const [calm, alarm] = await Promise.all([load(track), load(`alarm_${track}`).then((b) => b ?? load('alarm'))]);
     const t = ctx.currentTime + 0.05;
     for (const [key, buf] of [['calm', calm], ['alarm', alarm]]) {
       if (!buf) continue;
