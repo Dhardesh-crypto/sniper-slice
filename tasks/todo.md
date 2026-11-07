@@ -988,7 +988,10 @@ Cost per skin as built now: ~15 min on the M2 Max and ~1.5 MB; a terraced row ne
 ### Skins: batch finished (2026-11-01)
 - [x] All 20 landmark skins generated and in SKINNED; railway, town, vineyard checked in the game.
 - [x] town/80_-87 (church annex) redone with seed 7 (stablegen-texture.py takes an optional seed): the two faces now match (pink plaster).
-- [ ] town/80_-87 still has a painted landscape patch on the courtyard side (a doorway-sized area, probably an inside face kept because a ray through the doorway leaves the house). Fix in stablegen-texture.py's outside-face test.
+- [x] town/80_-87's painted landscape: not an inside face (a five-ray outside test kept the same faces and the regenerated skin
+      had the same two sky patches on its walls). Painted out on the skin itself instead (2026-11-07): tools/skins/patch-sky.js
+      finds sky on the walls through the skin's own UV layout and covers each patch with wall from beside it;
+      replace-texture.py puts the image back into the GLB. Run over all 20 skins: only this one had real sky.
 
 ### From Athenaion (github.com/Leonxlnx/athenaion, MIT) (2026-11-01)
 - [x] Haze like air (src/world/atmosphere.js): three's fog chunks replaced; the map's fog still sets the amount; thicker low down, blue fades first, glow toward the sun. Checked forest (FogExp2), vineyard (linear), winter town: no shader errors.
@@ -1280,3 +1283,13 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
       CC BY 3.0, credited), the alarms' violin tremolo became repeated piano chords, forest lost its
       violins. Rebuilt all 18; seams still continuous.
 - [x] User approved the piano versions.
+
+## 7 November 2026: StableGen 0.5.0
+
+- [x] Installed StableGen 0.5.0 in Blender (0.4.0 copied aside); stablegen-texture.py runs on it unattended, unchanged.
+- [x] Its "softer seams": the Vineyard farmhouse redone on it came out practically the same as the 0.4.0 skin (the
+      ARCHITECTURE preset takes each texel from the most square-on camera, so there's little blending to soften). The
+      old skin stays. ComfyUI for the skins: `ComfyUI-Installs/ComfyUI/ComfyUI/.venv/bin/python main.py --port 8188`
+      (the standalone-env Python has no torch).
+- Not tried: PBR maps (would need normal maps on the skins in the game), TRELLIS.2 meshes (Meta's DINOv3 licence),
+  SkinTokens rigging (needs an NVIDIA card).
