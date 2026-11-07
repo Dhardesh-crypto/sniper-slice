@@ -4,6 +4,7 @@
 // Loading reloads the page and rebuilds the world from the snapshot after it's built: the
 // same compound, then every soldier, body, wreck, trap, objective and timer put back.
 import * as THREE from 'three';
+import { bodyPose } from '../world/ragdoll.js';
 
 const PREFIX = 'sniper-slice.save.';
 const PENDING = 'sniper-slice.pendingLoad';
@@ -103,6 +104,7 @@ export class Saves {
         pos: v3(s.root.position), yaw: s.root.rotation.y, homeYaw: s.warm?.yaw ?? s.homeYaw, home: v3(s.warm?.home ?? s.home),   // (warming his hands at a barrel: his post is where he came from)
         searched: !!s.searched, hidden: !!s.hidden, found: !!s.found, tagged: !!s.tagged, quietDeath: !!s.quietDeath, stripped: !!s.stripped, bloodied: !!s.bloodied, uniformRuined: !!s.uniformRuined,
         deathClip: s.deathClip ?? null,
+        pose: !s.alive && s.ragdolled ? bodyPose(s.char) : null,
         surrendered: s.alive && s.surrendered ? { fled: s.surrendered.fled } : null,
         rifle: s.drop ? { pos: s.char.rifle.position.toArray(), quat: s.char.rifle.quaternion.toArray() } : null,
         downed: s.alive && s.downed ? { away: s.downed.away.toArray(), crawled: s.downed.crawled, max: s.downed.max, bandaged: !!s.downed.bandaged, bleed: s.bleed ?? 0 } : null,
@@ -130,6 +132,7 @@ export class Saves {
       interactions: this.g.interactions?.snapshot() ?? null,
       wire: this.g.wire?.snapshot() ?? [],
       disguise: this.g.disguise?.snapshot() ?? null,
+      dogs: this.g.dogs?.snapshot() ?? [],
       missionId: this.g.missionId ?? 'vineyard',
       waypoint: mapView.waypoint ? { x: mapView.waypoint.x, z: mapView.waypoint.z } : null,
     };
@@ -174,7 +177,7 @@ export class Saves {
       s.homeYaw = sd.homeYaw;
       if (sd.home) s.home.fromArray(sd.home);
       s.searched = sd.searched; s.hidden = sd.hidden; s.found = sd.found; s.tagged = sd.tagged; s.quietDeath = sd.quietDeath; s.stripped = sd.stripped; s.bloodied = sd.bloodied; s.uniformRuined = sd.uniformRuined;
-      if (!sd.alive) s.restoreDead(sd.deathClip ?? 'deathFwd', sd.rifle);
+      if (!sd.alive) s.restoreDead(sd.deathClip ?? 'deathFwd', sd.rifle, sd.pose);
       else {
         s.hp = sd.hp;
         if (sd.downed) s.restoreDowned(sd.downed, sd.rifle);   // (wounded on the ground)
@@ -241,6 +244,7 @@ export class Saves {
     this.g.interactions?.restore(d.interactions);
     this.g.wire?.restore(d.wire);
     this.g.disguise?.restore(d.disguise);
+    this.g.dogs?.restore(d.dogs);   // (after the soldiers: a dog whose handler was killed keeps to his body)
     (d.destroyed ?? []).forEach((v, i) => { const b = this.g.pickups?.boxes[i]; if (b && v) this.g.pickups.restore(b, { destroyed: true }); });
     (d.opened ?? []).forEach((o, i) => { const b = this.g.pickups?.boxes[i]; if (b && o) this.g.pickups.restore(b, { opened: true }); });
   }

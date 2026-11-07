@@ -100,7 +100,11 @@ const POOL = {
         const [title, text] = texts.splice(Math.floor(rnd() * texts.length), 1)[0];
         const id = `side-intel-${i}`;
         ids.push(id);
-        c.interactions.addDocument({ id, title, text, at });
+        // (marked as the job's, so it isn't taken for one of the mission's own papers)
+        c.interactions.addDocument({ id, title: `Intelligence paper: ${title}`, text, at, onRead: () => {
+          const n = ids.filter(d => c.interactions.found.has(d)).length;
+          if (n < 3) c.hud.message(`SIDE JOB · INTELLIGENCE PAPER ${n} OF 3`, 'head');
+        } });
       });
       return {
         text: 'Find the 3 intelligence papers left on tables in the buildings',
@@ -114,13 +118,17 @@ const EXCLUSIVE = [['ghost', 'unseen']];
 
 function candidate(s) { return s.alive && !s.officer && !s.range && s.brain && !s.brain.fixed && s.name !== 'Reinforcement'; }
 
-// Table tops indoors where papers can lie: the solid tables and the missions' own (0.7-0.85 m high).
-function tableTops(world, rnd) {
+// Table tops indoors where papers can lie: the solid tables and the missions' own (0.7-0.85 m high),
+// under a roof. (Without the roof, crates of the same height out in the yard counted as tables.)
+const ROOF = 8;   // m: the most a roof or a floor above can be over the table
+export function tableTops(world, rnd) {
   const out = [];
   for (const b of world.boxes) {
     const h = b.max.y - b.min.y, w = b.max.x - b.min.x, d = b.max.z - b.min.z;
     if (h < 0.7 || h > 0.85 || w < 0.6 || d < 0.5 || w > 3 || d > 3) continue;
     if (Math.abs(b.min.y - world.groundAt((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2)) > 6) continue;
+    const top = new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y + 0.05, (b.min.z + b.max.z) / 2);
+    if (!world.raycastSegment(top, top.clone().setY(top.y + ROOF))) continue;
     out.push(new THREE.Vector3((b.min.x + b.max.x) / 2 + (rnd() - 0.5) * w * 0.3, b.max.y + 0.005, (b.min.z + b.max.z) / 2));
   }
   return out;

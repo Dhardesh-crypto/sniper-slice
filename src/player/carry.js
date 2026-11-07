@@ -35,6 +35,14 @@ export class Carry {
         if (b) {
           this.body = b;
           b.dragged = true;
+          // (a body lying as it fell, ragdoll.js, turned so its head comes toward you like the clips')
+          b.dragYaw = 0;
+          if (b.ragdolled) {
+            b.root.updateMatrixWorld(true);
+            const head = b.root.worldToLocal(b.char.bones.Head.getWorldPosition(new THREE.Vector3()));
+            const hips = b.root.worldToLocal(b.char.bones.Hips.getWorldPosition(new THREE.Vector3()));
+            b.dragYaw = -Math.atan2(head.x - hips.x, head.z - hips.z);
+          }
           b.hidden = false;
           p.carrying = b;
           if (p.stance === 'prone') p.setStance('crouch');
@@ -52,7 +60,7 @@ export class Carry {
     root.z += target.z - hips.z;
     root.y = this.world.floorAt(root.x, root.z, p.pos.y + 0.1); // stays on the platform or stair you're on
     this.body.fallFrom = root.clone();          // keeps the death shove from fighting the drag
-    this.body.root.rotation.y = p.yaw + Math.PI; // head toward you
+    this.body.root.rotation.y = p.yaw + Math.PI + (this.body.dragYaw ?? 0); // head toward you
     this.body.root.updateMatrixWorld(true);
     if (p.moving) {
       this.dragT -= dt;

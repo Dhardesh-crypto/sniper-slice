@@ -33,12 +33,19 @@ export class Dogs {
 
   // Dogs for `n` more of the men on patrol.
   more(n) {
-    const { world, scene, rnd, handlers } = this;
+    const { rnd, handlers } = this;
     for (let i = 0; i < n && handlers.length; i++) {
-      const h = handlers.splice(Math.floor(rnd() * handlers.length), 1)[0];
+      if (!this.add(handlers.splice(Math.floor(rnd() * handlers.length), 1)[0])) break;
+    }
+  }
+
+  // A dog at `h`'s heel (or null when the dog model hasn't loaded).
+  add(h) {
+    const { world, scene } = this;
+    {
       const at = h.root.position;
       const a = makeDog(scene, at.x - 1, at.z - 1);
-      if (!a) break;
+      if (!a) return null;
       // Something to shoot: an unseen block over its body, moving with it.
       const hit = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 1.0), HIDDEN);
       hit.position.y = 0.45;
@@ -48,16 +55,47 @@ export class Dogs {
       world.raycastTargets.push(hit);
       h.dog = dog;
       this.dogs.push(dog);
+      return dog;
     }
   }
 
-  kill(dog) {
+  // quiet: no yelp (a loaded save: it was dead already).
+  kill(dog, quiet = false) {
     if (dog.mode === 'dead') return;
     dog.mode = 'dead';
     dogDie(dog.a);
-    this.audio.yelp(dog.a.root.position.distanceTo(this.player.pos));
+    if (!quiet) this.audio.yelp(dog.a.root.position.distanceTo(this.player.pos));
     const i = this.world.raycastTargets.indexOf(dog.hit);
     if (i >= 0) this.world.raycastTargets.splice(i, 1);
+  }
+
+  // For a save (core/saves.js): each dog by its handler, where it is, and whether it's been shot.
+  snapshot() {
+    return this.dogs.map(d => ({ handler: this.world.soldiers.indexOf(d.handler), dead: d.mode === 'dead', pos: d.a.root.position.toArray(), yaw: d.a.root.rotation.y }));
+  }
+
+  // From a save: a dog that was shot lies where it fell, already still. (Matched by handler, so a
+  // run that has a dog more or less than the save, from what the garrison has learnt since, still
+  // puts each saved dog back.)
+  restore(list = []) {
+    for (const e of list) {
+      const h = this.world.soldiers[e.handler];
+      if (!h) continue;
+      let dog = this.dogs.find(d => d.handler === h);
+      if (!dog) {
+        const i = this.handlers.indexOf(h);
+        if (i >= 0) this.handlers.splice(i, 1);
+        dog = this.add(h);
+      }
+      if (!dog) continue;
+      dog.a.root.position.fromArray(e.pos);
+      dog.a.root.rotation.y = e.yaw;
+      if (e.dead) {
+        this.kill(dog, true);
+        dog.a.v = 0;
+        poseDog(dog.a, 10);          // (the fall played through: it lies there)
+      } else if (!h.alive) dog.mode = 'mourn';
+    }
   }
 
   // How far it smells you: further downwind of you, less in the rain.

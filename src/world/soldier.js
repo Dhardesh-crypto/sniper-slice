@@ -5,8 +5,10 @@
 import * as THREE from 'three';
 import { clearXray } from './anatomy.js';
 import { Character, buildHitZones, solveArmIK } from './characters.js';
+import { Ragdoll, setBodyPose } from './ragdoll.js';
 
 const UP = new THREE.Vector3(0, 1, 0), MIDDLE = new THREE.Vector3(0, 0.9, 0);
+const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fq = new THREE.Quaternion(), _fq2 = new THREE.Quaternion(), _fq3 = new THREE.Quaternion();   // (flinch scratch)
 
 export const DRAG_SPEED = 0.75;   // m/s: the pace the drag clip was made at
 const COVER_RATE = 1.6;           // the duck clip played a little faster than it was made: a blast is sudden
@@ -135,13 +137,36 @@ export class Soldier {
     if (zone === 'leg') { this.limp = true; this.kneelT = 1.4; }
     else if (zone === 'arm') { this.armHit = true; this.shakenT = 1.5; }
     else this.bleed = (this.bleed ?? 0) + damage / 60;        // hp a second: half a minute or so
-    if (this.char.action('hitReact')) {
-      // He reels from the hit, then carries on.
-      this.reactT = 0.9;
-      this.char.setHoldWeight(0);
-      this.char.play('hitReact', { fade: 0.06, once: true, timeScale: 2 });
-    } else this.staggerT = 0.45;
+    // He's knocked where it struck (his head snapped round, a shoulder driven back, a hip), and
+    // carries on. (On top of whatever he's doing: no reeling clip, which threw his arms up.)
+    this.flinchAt(zone, bulletDir, opts.point);
+    this.reactT = 0.5;
     return { zone, killed: false, damage };
+  }
+
+  // The struck part knocked back along the round: a bone turned about the axis across its length and
+  // the shot, quickly, then eased back (update() adds it after the clip, before the rifle is placed).
+  flinchAt(zone, dir, point) {
+    const b = this.char.bones;
+    const nearer = (l, r) => (point && b[l] && b[r] ? (b[l].getWorldPosition(_fa).distanceTo(point) < b[r].getWorldPosition(_fb).distanceTo(point) ? b[l] : b[r]) : b[r] ?? b[l]);
+    let bone, along, angle;
+    if (zone === 'head') { bone = b.neck; angle = 0.45; }
+    else if (zone === 'leg') { bone = nearer('LeftUpLeg', 'RightUpLeg'); angle = 0.3; }
+    else if (zone === 'pelvis') { bone = b.Spine02; angle = 0.2; }
+    else { bone = b.Spine; angle = zone === 'arm' ? 0.2 : 0.3; }
+    if (!bone) return;
+    if (zone === 'leg') along = bone.children.find(c => c.isBone)?.getWorldPosition(_fa).sub(bone.getWorldPosition(_fb)) ?? UP.clone();
+    else along = UP.clone();
+    const axis = new THREE.Vector3().crossVectors(along.normalize(), dir).normalize();
+    // An arm or a shoulder: the shot's off his centre line, so it turns him about his spine as well.
+    if ((zone === 'arm' || zone === 'torso') && point) {
+      const r = point.clone().sub(this.root.position).setY(0);
+      const lever = THREE.MathUtils.clamp((r.z * dir.x - r.x * dir.z) / 0.25, -1, 1);
+      axis.multiplyScalar(angle).addScaledVector(UP, lever * (zone === 'arm' ? 0.45 : 0.25));
+      angle = axis.length(); axis.normalize();
+    }
+    if (!(angle > 0.01) || !isFinite(axis.x)) return;
+    this.flinch = { bone, axis, angle, t: 0, dur: 0.38 };
   }
 
   // A round cracked past him: he flinches and ducks for a moment.
@@ -286,6 +311,17 @@ export class Soldier {
       if (this.char.rifle.visible) this.dropRifle(bulletDir);
       return;
     }
+    if (!this.riding) {
+      // He falls as the hit sends him (ragdoll.js): from the pose he's in, at the pace he was going.
+      const hit = { dir: blast > 0 ? push.clone() : bulletDir.clone(), point, zone, power, blast, vel: facing.clone().multiplyScalar(this.speed ?? 0) };
+      // (No reeling clip first: it threw his arms up and fought the fall. How long he stays on his
+      // feet is the muscle in ragdoll.js.)
+      this.ragPending = { t: 0, hit };
+      this.deathT = 0;
+      if (this.char.rifle.visible) this.dropRifle(bulletDir.clone().setY(0).add(blast > 0 ? new THREE.Vector3(0, 0.6, 0) : new THREE.Vector3()));
+      this.startRagdoll();
+      return;
+    }
     // Turned as he goes: round to fall along the push (the clips fall straight ahead or straight
     // back), and by the hit's leverage: struck off his centre line, that side is driven back.
     const clipDir = fallBack ? facing.clone().negate() : facing;
@@ -323,6 +359,13 @@ export class Soldier {
     if (!delay) this.startFall();
   }
 
+  startRagdoll() {
+    const { hit } = this.ragPending;
+    this.ragPending = null;
+    this.rag = new Ragdoll(this, hit);
+    this.ragdolled = true;            // (his pose is his own now: saves keep it)
+  }
+
   startFall() {
     this.fall.played = true;
     this.char.play(this.deathClip, { fade: this.fall.delay ? 0.15 : 0.08, once: true, timeScale: this.fall.rate });
@@ -330,6 +373,14 @@ export class Soldier {
 
   // The fall, after the death clip has posed him: the turn, the shove, or the flight through the air.
   updateFall(dt) {
+    if (this.ragPending && (this.ragPending.t -= dt) <= 0) this.startRagdoll();
+    if (this.ragPending) return;
+    if (this.rag) {
+      if (this.dragged) this.rag.stop();     // (picked up: he goes where he's pulled)
+      else this.rag.step(dt);
+      if (this.rag.asleep) { this.rag = null; this.deathT = 1; }
+      return;
+    }
     const f = this.fall;
     if (f) {
       f.t += dt;
@@ -429,13 +480,22 @@ export class Soldier {
     }
     this.char.update(dt);
     if (this.drop) this.updateDrop(dt);
-    if (!this.alive && (this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
+    if (!this.alive && (this.rag || this.ragPending || this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
     if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.coverT > 0 && (this.coverT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.staggerT > 0) {
       this.staggerT = Math.max(0, this.staggerT - dt);
       const k = Math.sin((0.45 - this.staggerT) / 0.45 * Math.PI);
       this.char.bones.Spine01?.rotateX(-0.25 * k);
+    }
+    if (this.flinch && this.alive) {
+      const f = this.flinch;
+      f.t += dt;
+      const k = f.t < 0.05 ? f.t / 0.05 : Math.max(0, 1 - (f.t - 0.05) / (f.dur - 0.05)) ** 2;
+      const pq = f.bone.parent.getWorldQuaternion(_fq);
+      f.bone.quaternion.premultiply(_fq2.copy(pq).invert().multiply(_fq3.setFromAxisAngle(f.axis, f.angle * k)).multiply(pq));
+      f.bone.updateMatrixWorld(true);
+      if (f.t >= f.dur) this.flinch = null;
     }
     // Ducking behind cover (the same world-space crouch as the player's).
     // (down on a knee for a moment after a leg wound)
@@ -506,6 +566,8 @@ export class Soldier {
     if (this.fallFrom) this.root.position.copy(this.fallFrom);
     this.fallFrom = null;
     this.fall = this.fly = null;
+    this.rag = this.ragPending = null; this.ragdolled = false;
+    if (this.char.hold) this.char.hold.play().setEffectiveWeight(1);   // (a fall stops every clip)
     this.root.rotation.set(0, this.root.rotation.y, 0);
     this.downed = null;
     this.surrendered = null; this.unarmed = this.dragging = false; this.coverT = 0;
@@ -528,7 +590,7 @@ export class Soldier {
   }
 
   // Lying dead from the start (a loaded save): the end of his death clip, no fall, no noise.
-  restoreDead(clip, rifle) {
+  restoreDead(clip, rifle, pose = null) {
     this.alive = false;
     this.hp = 0;
     this.deathClip = clip;
@@ -541,6 +603,7 @@ export class Soldier {
     if (this.char.base) this.char.base.time = this.char.base.getClip().duration;
     this.layRifle(rifle);
     this.char.update(0);
+    if (pose) { setBodyPose(this.char, pose); this.ragdolled = true; }   // (as his fall left him)
     this.root.updateMatrixWorld(true);
   }
 

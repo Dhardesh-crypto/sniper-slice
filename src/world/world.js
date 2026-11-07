@@ -214,6 +214,10 @@ export class World {
   equip(s) {
     s.floorAt = (x, z, y) => this.floorAt(x, z, y, 0.05);
     s.wallHit = (a, b) => this.boxAlong(a, b);
+    // (for his fall, ragdoll.js: the boxes near him, the ground, the trees)
+    s.nearBoxes = (p, r) => this.boxes.filter(b => p.x > b.min.x - r && p.x < b.max.x + r && p.z > b.min.z - r && p.z < b.max.z + r);
+    s.groundAt = (x, z) => heightAt(x, z);
+    s.treesNear = (x, z) => this.treesNear(x, z);
   }
 
   // How far along the segment a→b (0..1) it first enters a collision box (a wall, a crate, a

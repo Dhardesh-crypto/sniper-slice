@@ -1229,3 +1229,28 @@ Asked for after the arms: better movement crouched and crawling. Sheet: tasks/cr
 - [x] npm test 3/3. Production build: crouch 1.8 m/s, crawl 0.75 m/s, side and behind; stopping from a crouch still gives the kneel; a wounded guard crawled 0.9 m lying flat (hips 0.17 m, head 0.42 m, numbers only: no picture of him). No console errors.
 Not done: playing it by hand. Rifle in hands while crawling keeps both hands on it, so with the rifle out his left arm follows the rifle, not the crawl. Not seen: crawling on slopes or in tunnels; the pistol out while crawling.
 - [x] Deployed (4058f04, Netlify 6aee3027). Both clips on the live site match the repo by hash.
+
+## 7 November 2026: bodies fall by the bullet; shot dogs saved; the papers job
+
+- [x] `src/world/ragdoll.js`: a ragdoll of our own (no library). Points on his joints at fixed bone
+      lengths, struts for chest and pelvis, gravity, knees one way, limbs that can't fold flat, legs
+      and feet kept apart; floor, steps, slopes, walls and trunks; copied back onto the bones.
+- [x] The hit: direction, power and exact point push the nearest joints (kept small; an arm moves
+      with its shoulder unless it was the arm hit); his walking or running speed carries on.
+- [x] Muscle by wound: head none; body fades over 0.5-1.2 s; leg: that leg at once; the legs go
+      before the trunk; the arms hang.
+- [x] Every shot or blast death goes through it (blasts replace the scripted flight). Takedowns,
+      men already down and men riding in a vehicle keep the old way. The reeling clip before a
+      death is gone (it threw the arms up and fought the fall).
+- [x] He settles (2-4 s) and costs nothing after. 5 falling at once: +0.6 ms a frame.
+- [x] Saves keep each body's pose (old saves use `deathClip`). Dragging: a body is turned head
+      toward you. Hits he survives: the struck part knocked back (`Soldier.flinchAt`), no clip.
+- [x] Shot dogs: in the save by handler, back dead and still on a load (`Dogs.snapshot/restore`).
+- [x] The 3-papers job: the papers lay on crates in the open (any box of table height counted), so
+      reading the villa's documents never counted. Now only tables under a roof, the papers are
+      titled "Intelligence paper", and each one read says how many of 3.
+- [x] Checked by script: contact sheets of 13 falls (head, chest, back, leg, arm, from above,
+      running, a blast, against sandbags and a wall), survivor flinches, save and load (poses
+      exact), drag; all nine missions with every man killed: no errors, no NaN, all settled.
+      One Flak Line trench sentry once ended 0.4 m into the ground; five retries didn't repeat it.
+- [ ] Not played by hand: the feel (push, muscle times) is judged from frames.

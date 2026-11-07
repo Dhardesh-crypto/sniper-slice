@@ -298,6 +298,7 @@ const disguise = new Disguise({ world, player, avatar, arsenal, input, audio, hu
 stealth.disguise = disguise;
 hud.disguise = disguise;
 saves.g.disguise = disguise;
+saves.g.dogs = dogs;
 const driving = new Driving({ world, player, avatar, input, audio, hud, stealth, camera, patrol, ai, disguise });   // take a truck, car or motorcycle
 takedown.onKill = (s) => { mission.stats.kills++; mission.stats.takedowns++; if (s?.officer) mission.stats.targetBy = 'knife'; };
 takedown.onSlowmo = () => { slowmoT = 0.45; };
