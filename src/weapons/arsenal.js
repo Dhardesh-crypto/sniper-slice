@@ -5,6 +5,7 @@ import { integrate, solveZeroAngle } from './ballistics.js';
 import { throughCover } from './penetration.js';
 import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
 import { weaponPicture } from '../ui/weapon-pictures.js';
+import { level } from '../core/difficulty.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -305,7 +306,9 @@ export class Arsenal {
 
     this.tickBreath(dt);
     this.readyT = Math.max(0, this.readyT - dt / 0.9);
-    this.ballisticWind.copy(this.world.wind).multiplyScalar(WIND_EFFECT);
+    const B = level(this.settings, 'ballistics');
+    this.ballisticWind.copy(this.world.wind).multiplyScalar(WIND_EFFECT * B.wind);
+    this.tickAutoZero(dt, B);
 
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.boltT >= 0) {
@@ -792,10 +795,25 @@ export class Arsenal {
     }
   }
 
+  // Easy ballistics: while scoped, the zero follows the distance to whatever is under the
+  // crosshair (to the nearest setting the scope has), a few times a second.
+  tickAutoZero(dt, B) {
+    this.autoZero = !!B.autoZero && this.scoped && this.def.zeros.length > 1;
+    if (!this.autoZero || !this.camera || (this.autoZeroT = (this.autoZeroT ?? 0) - dt) > 0) return;
+    this.autoZeroT = 0.2;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const hit = this.world.raycastRay(this.camera.position, dir, 1000);
+    if (!hit) return;
+    const zs = this.def.zeros;
+    let best = 0;
+    for (let i = 1; i < zs.length; i++) if (Math.abs(zs[i] - hit.distance) < Math.abs(zs[best] - hit.distance)) best = i;
+    this.weapon.zeroIndex = best;
+  }
+
   // The "empty lung" marker: where the shot would land right now, wind and drop included.
   // Shown whenever scoped, only while holding breath, or never (a setting).
   updatePrediction() {
-    const mode = this.settings.lungMarker;
+    const mode = level(this.settings, 'ballistics').marker ?? this.settings.lungMarker;   // (easy: always; hard: never)
     const show = this.scoped && this.camera && (mode === 'always' || (mode === 'breath' && this.holding));
     if (!show) { this.prediction = null; return; }
     if ((this.predictFrame++ & 1) && this.prediction) return;
@@ -836,6 +854,7 @@ export class Arsenal {
     return {
       weapon: this.mount ? 'heavy' : this.current, name: this.def.name + (w.loaded ? ` · ${AMMO[w.pendingAmmo ?? w.loaded].name}` : ''), mag: w.mag, reserve: w.reserve,
       zero: this.def.zeros.length > 1 ? this.zero : null,
+      autoZero: !!this.autoZero,
       zoomName: this.def.zoomNames[this.zoomIndex], zoomFov: this.def.zoomFovs[this.zoomIndex],
       binocFov: BINOCULARS.zoomFovs[this.binocZoomIndex], binocZoomName: BINOCULARS.zoomNames[this.binocZoomIndex],
       aim: this.aim, binoc: this.binocT ?? 0, scoped: this.scoped, breath: this.breath,

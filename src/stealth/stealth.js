@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { inTallGrass } from '../world/vegetation.js';
 import { activeMap } from '../world/terrain.js';
 import { inBeam } from '../world/flashlights.js';
+import { level } from '../core/difficulty.js';
 
 const STEP_NOISE = { stand: 8, crouch: 3.5, prone: 1.2 };      // metres, walking
 const SPRINT_NOISE = 20;
@@ -71,13 +72,13 @@ export class Stealth {
     if (!p.moving || p.underground) return 0;
     const r = p.sprinting ? SPRINT_NOISE : STEP_NOISE[p.stance] * Math.min(1.3, p.speed / 2.5 + 0.4);
     // Broken glass underfoot (world/alarms.js) carries; the garrison may be listening harder.
-    return r * (this.alarms?.glassAt(p.pos) ? 2.4 : 1) * this.earsK * (1 - 0.7 * this.mask.amount);
+    return r * (this.alarms?.glassAt(p.pos) ? 2.4 : 1) * this.earsK * level(this.settings, 'guards').hearing * (1 - 0.7 * this.mask.amount);
   }
 
   // ---- noise events ----
   gunshot(origin, def) {
     const masked = this.masking.loudnessAt(origin).amount;
-    const radius = def.noiseRadius * (1 - (1 - MASKED_SHOT) * masked);
+    const radius = def.noiseRadius * (1 - (1 - MASKED_SHOT) * masked) * level(this.settings, 'guards').hearing;
     this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source, origin: origin.clone(), heard: [] };
     this.noise(origin, radius, 'shot');
     this.onGunshot?.(this.lastShot);                // (ai/counterfire.js: are they getting a fix on you?)
@@ -238,7 +239,7 @@ export class Stealth {
     const stateK = a.state === 'alerted' ? 2 : a.state === 'suspicious' ? 1.5 : 1;
     const idle = s.chatWith ? 0.6 : s.smoking > 0 ? 0.85 : 1;     // chatting or smoking, he watches less
     const guise = this.disguise?.factor(s, d) ?? 1;                // in their uniform, acting the part (disguise.js)
-    return 1.1 * this.wariness * Math.max(vis, lit ? 0.6 : 0) * coneK * stateK * idle * guise * (lit ? 2 : 1) * Math.pow(Math.max(0, 1 - d / range), 1.3);
+    return 1.1 * this.wariness * level(this.settings, 'guards').sight * Math.max(vis, lit ? 0.6 : 0) * coneK * stateK * idle * guise * (lit ? 2 : 1) * Math.pow(Math.max(0, 1 - d / range), 1.3);
   }
 
   lookForBodies(s) {

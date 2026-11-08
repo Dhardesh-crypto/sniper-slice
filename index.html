@@ -93,6 +93,26 @@
       <div class="tab" data-tab="loadout"><div id="loadout-menu"></div></div>
       <div class="tab" data-tab="settings">
         <div class="settings">
+          <h2 class="set-head">Difficulty</h2>
+          <label>Ballistics
+            <select id="set-ballistics">
+              <option value="easy">Easy: no wind, the scope zeroes itself</option>
+              <option value="normal">Normal</option>
+              <option value="hard">Hard: stronger wind, no landing marker</option>
+            </select><output></output></label>
+          <label>Guards
+            <select id="set-guards">
+              <option value="easy">Easy: slower to see you, hear less</option>
+              <option value="normal">Normal</option>
+              <option value="hard">Hard: sharp eyes and ears</option>
+            </select><output></output></label>
+          <label>Enemy fire
+            <select id="set-combat">
+              <option value="easy">Easy: half the damage</option>
+              <option value="normal">Normal</option>
+              <option value="hard">Hard: hits hurt more</option>
+            </select><output></output></label>
+          <h2 class="set-head">Controls and display</h2>
           <label>Mouse sensitivity <input id="set-sens" type="range" min="0.2" max="3" step="0.05" /><output></output></label>
           <label>Field of view <input id="set-fov" type="range" min="55" max="90" step="1" /><output></output></label>
           <label>Volume <input id="set-vol" type="range" min="0" max="1" step="0.05" /><output></output></label>

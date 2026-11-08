@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { STEP } from '../world/world.js';
 import { climbRise, vaultAt } from '../world/characters.js';
+import { level } from '../core/difficulty.js';
 
 const GRAVITY = 22;
 const VAULT_MAX = 1.3, VAULT_THICK = 0.9;   // a wall you vault over on the move: up to this high, this thick
@@ -53,8 +54,10 @@ export class Player {
   }
 
   // A guard's bullet found you.
-  damage(amount, from) {
+  // `self`: a fall, your own doing, not scaled by the combat difficulty (core/difficulty.js).
+  damage(amount, from, self = false) {
     if (this.dead) return;
+    if (!self) amount *= level(this.settings, 'combat').hurt;
     this.health = Math.max(0, this.health - amount);
     this.hurtT = 0;
     this.hitFrom = from.clone();
@@ -225,7 +228,7 @@ export class Player {
     // (5 m: a fifth of your health, 8 m: well over half), and from twelve you don't get up.
     if (h > 3) {
       this.audio.bodyFall?.(0, Math.min(1, h / 8));
-      this.damage((h - 3) * 11.5, this.pos.clone().setY(floor + 3));
+      this.damage((h - 3) * 11.5, this.pos.clone().setY(floor + 3), true);
       this.fellFrom = this.dead ? h : 0;
     }
   }

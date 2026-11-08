@@ -143,6 +143,7 @@ dressSite(world);
 await usePhotoTextures(scene, M.map.wallStyle);                   // the photographs over the drawn textures
 skinBuildings(scene, missionId);                                  // the landmarks' own weathered outsides (world/skins.js)
 const player = new Player(world, input, audio);
+player.settings = settings;   // (the combat difficulty: core/difficulty.js)
 const avatar = new Avatar(scene);
 const rig = new CameraRig(world);
 const fx = new Particles(scene, 600);   // (tank exhausts keep a few dozen in the air)
@@ -165,6 +166,7 @@ const search = new Search({ world, player, arsenal, input, audio, hud });
 const carry = new Carry({ world, player, input, audio, hud });
 const masking = new Masking({ scene, world, audio, fx });
 const stealth = new Stealth({ world, player, arsenal, masking, audio, hud });
+stealth.settings = settings;  // (the guards' difficulty: sight and hearing)
 arsenal.onImpactNoise = (point) => stealth.noise(point, 14, 'impact');
 player.onNoise = (pos, radius, kind) => stealth.noise(pos, radius, kind);
 const ai = new GuardAI({ scene, world, player, stealth, audio, fx, hud });
@@ -504,6 +506,9 @@ bind('set-pad-sens', 'padSensitivity', (v) => v.toFixed(2));
 bind('set-pad-invert', 'padInvertY');
 bind('set-vibration', 'vibration');
 bind('set-hints', 'hints');
+bind('set-ballistics', 'ballistics', () => '');
+bind('set-guards', 'guards', () => '');
+bind('set-combat', 'combat', () => '');
 bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
