@@ -60,7 +60,7 @@
     <div class="panel">
       <h1>SNIPER SLICE</h1>
       <p class="sub">Operation Vineyard · Tuscany, 1944</p>
-      <div class="buttons"><button id="play" data-pad="Press {SPACE} to play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button></div>
+      <div class="buttons"><button id="play" data-pad="Press {SPACE} to play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button><button id="skip-training" class="ghost">Skip training</button></div>
       <div id="slots"><h2></h2><div class="list"></div><p class="why"></p></div>
       <div class="tabs" role="tablist">
         <button role="tab" data-tab="mission">Mission</button>
@@ -131,6 +131,9 @@
           <label>Stick sensitivity <input id="set-pad-sens" type="range" min="0.3" max="2.5" step="0.05" /><output></output></label>
           <label class="check"><input id="set-pad-invert" type="checkbox" /> Invert stick Y</label>
           <label class="check"><input id="set-vibration" type="checkbox" /> Vibration</label>
+          <h2 class="set-head">Training</h2>
+          <label class="check"><input id="set-hints" type="checkbox" /> Training and first-time hints</label>
+          <div class="buttons"><button id="replay-training" class="ghost">Replay training</button></div>
           <h2 class="set-head">Testing</h2>
           <label class="check"><input id="set-testall" type="checkbox" /> Test armoury: every weapon and part unlocked</label>
           <p class="set-note">To try every weapon, scope, suppressor and barrel without finding them first. What you have really found is kept and comes back when you switch this off. While it's on, you can also change your loadout during a mission, from the Loadout tab. The firing range at the start has targets to shoot at.</p>

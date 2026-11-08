@@ -8,12 +8,12 @@ let input = null;
 const listeners = [];
 
 // Keyboard names, as the game always printed them.
-const KB = { SPACE: 'SPACE', DRIVE: 'W/S DRIVE · A/D STEER · SPACE HANDBRAKE' };
+const KB = { SPACE: 'SPACE', DRIVE: 'W/S DRIVE · A/D STEER · SPACE HANDBRAKE', LOOK: 'the mouse', MOVE: 'W A S D', ZERO: '↑ / ↓', RMB: 'right mouse', LMB: 'left mouse', SHIFT: 'Shift', ESC: 'Esc' };
 // The pad, per key (gamepad.js has the layout). "(HOLD)" where the pad needs the button held for
 // that one (the same button tapped does something else).
 const PAD = {
-  xbox: { E: 'X', F: 'R3', U: '↓', G: 'RB', K: 'Y (HOLD)', L: '→ (HOLD)', Q: '↑', H: '↓', SPACE: 'A', R: 'Y', B: 'LB', M: 'VIEW', X: '→', V: 'R3', C: 'B', Z: 'B (HOLD)', SHIFT: 'L3', RMB: 'LT', LMB: 'RT', ESC: 'MENU', DRIVE: 'LEFT STICK DRIVE AND STEER · A HANDBRAKE' },
-  ps:   { E: '□', F: 'R3', U: '↓', G: 'R1', K: '△ (HOLD)', L: '→ (HOLD)', Q: '↑', H: '↓', SPACE: '✕', R: '△', B: 'L1', M: 'CREATE', X: '→', V: 'R3', C: '○', Z: '○ (HOLD)', SHIFT: 'L3', RMB: 'L2', LMB: 'R2', ESC: 'OPTIONS', DRIVE: 'LEFT STICK DRIVE AND STEER · ✕ HANDBRAKE' },
+  xbox: { E: 'X', F: 'R3', U: '↓', G: 'RB', K: 'Y (HOLD)', L: '→ (HOLD)', Q: '↑', H: '↓', SPACE: 'A', R: 'Y', B: 'LB', M: 'VIEW', X: '→', V: 'R3', C: 'B', Z: 'B (HOLD)', SHIFT: 'L3', RMB: 'LT', LMB: 'RT', ESC: 'MENU', DRIVE: 'LEFT STICK DRIVE AND STEER · A HANDBRAKE', LOOK: 'the right stick', MOVE: 'the left stick', ZERO: 'd-pad ↑ / ↓' },
+  ps:   { E: '□', F: 'R3', U: '↓', G: 'R1', K: '△ (HOLD)', L: '→ (HOLD)', Q: '↑', H: '↓', SPACE: '✕', R: '△', B: 'L1', M: 'CREATE', X: '→', V: 'R3', C: '○', Z: '○ (HOLD)', SHIFT: 'L3', RMB: 'L2', LMB: 'R2', ESC: 'OPTIONS', DRIVE: 'LEFT STICK DRIVE AND STEER · ✕ HANDBRAKE', LOOK: 'the right stick', MOVE: 'the left stick', ZERO: 'd-pad ↑ / ↓' },
 };
 
 export function initGlyphs(inp) {
@@ -35,6 +35,13 @@ export function key(k) {
 export function fill(text) {
   if (typeof text !== 'string' || !text.includes('{')) return text;
   return text.replace(/\{([A-Z]+)\}/g, (_, k) => key(k));
+}
+
+// The same for HTML (training and hints): each key in a little key cap, a phrase ("the right
+// stick", the driving line) as plain words.
+const PHRASES = new Set(['LOOK', 'MOVE', 'DRIVE']);
+export function fillHtml(text) {
+  return text.replace(/\{([A-Z]+)\}/g, (_, k) => PHRASES.has(k) ? key(k) : `<kbd class="k${onPad() ? ' pad' : ''}">${key(k)}</kbd>`);
 }
 
 // index.html: swap the text of [data-pad] elements, and show the controls for the device in use.

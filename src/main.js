@@ -76,6 +76,7 @@ import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
 import { installAtmosphere } from './world/atmosphere.js';
 import { PadNav } from './ui/padnav.js';
+import { Tutorial } from './mission/tutorial.js';
 import { initGlyphs, fill } from './ui/glyphs.js';
 
 const FIXED_DT = 1 / 60;
@@ -206,7 +207,7 @@ hud.airwar = airwar;
 explosions.chainers.push(items);
 const rockets = new Rockets({ scene, world, explosions, hotspots, items, fx });
 arsenal.rockets = rockets;
-items.onAction = (kind) => avatar.perform(kind === 'throw' && player.stance === 'crouch' ? 'throwCrouch' : kind);
+items.onAction = (kind) => { avatar.perform(kind === 'throw' && player.stance === 'crouch' ? 'throwCrouch' : kind); if (kind === 'throw') tutorial.onThrow(); };
 arsenal.items = items;
 search.items = items;
 arsenal.onAmmo = (name) => hud.message(name ? `LOADING ${name.toUpperCase()} ROUNDS` : 'NO OTHER AMMUNITION');
@@ -320,7 +321,7 @@ takedown.onKill = (s) => { mission.stats.kills++; mission.stats.takedowns++; if 
 takedown.onSlowmo = () => { slowmoT = 0.45; };
 mapView.mission = mission;
 mapView.hotspots = hotspots;
-arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot(); };
+arsenal.onShot = (origin, def) => { stealth.gunshot(origin, def); mission.onShot(); tutorial.onShot(); };
 // What the Germans have learnt about you so far, and what they do on the ways in.
 const orders = garrisonOrders(profile.habits);
 if (orders?.sight) stealth.sightK = orders.sight;
@@ -410,7 +411,7 @@ refreshLoadButton();
 const deathScreen = document.getElementById('death');
 deathScreen.addEventListener('click', () => location.reload());
 post.setQuality(settings.quality);
-arsenal.onHit = (e) => { hud.onHit(e); mission.onHit(e); };
+arsenal.onHit = (e) => { hud.onHit(e); mission.onHit(e); tutorial.onHit(e); };
 // A near miss: he ducks, and knows roughly where it came from (a supersonic crack: shot at, alerted;
 // a subsonic round's hiss and smack: suspicious).
 arsenal.onNearMiss = (s, b) => {
@@ -502,6 +503,7 @@ bind('set-invert', 'invertY');
 bind('set-pad-sens', 'padSensitivity', (v) => v.toFixed(2));
 bind('set-pad-invert', 'padInvertY');
 bind('set-vibration', 'vibration');
+bind('set-hints', 'hints');
 bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
@@ -566,6 +568,7 @@ input.onLockChange = (locked) => {
     play.textContent = 'Resume';
     delete play.dataset.pad; delete play.dataset.kb;   // (no longer "press to play": ui/glyphs.js leaves it be)
     document.querySelector('#menu .sub').textContent = `Paused · ${M.subtitle.split(' · ')[0]}`;
+    tutorial.begin();   // the first mission's training, the first time (mission/tutorial.js)
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
   menuPaused = !locked && !mapView.open && !over && !benchOpen;
@@ -612,6 +615,12 @@ function padLook(realDt, zoomScale) {
   const k = settings.padSensitivity * zoomScale * realDt / 0.0022;   // player.look's units: mouse counts
   player.look(curve(s.x) * PAD_TURN * k, curve(s.y) * PAD_PITCH * k, 1, settings.padInvertY);
 }
+const tutorial = new Tutorial({ input, player, arsenal, items, stealth, world, profile, settings, missionId, mapView });
+document.getElementById('skip-training').addEventListener('click', () => { tutorial.finish(true); document.getElementById('play').click(); });
+document.getElementById('replay-training').addEventListener('click', (e) => {
+  tutorial.replay();
+  e.target.textContent = missionId === 'vineyard' ? 'Training restarted' : 'It runs next time you play Vineyard';
+});
 const padNav = new PadNav({
   input, map: mapView,
   closeMap: () => setMap(false),
@@ -676,6 +685,12 @@ function tick(dt) {
   mission.tick(dt);
   jobs.tick();
   hotspots.tick(dt);
+  tutorial.tick(dt, () => ({
+    takedown: /TAKEDOWN/.test(takedown.state()?.label ?? ''), body: !!search.state(), climb: !!player.climbOption(),
+    gun: !!guns.near, bench: /WORKBENCH/.test(pickups.state()?.label ?? ''), vehicle: !driving.vehicle && !!driving.near(),
+    masked: stealth.mask.amount > 0.5, alarm: stealth.alarm, suspicious: stealth.state().worst === 'suspicious',
+    hurt: player.health < 50 && !player.dead, heavy: !!arsenal.loadout?.heavy,
+  }));
   // Birdsong in the quiet; a gunshot or the siren silences it for a while.
   birdT -= dt;
   const shot = stealth.lastShot;
@@ -866,7 +881,7 @@ renderer.setAnimationLoop(frame);
 window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   counterfire, clues, alarms, orders,
-  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench,
+  THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench, tutorial, padNav,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).

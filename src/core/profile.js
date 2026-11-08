@@ -67,6 +67,13 @@ export class Profile {
     this.save();
   }
 
+  // Training (mission/tutorial.js): done or skipped, and the first-time hints already shown.
+  tutorialDone() { return !!this.data.tutorial?.done; }
+  setTutorialDone(on) { (this.data.tutorial ??= { seen: [] }).done = on; this.save(); }
+  hintSeen(id) { return !!this.data.tutorial?.seen?.includes(id); }
+  markHint(id) { const t = this.data.tutorial ??= { seen: [] }; (t.seen ??= []).push(id); this.save(); }
+  resetHints() { if (this.data.tutorial) this.data.tutorial.seen = []; this.save(); }
+
   // The campaign: missions finished (each unlocks the next) and documents found in each.
   completed(id) { return !!this.data.done?.[id]; }
   completeMission(id) { (this.data.done ??= {})[id] = true; this.save(); }
