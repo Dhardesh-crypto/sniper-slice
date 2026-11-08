@@ -655,6 +655,9 @@ function tick(dt) {
   world.tunnels?.tick(dt);
   interactions.tick(dt);
   guns.tick(dt, !!(pickups.state() || interactions.state() || search.state()?.label));
+  // Shoulder swap: Tab, or on the pad the right stick's click when there's nobody to take down
+  // and no body to drag (the same click does those).
+  if (input.wasPressed('Tab') || (input.device === 'pad' && input.wasPressed('KeyF') && !arsenal.aiming && !takedown.state() && !carry.state() && !player.carrying)) rig.swapShoulder();
   takedown.tick(dt);   // before the body drag: F takes down a living guard first
   carry.tick(dt);
   masking.update(dt, camera.position);
@@ -818,6 +821,7 @@ function step(realDt, draw = true) {
   avatar.update(dt, {
     pos: new THREE.Vector3().lerpVectors(player.prevPos, player.pos, alpha),
     lookYaw: driving.bodyYaw() ?? player.yaw, lookPitch: driving.vehicle ? 0 : player.pitch, moveYaw: driving.bodyYaw() ?? player.moveYaw,
+    groundAt: driving.vehicle ? null : (x, z) => world.floorAt(x, z, player.pos.y + 0.6),   // (feet on a slope: characters.js footIK)
     stance: player.stance, speed: driving.vehicle ? 0 : player.speed, sprinting: player.sprinting, carrying: !!player.carrying, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
     weapon: arsenal.current, aiming: arsenal.aiming, ready: arsenal.readyT,
     boltT: arsenal.boltT, reloading: arsenal.reloadT > 0, kick: arsenal.viewKick,

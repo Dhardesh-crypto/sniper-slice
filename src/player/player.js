@@ -3,6 +3,7 @@
 // Look is applied per render frame from raw mouse deltas; movement runs at the fixed step.
 import * as THREE from 'three';
 import { STEP } from '../world/world.js';
+import { climbRise } from '../world/characters.js';
 
 const GRAVITY = 22;
 const MANTLE_MAX = 2.7;      // highest ledge you can pull yourself onto (the compound wall is 2.6)
@@ -289,7 +290,7 @@ export class Player {
     this.sprinting = false;
     if (opt.kind === 'mantle') {
       const h = opt.to.y - this.pos.y;
-      this.climb = { kind: 'mantle', from: this.pos.clone(), to: opt.to, t: 0, dur: 0.35 + h * 0.22 };
+      this.climb = { kind: 'mantle', from: this.pos.clone(), to: opt.to, t: 0, dur: 0.5 + h * 0.3, clip: true };   // (clip: the avatar plays the climb in step with t)
       if (this.stance !== 'stand') this.setStance('stand');
       this.onNoise?.(this.pos.clone(), 3 + h, 'climb');
       this.audio.rustle?.();
@@ -312,8 +313,11 @@ export class Player {
     if (c.kind === 'mantle') {
       // Up first, then over: the body rises at the wall, then moves onto the top.
       c.t = Math.min(1, c.t + dt / c.dur);
-      const up = smooth(Math.min(1, c.t / 0.7)), over = smooth(Math.max(0, (c.t - 0.35) / 0.65));
+      // Up a wall: the height follows the climb clip (the hang, then the pull: climbRise), and you
+      // go over the top as the pull finishes. Down onto a ladder: a plain step over.
       const down = c.to.y < c.from.y;
+      const up = c.clip ? climbRise(Math.min(1, c.t / 0.88)) : smooth(Math.min(1, c.t / 0.7));
+      const over = smooth(Math.max(0, (c.t - (c.clip ? 0.62 : 0.35)) / (c.clip ? 0.38 : 0.65)));
       this.pos.x = c.from.x + (c.to.x - c.from.x) * (down ? up : over);
       this.pos.z = c.from.z + (c.to.z - c.from.z) * (down ? up : over);
       this.pos.y = c.from.y + (c.to.y - c.from.y) * (down ? over : up);

@@ -126,6 +126,15 @@ function inPlace(clip, axes) {
 function buildDerivedClips() {
   const c = assets.clips;
   for (const k of ['throw', 'throwCrouch', 'place', 'search', 'kneelWork', 'hitReact', 'lookAround']) inPlace(c[k], 'xz');
+  // The wall climb's own rise, kept before it's taken out (hands up, a hang, then the pull up and
+  // over): player.js lifts you along this curve, so the body goes up as the clip says, not on a
+  // smooth ramp with the clip sliding over it. The clip itself then holds the hips' height still.
+  const cw = c.climbWall?.tracks.find(t => t.name === 'Hips.position');
+  if (cw) {
+    const v = cw.values, n = v.length / 3, y0 = v[1], top = Math.max(...Array.from({ length: n }, (_, k) => v[k * 3 + 1]));
+    assets.climbRise = { times: Array.from(cw.times, t => t / c.climbWall.duration), rise: Array.from({ length: n }, (_, k) => Math.min(1, (v[k * 3 + 1] - y0) / (top - y0))) };
+    for (let k = 0; k < n; k++) v[k * 3 + 1] = y0;
+  }
   for (const k of ['ladderClimb', 'climbWall']) inPlace(c[k], 'xyz');
   for (const k of ['surrender', 'duckCover']) inPlace(c[k], 'xz');
   // One stride of the backward shuffle, cut where it meets itself, so it loops.
@@ -142,7 +151,7 @@ function buildDerivedClips() {
     squareStance(c.idle);
   }
   // Lower-body versions of the stand/walk/crouch clips (the arms come from the hold layer).
-  for (const k of ['idle', 'walk', 'crouch', 'lookAround']) {
+  for (const k of ['idle', 'walk', 'walkFree', 'crouch', 'lookAround']) {   // (walkFreeLegs: a guard's alert walk, the arms on his rifle)
     if (c[k]) c[k + 'Legs'] = new THREE.AnimationClip(k + 'Legs', c[k].duration, c[k].tracks.filter(t => !HOLD_BONES.includes(boneOf(t))));
   }
   // A frozen arm pose from the rifle sprint: both hands on the rifle.
@@ -154,6 +163,19 @@ function buildDerivedClips() {
     });
     c.hold = new THREE.AnimationClip('hold', 1, tracks);
   }
+}
+
+// How far up the wall the climb clip has the body at `t` (0 to 1 through the clip): 0 at the foot,
+// 1 at the top (assets.climbRise; a smooth ramp before the clips are in).
+export function climbRise(t) {
+  const r = assets.climbRise;
+  if (!r) return t * t * (3 - 2 * t);
+  const { times, rise } = r;
+  if (t <= times[0]) return rise[0];
+  for (let i = 1; i < times.length; i++) {
+    if (t <= times[i]) { const k = (t - times[i - 1]) / (times[i] - times[i - 1]); return rise[i - 1] + (rise[i] - rise[i - 1]) * k; }
+  }
+  return 1;
 }
 
 export function assetsReady() {
@@ -421,6 +443,40 @@ export class Character {
     this.model.updateMatrixWorld(true);
   }
 
+  // Feet on uneven ground. The clips were made on a flat floor at the root's height, so on a slope
+  // or a step one foot hangs in the air and the other sinks in. Each foot finds its own ground
+  // (`groundAt(x, z)`), the hips drop by as much as the lower foot needs, and each leg re-bends
+  // (two-bone IK, knee forward) to put its foot on its own ground, the sole kept as the clip had
+  // it. `w` fades it in and out (0..1). Undone each frame with the crouch (update).
+  footIK(groundAt, w = 1) {
+    const b = this.bones;
+    if (w <= 0.001 || !b.Hips || !b.LeftFoot || !b.RightFoot) return;
+    const v = this._v, up = _UP;
+    const at = (n) => b[n].getWorldPosition(new THREE.Vector3());
+    const floor = this.root.getWorldPosition(v.c).y;
+    const feet = [at('LeftFoot'), at('RightFoot')];
+    const off = feet.map(f => THREE.MathUtils.clamp(groundAt(f.x, f.z) - floor, -0.45, 0.45) * w);
+    if (Math.abs(off[0]) < 0.015 && Math.abs(off[1]) < 0.015) return;
+    const saved = new Set((this._lowered ??= []).map(x => x[0]));
+    for (const n of ['Hips', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot']) {
+      if (b[n] && !saved.has(b[n])) this._lowered.push([b[n], b[n].position.clone(), b[n].quaternion.clone()]);
+    }
+    const hips = at('Hips');
+    hips.y += Math.min(0, off[0], off[1]);
+    b.Hips.position.copy(b.Hips.parent.worldToLocal(hips));
+    b.Hips.updateMatrixWorld(true);
+    const fwd = this.modelDir(0, 0, 1, v.a).applyQuaternion(this.root.getWorldQuaternion(v.q)).setY(0).normalize();
+    ['Left', 'Right'].forEach((side, i) => {
+      const foot = b[side + 'Foot'], footQ = foot.getWorldQuaternion(new THREE.Quaternion());
+      const target = feet[i].clone();
+      target.y += off[i];
+      solveArmIK(b[side + 'UpLeg'], b[side + 'Leg'], foot, target, target.clone().addScaledVector(fwd, 1).addScaledVector(up, 0.4));
+      foot.quaternion.copy(foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(footQ));
+      foot.updateMatrixWorld(true);
+    });
+    this.model.updateMatrixWorld(true);
+  }
+
   // Body-relative direction (model space: left = +x, up = +y, forward = +z) to root space.
   modelDir(x, y, z, out = new THREE.Vector3()) {
     return out.set(x, y, z).normalize().applyQuaternion(this.model.quaternion);
@@ -607,6 +663,7 @@ function turnBone(bone, from, to) {
   bone.updateMatrixWorld(true);
 }
 
+const _UP = new THREE.Vector3(0, 1, 0);
 export function solveArmIK(upper, lower, hand, target, pole) {
   if (!upper || !lower || !hand) return;
   const { s, e, h } = _ik;

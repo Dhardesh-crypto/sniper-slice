@@ -61,7 +61,7 @@ function padControlsHtml() {
   const n = (x, p) => (ps ? p : x);
   const rows = [
     ['Left stick', 'Move (half a push walks) · click: sprint, it stays on while you push forward'],
-    ['Right stick', 'Look · click: takedown, drag or drop a body · scoped: 4× / 8×'],
+    ['Right stick', 'Look · click: takedown, drag or drop a body (otherwise: the other shoulder) · scoped: 4× / 8×'],
     [n('LT', 'L2'), 'Aim / scope (follows the Aim setting: hold or toggle)'],
     [n('RT', 'R2'), 'Fire'],
     ['Left stick click (scoped)', 'Hold breath'],

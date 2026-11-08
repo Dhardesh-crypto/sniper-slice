@@ -950,6 +950,12 @@ export class GuardAI {
       if (++b.wpi >= b.path.length) { b.path = null; return true; }
       return false;
     }
+    // Round a sharp corner he slows (a man can't take a right angle at a run), and picks up again
+    // as he comes round to face the way.
+    const pace = speed;                         // (the gait he's in, whatever the corner does to his speed)
+    let turn = Math.atan2(dx, dz) - s.root.rotation.y;
+    turn = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
+    if (turn > 0.6) speed *= Math.max(0.35, 1 - (turn - 0.6) / 1.6);
     const step = Math.min(dist, speed * dt);
     pos.x += (dx / dist) * step;
     pos.z += (dz / dist) * step;
@@ -968,7 +974,7 @@ export class GuardAI {
     s.targetYaw = Math.atan2(dx, dz);
     s.aimDir = null;
     s.crouchTarget = 0;
-    s.setGait(speed > 2.5 ? 'run' : 'walk', speed);
+    s.setGait(pace > 2.5 ? 'run' : 'walk', speed);
     if (s.stance === 'easy' && speed > 2.5) { s.stance = 'alert'; s.applyStance(0.25); }
     // Stuck check: little progress for 2 s → repath; three times → give up on this target.
     b.progressT += dt;

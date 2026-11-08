@@ -91,12 +91,19 @@ export class CounterFire {
     this.beltGrenades.take(s);
     this.thrownAt = this.time;
     s.targetYaw = Math.atan2(at.x - from.x, at.z - from.z);
-    s.kick = 1;
+    s.root.rotation.y = s.targetYaw;          // (he squares up to throw: the clip throws straight ahead)
     this.audio.shout('spotted', s.root.position.distanceTo(this.player.pos));
     const mesh = stickGrenade();
-    mesh.position.copy(from);
-    this.scene.add(mesh);
-    this.live.push({ mesh, pos: from, vel, fuse: THROW.fuse, spin: 7 + Math.random() * 5 });
+    // Thrown with the throw clip: it leaves his hand as the arm comes over, on a fresh lob from
+    // there to the same spot in the same time. Shot before then, he drops it where he stands.
+    const launch = (hand, dropped) => {
+      const v = dropped ? new THREE.Vector3(0, 1, 0) : at.clone().sub(hand).multiplyScalar(1 / t);
+      if (!dropped) v.y += 4.9 * t;
+      mesh.position.copy(hand);
+      this.scene.add(mesh);
+      this.live.push({ mesh, pos: hand.clone(), vel: v, fuse: dropped ? Math.min(THROW.fuse, 2.5) : THROW.fuse, spin: 7 + Math.random() * 5 });
+    };
+    if (!s.throwGrenade(mesh, launch)) { s.kick = 1; launch(from, false); }
     return true;
   }
 

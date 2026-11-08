@@ -11,7 +11,17 @@ const UP = new THREE.Vector3(0, 1, 0), MIDDLE = new THREE.Vector3(0, 0.9, 0);
 const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fq = new THREE.Quaternion(), _fq2 = new THREE.Quaternion(), _fq3 = new THREE.Quaternion();   // (flinch scratch)
 
 export const DRAG_SPEED = 0.75;   // m/s: the pace the drag clip was made at
-const COVER_RATE = 1.6;           // the duck clip played a little faster than it was made: a blast is sudden
+const COVER_RATE = 1.6;
+// His gaits are the player's (Kimodo, tools/loop-gait.mjs): a free walk, a jog and a run, cut to
+// start on the same heel so he changes between them in step. Natural ground speed of each (m/s at
+// timeScale 1) keeps his feet from sliding; the old walk and rifle sprint stay as a fallback.
+const GAIT_SPEED = { walkFree: 1.45, walkFreeLegs: 1.45, jog: 3.07, run: 5.4, walk: 1.35, walkLegs: 1.35, sprint: 4.6 };
+const STRIDES = ['walkFree', 'walkFreeLegs', 'jog', 'run'];
+const JOG_TO = 3.6;               // m/s: a jog up to here, a run above
+// The player's throw clip on a guard. It's long (4.3 s, with a slow lead-in and a long settle), so he
+// plays it from THROW_FROM (the wind-up, as the player's avatar does) at THROW_RATE, and the grenade
+// leaves his hand THROW_RELEASE seconds of clip time in (where the arm comes over).
+const THROW_FROM = 1.55, THROW_RATE = 1.8, THROW_RELEASE = 2.45, THROW_END = 3.6;           // the duck clip played a little faster than it was made: a blast is sudden
 
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
@@ -95,13 +105,25 @@ export class Soldier {
     const alert = this.stance === 'alert';
     const c = this.char;
     let clip = alert && !this.unarmed ? 'idleLegs' : 'idle', hold = alert && !this.unarmed ? 1 : 0, rate = 1;   // (his rifle thrown down: nothing for the arms to hold)
-    if (this.gait === 'run') { clip = 'sprint'; hold = 0; rate = Math.max(0.6, this.speed / 4.6); }
-    else if (this.gait === 'walk') { clip = alert || !c.action('walk') ? 'walkLegs' : 'walk'; rate = Math.max(0.5, this.speed / 1.35); }
+    if (this.gait === 'run' || this.gait === 'walk') { ({ clip, rate } = this.strideClip()); hold = this.gait === 'walk' && alert && !this.unarmed ? 1 : 0; }
     else if (this.activity === 'kneelWork' && c.action('kneelWork')) { clip = 'kneelWork'; hold = 0; }
     else if (this.activity === 'lookAround' && c.action('lookAround')) { clip = alert ? 'lookAroundLegs' : 'lookAround'; }
+    // From one stride to another (walk into jog into run): on the same foot, where he was in it.
+    const phase = STRIDES.includes(clip) && c.base && STRIDES.includes(c.base.getClip().name) ? c.base.time / c.base.getClip().duration : null;
+    const was = c.base;
     c.play(clip, { fade, timeScale: rate });
+    if (phase !== null && c.base !== was) c.base.time = phase * c.base.getClip().duration;
     c.setHoldWeight(hold);
     c.rifle.visible = this.stance !== 'officer';
+  }
+
+  // Which stride clip for his gait and speed, and how fast to play it (feet matched to the ground).
+  strideClip() {
+    const c = this.char, alert = this.stance === 'alert' && !this.unarmed;
+    let clip;
+    if (this.gait === 'run') clip = c.action('run') ? (this.speed < JOG_TO && c.action('jog') ? 'jog' : 'run') : 'sprint';
+    else clip = alert ? (c.action('walkFreeLegs') ? 'walkFreeLegs' : 'walkLegs') : (c.action('walkFree') ? 'walkFree' : c.action('walk') ? 'walk' : 'walkLegs');
+    return { clip, rate: Math.max(this.gait === 'run' ? 0.6 : 0.5, this.speed / GAIT_SPEED[clip]) };
   }
 
   // Walk or run at `speed` (m/s), or stand. The AI moves the root; this picks the clip.
@@ -109,10 +131,15 @@ export class Soldier {
     this.speed = speed;
     if (gait === this.gait) {
       if (this.coverT > 0 || (this.surrendered && !this.surrendered.fled)) return;   // (a one-off clip at its own pace)
-      if (this.char.base) this.char.base.timeScale = this.dragging ? (gait === 'walk' ? speed / DRAG_SPEED : 0) : gait === 'run' ? speed / 4.6 : gait === 'walk' ? speed / 1.35 : 1;
+      if (this.dragging) { if (this.char.base) this.char.base.timeScale = gait === 'walk' ? speed / DRAG_SPEED : 0; return; }
+      if (gait === 'stand') return;
+      const want = this.strideClip();
+      if (this.char.base?.getClip().name !== want.clip && this.reactT <= 0 && !this.downed) { this.applyStance(0.3); return; }   // (a jog that's become a run)
+      if (this.char.base) this.char.base.timeScale = want.rate;
       return;
     }
     this.gait = gait;
+    this.stepping = false;
     this.applyStance(0.25);
   }
 
@@ -202,6 +229,36 @@ export class Soldier {
     return true;
   }
 
+  // Lobbing his belt grenade (ai/counterfire.js): the throw clip, wind-up to follow-through, with
+  // the grenade in his right hand until it comes over, where `onRelease(hand)` lets it go. The
+  // rifle goes on his back meanwhile, and guards.js leaves him be till it's done (the same lock as
+  // the duck, coverT). Returns false when he can't (down, riding, busy): the caller throws it bare.
+  throwGrenade(mesh, onRelease) {
+    if (!this.alive || this.riding || this.manning || this.downed || this.surrendered || this.dragging || this.coverT > 0 || !this.char.action('throw')) return false;
+    this.gait = 'stand'; this.speed = 0; this.aimDir = null; this.crouchTarget = 0; this.duckT = 0; this.reactT = 0;
+    this.char.setHoldWeight(0);
+    this.char.play('throw', { fade: 0.12, once: true, timeScale: THROW_RATE });
+    this.char.base.time = THROW_FROM;
+    this.coverT = (THROW_END - THROW_FROM) / THROW_RATE;        // (back to his stance before the long settle)
+    const hand = this.char.bones.RightHand;
+    this.char.root.updateMatrixWorld(true);
+    mesh.position.copy(hand.getWorldPosition(new THREE.Vector3()));
+    hand.attach(mesh);
+    this.throwing = { t: (THROW_RELEASE - THROW_FROM) / THROW_RATE, mesh, onRelease };
+    return true;
+  }
+
+  // His hand has come over, or he was hit before it did: either way the grenade leaves the hand
+  // (a man shot mid-throw drops it at his feet, which is the caller's business: `dropped`).
+  releaseGrenade(dropped = false) {
+    const th = this.throwing;
+    if (!th) return;
+    this.throwing = null;
+    const at = th.mesh.getWorldPosition(new THREE.Vector3());
+    th.mesh.removeFromParent();
+    th.onRelease(at, dropped);
+  }
+
   // Cornered, he throws down his rifle and puts his hands up (guards.js decides when, and what
   // happens if you walk away). `toward`: where the man with the gun is.
   giveUp(toward) {
@@ -260,6 +317,7 @@ export class Soldier {
     this.root.rotation.y = this.targetYaw = Math.atan2(away.x, away.z);   // he pitches forward, away from the shot
     this.aimDir = null; this.gait = 'stand'; this.speed = 0; this.crouchTarget = 0; this.reactT = 0; this.staggerT = 0;
     this.surrendered = null; this.coverT = 0; this.dragging = false;
+    if (this.throwing) { this.throwing.mesh.removeFromParent(); this.throwing = null; }
     this.char.setHoldWeight(0);
     if (this.char.rifle.visible) this.dropRifle(bulletDir);
     this.char.play('deathFwd', { fade: 0.08, once: true, timeScale: 1.3 });
@@ -476,13 +534,27 @@ export class Soldier {
       // Turn toward whatever he's attending to.
       let d = this.targetYaw - this.root.rotation.y;
       d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.root.rotation.y += Math.sign(d) * Math.min(Math.abs(d), 2.6 * dt);
+      // Quick through a big turn, easing in as he comes round (not a turret's constant rate).
+      this.root.rotation.y += Math.sign(d) * Math.min(Math.abs(d), THREE.MathUtils.clamp(Math.abs(d) * 5, 1.2, this.gait === 'run' ? 6 : 5) * dt);   // (rad/s: 5× the angle left, 1.2 to 5)
+      // Turning where he stands: he steps round (his walk's legs, paced to the turn) instead of
+      // spinning on his heels, and settles back into his stance once he faces the way.
+      const free = this.gait === 'stand' && this.reactT <= 0 && this.coverT <= 0 && !this.downed && !this.riding && !this.manning && !this.dragging && !this.surrendered && !this.aimDir && this.activity !== 'kneelWork';
+      const legs = this.stance === 'alert' && !this.unarmed ? 'walkFreeLegs' : 'walkFree';
+      if (free && !this.stepping && Math.abs(d) > 0.6 && this.char.action(legs)) {
+        this.stepping = true;
+        this.char.play(legs, { fade: 0.18, timeScale: 0.9 });
+        this.char.setHoldWeight(this.stance === 'alert' && !this.unarmed ? 1 : 0);
+      } else if (this.stepping && (!free || Math.abs(d) < 0.08)) {
+        this.stepping = false;
+        if (free) this.applyStance(0.25);
+      }
     }
     this.char.update(dt);
     if (this.drop) this.updateDrop(dt);
     if (!this.alive && (this.rag || this.ragPending || this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
     if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.coverT > 0 && (this.coverT -= dt) <= 0 && this.alive) this.applyStance(0.3);
+    if (this.throwing && (!this.alive || this.downed || (this.throwing.t -= dt) <= 0)) this.releaseGrenade(!this.alive || this.downed);
     if (this.staggerT > 0) {
       this.staggerT = Math.max(0, this.staggerT - dt);
       const k = Math.sin((0.45 - this.staggerT) / 0.45 * Math.PI);
@@ -503,6 +575,10 @@ export class Soldier {
     if (this.duckT > 0) this.duckT -= dt;
     this.crouch += ((this.alive ? Math.max(this.crouchTarget, this.kneelT > 0.3 ? 0.85 : 0, this.duckT > 0 ? 1 : 0) : 0) - this.crouch) * (1 - Math.exp(-7 * dt));
     if (this.alive && this.crouch > 0.01) this.char.lowerBody(this.crouch, { plant: this.gait === 'stand', kneel: this.gait === 'stand' ? this.crouch : 0 });   // still: down on one knee
+    // Close by, his feet find the ground on a slope or a step (characters.js footIK).
+    const feetDown = this.alive && this.near && this.floorAt && !this.riding && !this.manning && !this.downed && !this.grabClip && !this.fallV && this.coverT <= 0;
+    this.feetK = (this.feetK ?? 0) + ((feetDown ? 1 : 0) - (this.feetK ?? 0)) * Math.min(1, 8 * dt);
+    if (this.feetK > 0.01) { const y = this.root.position.y; this.char.footIK((x, z) => this.floorAt(x, z, y + 0.6), this.feetK); }
     this.kick = Math.max(0, this.kick - dt * 4);
     // Bleeding from a body wound (applyHit).
     if (this.alive && this.bleed > 0) {

@@ -189,7 +189,9 @@ export class World {
     this.frame = (this.frame ?? 0) + 1;
     for (const s of this.soldiers) {
       s.lodDt = (s.lodDt ?? 0) + dt;
-      const far = this.viewer && s.alive && s.root.position.distanceToSquared(this.viewer) > 120 * 120;
+      const d2 = this.viewer ? s.root.position.distanceToSquared(this.viewer) : 0;
+      const far = this.viewer && s.alive && d2 > 120 * 120;
+      s.near = !this.viewer || d2 < 45 * 45;      // (close enough that his feet on a slope show: soldier.js)
       if (far && (this.frame + s.hitMeshes.length + this.soldiers.indexOf(s)) % 3) continue;
       s.update(s.lodDt);
       s.lodDt = 0;

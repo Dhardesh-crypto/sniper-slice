@@ -244,7 +244,7 @@ export class Avatar {
       // Hand over hand up the rungs (paced to the climb, reversed going down); hauling up a ledge.
       const ladder = climb.kind === 'ladder';
       clip = ladder ? (c.action('ladderClimb') ? 'ladderClimb' : 'walkLegs') : (c.action('climbWall') ? 'climbWall' : 'crouchLegs');
-      rate = ladder ? THREE.MathUtils.clamp((st.climbRate ?? 0) / 0.28, -3, 3) : 1.6;
+      rate = ladder ? THREE.MathUtils.clamp((st.climbRate ?? 0) / 0.28, -3, 3) : climb.clip ? 0 : 1.6;   // (a wall: held at the climb's own point, below)
     } else if (act && c.action(act.clip)) {
       // Throwing (wound up while you aim, then the throw), placing a charge, bandaging, searching.
       clip = act.clip; rate = act.rate; from = act.from;
@@ -272,6 +272,9 @@ export class Avatar {
       this.state = clip;
     }
     if (c.base) c.base.timeScale = rate;
+    // Up a wall the clip is the clock: its frame is the climb's progress (player.js lifts the body
+    // along the same clip's rise), so hands, pull and the body's height agree.
+    if (climb?.clip && this.state === 'climbWall' && c.base) c.base.time = Math.min(0.999, climb.t / 0.88) * c.base.getClip().duration;
     const busy = !!(climb || st.takedown || st.mounted || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
 
     // The rifle's way round, and the arms' layer with it: free while it's on his back, holding it
@@ -290,6 +293,10 @@ export class Avatar {
     s.kneel = damp(s.kneel, st.stance === 'crouch' && !busy && !st.mounted && !moving ? 1 : 0, 6, dt);   // crouched and still: down on one knee
     s.upright = damp(s.upright, peek ? 1 : 0, 8, dt);
     c.lowerBody(s.crouch, st.mounted ? { drop: 0.3, sitBack: 0.1, lean: 0.32, plant: true } : { plant: !moving, kneel: s.kneel, upright: s.upright });
+    // Feet on the ground's own slope (characters.js footIK): not climbing, crawling, on a gun or dead.
+    const feetDown = !!st.groundAt && !climb && !st.mounted && !st.dead && !st.takedown && st.stance !== 'prone';
+    this.feetK = (this.feetK ?? 0) + ((feetDown ? 1 : 0) - (this.feetK ?? 0)) * Math.min(1, 8 * dt);
+    if (this.feetK > 0.01 && st.groundAt) c.footIK(st.groundAt, this.feetK);
 
     // Leaning out past a corner (player.js): the spine rolls toward that side, the head back level.
     if (Math.abs(st.lean ?? 0) > 0.01) {

@@ -18,17 +18,24 @@ export class CameraRig {
     this.off = [...OFFSETS.stand];
     this.armLen = OFFSETS.stand[2];
     this.firstPerson = 0;  // 0 = shoulder cam, 1 = eye
+    this.side = 1;         // 1 over the right shoulder, -1 over the left (swapShoulder)
+    this.sideK = 1;        // eased toward `side`, so the swap is a quick slide, not a cut
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler(0, 0, 0, 'YXZ');
     this._eye = new THREE.Vector3();
     this.v = { right: new THREE.Vector3(), up: new THREE.Vector3(), fwd: new THREE.Vector3() };
   }
 
+  // Over the other shoulder (Tab, or the right stick's click where it has nothing else to do):
+  // to look round a corner to your left without stepping out past it.
+  swapShoulder() { this.side = -this.side; }
+
   // Places `camera`. view: { yaw, pitch, roll, alpha, pistolAim, fpBlend }
   update(dt, camera, player, view) {
     const target = view.pistolAim ? OFFSETS.pistolAim : OFFSETS[player.stance];
     for (let i = 0; i < 3; i++) this.off[i] += (target[i] - this.off[i]) * (1 - Math.exp(-10 * dt));
     this.pivotH += (PIVOT_H[player.stance] - this.pivotH) * (1 - Math.exp(-8 * dt));
+    this.sideK += (this.side - this.sideK) * (1 - Math.exp(-12 * dt));
 
     // Pivot follows the interpolated body position (frame-rate independent).
     const body = this._eye.lerpVectors(player.prevPos, player.pos, view.alpha);
@@ -42,7 +49,7 @@ export class CameraRig {
     fwd.set(0, 0, -1).applyQuaternion(this._q);
 
     // Spring arm: shoulder point, then back along the view; shorten on collision.
-    const shoulder = this.pivot.clone().addScaledVector(right, this.off[0]).addScaledVector(up, this.off[1]);
+    const shoulder = this.pivot.clone().addScaledVector(right, this.off[0] * this.sideK).addScaledVector(up, this.off[1]);
     const desiredLen = this.off[2];
     const end = shoulder.clone().addScaledVector(fwd, -desiredLen - 0.3);
     const hit = this.world.raycastSegment(shoulder, end);
