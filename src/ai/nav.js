@@ -90,6 +90,36 @@ class Grid {
   ix(x) { return Math.floor((x - this.x0) / this.cell); }
   iz(z) { return Math.floor((z - this.z0) / this.cell); }
   inside(i, j) { return i >= 0 && j >= 0 && i < this.nx && j < this.nz; }
+
+  // Which open area each cell belongs to (cells joined by the same moves the search makes,
+  // ledges aside). Two cells in different areas have no way between them, so pathOn says so at
+  // once instead of searching most of the grid to find out: those failed searches were the 25-30 ms
+  // spikes when the alarm sent men toward places they can't reach. Worked out on first use, and
+  // again after anything changes `blocked` (call regionsChanged(): the bridge going down).
+  regions() {
+    if (this._regions) return this._regions;
+    const n = this.nx, N = n * this.nz, r = new Int32Array(N).fill(-1), stack = new Int32Array(N);
+    let id = 0;
+    for (let s0 = 0; s0 < N; s0++) {
+      if (this.blocked[s0] || r[s0] >= 0) continue;
+      let top = 0; stack[top++] = s0; r[s0] = id;
+      while (top) {
+        const k = stack[--top], i = k % n, j = (k - i) / n;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          if (!di && !dj) continue;
+          const ni = i + di, nj = j + dj;
+          if (!this.inside(ni, nj)) continue;
+          const nk = nj * n + ni;
+          if (this.blocked[nk] || r[nk] >= 0) continue;
+          if (di && dj && (this.blocked[j * n + ni] || this.blocked[nj * n + i])) continue;
+          r[nk] = id; stack[top++] = nk;
+        }
+      }
+      id++;
+    }
+    return (this._regions = r);
+  }
+  regionsChanged() { this._regions = null; }
   center(k, y = 0) { return new THREE.Vector3(this.x0 + ((k % this.nx) + 0.5) * this.cell, y, this.z0 + (Math.floor(k / this.nx) + 0.5) * this.cell); }
   cellFloor(k, y) { return y; }
   walkable(x, z) {
@@ -127,8 +157,14 @@ class Grid {
   // Waypoints from `a` to `b` (both world positions) on this grid, or null when there's no way.
   pathOn(a, b) {
     if (this.clearLine(a, b)) return [b.clone()];
+    // A target off the guards' map (on Airfield the hill you start on lies outside it): no way
+    // there on the grid, said at once. Searching for the grid's nearest corner instead took 20-30 ms
+    // and failed, once per hunting guard every few seconds.
+    { const i = this.ix(b.x), j = this.iz(b.z); if (i < -2 || j < -2 || i >= this.nx + 2 || j >= this.nz + 2) return null; }   // (a couple of cells' grace at the edge)
     const start = this.nearestOpen(a.x, a.z), goal = this.nearestOpen(b.x, b.z);
     if (start < 0 || goal < 0) return null;
+    const reg = this.regions();
+    if (reg[start] !== reg[goal]) return null;          // (cut off from each other: no search needed)
     const n = this.nx, gi = goal % n, gj = Math.floor(goal / n);
     const h = (k) => { const dx = Math.abs(k % n - gi), dz = Math.abs(Math.floor(k / n) - gj); return H_WEIGHT * (dx + dz - 0.586 * Math.min(dx, dz)); };
     const stamp = ++this.search;

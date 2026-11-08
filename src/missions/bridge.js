@@ -515,6 +515,7 @@ function collapse(m, instant) {
   // Nobody paths across any more.
   const nav = m.ai?.nav;
   if (nav) for (let x = -40; x <= 40; x += 0.5) for (let z = -BW; z <= BW; z += 0.5) { const i = nav.ix(x), j = nav.iz(z); if (nav.inside(i, j)) nav.blocked[j * nav.n + i] = 1; }
+  nav?.regionsChanged?.();   // (the open areas have split: ai/nav.js regions)
   for (const s of w.soldiers) {
     const p = s.root.position;
     if (onBridge(p.x, p.z) && p.y > DECK - 1) { if (s.alive) s.applyHit('torso', { damage: { torso: 999 } }, new THREE.Vector3(0, -1, 0)); s.root.visible = false; }
