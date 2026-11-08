@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { M } from './kit.js';
 import { propModel } from './props.js';
+import { fill } from '../ui/glyphs.js';
 
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 
@@ -145,7 +146,7 @@ export class Interactions {
     this.reading = doc;
     this.reader.querySelector('h2').textContent = doc.title;
     this.reader.querySelector('.doc-body').textContent = doc.text;
-    this.reader.querySelector('.doc-meta').textContent = `Intel · ${this.found.size} document${this.found.size === 1 ? '' : 's'} found this mission · E to close`;
+    this.reader.querySelector('.doc-meta').textContent = `Intel · ${this.found.size} document${this.found.size === 1 ? '' : 's'} found this mission · ${fill('{E}')} to close`;
     this.reader.classList.add('on');
   }
 
@@ -166,11 +167,11 @@ export class Interactions {
   state() {
     const t = this.target;
     if (!t || this.reading) return null;
-    if (t.kind === 'door') return { label: t.item.open ? 'E · CLOSE THE DOOR' : 'E · OPEN THE DOOR', progress: 0 };
-    if (t.kind === 'doc') return { label: `E · READ: ${t.item.title.toUpperCase()}`, progress: 0 };
-    if (t.kind === 'lever') return { label: this.progress > 0 ? t.item.busy : `HOLD E · ${t.item.label}`, progress: this.progress };
+    if (t.kind === 'door') return { label: t.item.open ? '{E} · CLOSE THE DOOR' : '{E} · OPEN THE DOOR', progress: 0 };
+    if (t.kind === 'doc') return { label: `{E} · READ: ${t.item.title.toUpperCase()}`, progress: 0 };
+    if (t.kind === 'lever') return { label: this.progress > 0 ? t.item.busy : `HOLD {E} · ${t.item.label}`, progress: this.progress };
     const known = this.known.has(t.item.id);
-    return { label: this.progress > 0 ? (known ? 'DIALLING THE COMBINATION…' : 'CRACKING THE SAFE BY EAR… (NOISY)') : known ? `HOLD E · OPEN THE SAFE (${t.item.combination})` : 'HOLD E · CRACK THE SAFE (SLOW, NOISY: OR FIND THE COMBINATION)', progress: this.progress };
+    return { label: this.progress > 0 ? (known ? 'DIALLING THE COMBINATION…' : 'CRACKING THE SAFE BY EAR… (NOISY)') : known ? `HOLD {E} · OPEN THE SAFE (${t.item.combination})` : 'HOLD {E} · CRACK THE SAFE (SLOW, NOISY: OR FIND THE COMBINATION)', progress: this.progress };
   }
 
   // Saves.

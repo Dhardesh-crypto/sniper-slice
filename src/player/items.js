@@ -12,6 +12,7 @@
 //   bandage, medkit   heal (H heals without the wheel: a medkit when you're badly hurt)
 import * as THREE from 'three';
 import { ICONS } from '../ui/item-icons.js';
+import { fill } from '../ui/glyphs.js';
 
 export const ITEMS = [
   { id: 'grenade', name: 'Grenade', kind: 'throw' },
@@ -99,7 +100,7 @@ export class Items {
     }
     const it = ITEMS.find(i => i.id === (this.hover ?? this.selected));
     this.wheelEl.querySelector('.hub b').textContent = it.name;
-    this.wheelEl.querySelector('.hub span').textContent = { throw: it.id === 'tnt' ? 'G: hold to aim, release to throw · K: detonate' : 'G: hold to aim, release to throw', use: 'G: whistle to lure a guard', place: it.id === 'satchel' ? `G: place (${SATCHEL_FUSE[this.satchelFuse]} s fuse) · L: fuse · K: now` : 'G: place at your feet', heal: 'G or H: heal' }[it.kind];
+    this.wheelEl.querySelector('.hub span').textContent = fill({ throw: it.id === 'tnt' ? '{G}: hold to aim, release to throw · {K}: detonate' : '{G}: hold to aim, release to throw', use: '{G}: whistle to lure a guard', place: it.id === 'satchel' ? `{G}: place (${SATCHEL_FUSE[this.satchelFuse]} s fuse) · {L}: fuse · {K}: now` : '{G}: place at your feet', heal: '{G} or {H}: heal' }[it.kind]);
   }
 
   // Mouse movement while the wheel is open picks a slot instead of turning you.
@@ -259,7 +260,7 @@ export class Items {
         // Thrown TNT lies where it stopped, a charge like a placed one: K sets it off, a shot too.
         o.done = true;
         this.spawnTrap('tnt', o.pos.clone().setY(o.pos.y - 0.05), o.mesh.rotation.y);
-        this.hud.message('TNT LANDED · PRESS K TO DETONATE', '');
+        this.hud.message('TNT LANDED · PRESS {K} TO DETONATE', '');
         continue;
       }
       o.mesh.position.copy(o.pos);
@@ -316,7 +317,7 @@ export class Items {
     this.spawnTrap(id, at, p.yaw, parent, id === 'satchel' ? { fuse: SATCHEL_FUSE[this.satchelFuse] } : {});
     this.audio.rustle();
     const s = SATCHEL_FUSE[this.satchelFuse];
-    this.hud.message({ mine: 'MINE PLACED · IT ARMS IN A MOMENT', tnt: 'TNT PLACED · PRESS K TO DETONATE', satchel: `${parent ? 'SATCHEL ON THE VEHICLE' : 'SATCHEL PLACED'} · ${s} SECONDS · K TO BLOW IT NOW` }[id], '');
+    this.hud.message({ mine: 'MINE PLACED · IT ARMS IN A MOMENT', tnt: 'TNT PLACED · PRESS {K} TO DETONATE', satchel: `${parent ? 'SATCHEL ON THE VEHICLE' : 'SATCHEL PLACED'} · ${s} SECONDS · {K} TO BLOW IT NOW` }[id], '');
   }
 
   // Put a mine, TNT or satchel in the world (from placing it, or from a loaded save).

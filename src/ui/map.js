@@ -3,6 +3,7 @@
 // full-screen on M (click to set a waypoint) and as a rotating minimap in the corner.
 import * as THREE from 'three';
 import { MAP_HALF } from '../world/terrain.js';
+import { fill, onPad } from './glyphs.js';
 
 const PX = 800;                      // map image size in pixels (1 m per pixel)
 const GRID = 100;                    // grid squares, metres
@@ -268,7 +269,7 @@ export class MapView {
     const wp = this.waypoint ? ` · waypoint ${Math.round(Math.hypot(this.waypoint.x - p.x, this.waypoint.z - p.z))} m` : '';
     g.fillText(`You are in ${this.gridRef(p.x, p.z)}${wp}`, L.x0 + 60 * d, L.y0 - 14 * d);
     g.textAlign = 'right';
-    g.fillText('Click: set waypoint · Right-click: clear · M: close', L.x0 + L.size, L.y0 - 14 * d);
+    g.fillText(onPad() ? fill('Stick: cursor · {SPACE}: set waypoint · {R}: clear · {C}: close') : 'Click: set waypoint · Right-click: clear · M: close', L.x0 + L.size, L.y0 - 14 * d);
     g.textAlign = 'left';
     const legend = [['#ffffff', 'You'], [OBJ_COLORS.target, 'Target'], [OBJ_COLORS.radio, 'Radio'], [OBJ_COLORS.papers, 'Papers'], [OBJ_COLORS.tank, 'Panzer'], [OBJ_COLORS.extract, 'Extraction'],
       [OBJ_COLORS.weakspot, 'Weak spot'], [OBJ_COLORS.supply, 'Supplies'], [OBJ_COLORS.toolbox, 'Toolbox'], [OBJ_COLORS.crate, 'Weapon crate'], [OBJ_COLORS.bench, 'Workbench'], ['#ff4a3d', 'Tagged enemy'], ['#e8d07a', 'Body to search'], ['#ffe28a', 'Waypoint'], ['rgba(190,200,110,0.8)', 'Tall grass']];

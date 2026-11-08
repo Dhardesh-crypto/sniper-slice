@@ -58,6 +58,7 @@ export class Player {
     this.hitFrom = from.clone();
     this.heartRate = Math.min(175, this.heartRate + 18);
     this.audio.hurt();
+    this.input.rumble?.(0.6, 0.8, 220);
     if (this.health <= 0) { this.dead = true; this.climb = null; this.vel.set(0, 0, 0); }
   }
 
@@ -106,8 +107,10 @@ export class Player {
 
     // WASD or the arrow keys; while aiming, the arrows zero the scope instead.
     const key = (k, arrow) => inp.down(k) || (!aiming && inp.down(arrow));
-    const fwd = (key('KeyW', 'ArrowUp') ? 1 : 0) - (key('KeyS', 'ArrowDown') ? 1 : 0);
-    const strafe = (key('KeyD', 'ArrowRight') ? 1 : 0) - (key('KeyA', 'ArrowLeft') ? 1 : 0);
+    // The pad's left stick is analog: half a push walks, a full push goes at full pace.
+    const stick = inp.padMove;
+    const fwd = stick ? -stick.y : (key('KeyW', 'ArrowUp') ? 1 : 0) - (key('KeyS', 'ArrowDown') ? 1 : 0);
+    const strafe = stick ? stick.x : (key('KeyD', 'ArrowRight') ? 1 : 0) - (key('KeyA', 'ArrowLeft') ? 1 : 0);
     this.prevPos.copy(this.pos);
     this.prevEye = this.eye;
 
@@ -230,9 +233,9 @@ export class Player {
   climbOption() {
     if (this.climb || this.locked || this.mounted || this.carrying || !this.grounded || this.stance === 'prone') return null;
     const lad = this.nearLadder();
-    if (lad) return { kind: 'ladder', ladder: lad.ladder, down: lad.down, label: lad.down ? 'SPACE · CLIMB DOWN' : 'SPACE · CLIMB LADDER' };
+    if (lad) return { kind: 'ladder', ladder: lad.ladder, down: lad.down, label: lad.down ? '{SPACE} · CLIMB DOWN' : '{SPACE} · CLIMB LADDER' };
     const ledge = this.findLedge();
-    if (ledge) return { kind: 'mantle', to: ledge, label: 'SPACE · CLIMB' };
+    if (ledge) return { kind: 'mantle', to: ledge, label: '{SPACE} · CLIMB' };
     return null;
   }
 

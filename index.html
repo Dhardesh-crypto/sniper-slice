@@ -46,21 +46,21 @@
   <div id="bench"><div class="panel"><h1>WORKBENCH</h1><p class="sub">Swap weapons and fit the parts you've found</p>
     <div id="loadout-bench"></div><div class="buttons"><button id="bench-close">Back to the mission</button></div></div></div>
   <div id="end"><div class="panel"><h2>MISSION COMPLETE</h2><div id="rating"></div><table id="end-stats"></table><div id="report"></div><div class="end-buttons"><button id="next">Next mission</button><button id="again" class="ghost">Play again</button></div></div></div>
-  <div id="dispatch"><div class="paper"><p class="date"></p><h2></h2><p class="from"></p><p class="body"></p><p class="go">Click or Space to begin</p></div></div>
-  <div id="death"><h2>KILLED IN ACTION</h2><p>Click to restart the mission</p></div>
+  <div id="dispatch"><div class="paper"><p class="date"></p><h2></h2><p class="from"></p><p class="body"></p><p class="go" data-pad="Press {SPACE} to begin">Click or Space to begin</p></div></div>
+  <div id="death"><h2>KILLED IN ACTION</h2><p data-pad="Press {SPACE} to restart the mission">Click to restart the mission</p></div>
   <canvas id="mapview"></canvas>
   <div id="mapside">
     <div class="tabs" role="tablist"><button role="tab" data-mtab="obj" aria-selected="true">Objectives</button><button role="tab" data-mtab="orders">Orders</button></div>
     <div class="mpane on" data-mtab="obj" id="mapside-obj"></div>
     <div class="mpane" data-mtab="orders" id="mapside-orders"></div>
   </div>
-  <div id="letterbox"><div></div><div><span>CLICK TO SKIP</span></div></div>
+  <div id="letterbox"><div></div><div><span data-pad="{SPACE} TO SKIP">CLICK TO SKIP</span></div></div>
 
   <div id="menu">
     <div class="panel">
       <h1>SNIPER SLICE</h1>
       <p class="sub">Operation Vineyard · Tuscany, 1944</p>
-      <div class="buttons"><button id="play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button></div>
+      <div class="buttons"><button id="play" data-pad="Press {SPACE} to play">Click to play</button><button id="save-btn" class="ghost">Save game</button><button id="load-btn" class="ghost">Load game</button><button id="restart" class="ghost">Restart mission</button></div>
       <div id="slots"><h2></h2><div class="list"></div><p class="why"></p></div>
       <div class="tabs" role="tablist">
         <button role="tab" data-tab="mission">Mission</button>
@@ -81,7 +81,7 @@
           <li><b>Optional:</b> destroy the Panzer in the yard (AP rounds or a satchel).</li>
           <li><b>Optional:</b> open the safe in the Oberst's office upstairs in the villa and take his orders.
             Find the combination (it's written down somewhere, and he carries it) or crack it by ear: slow and noisy.</li>
-          <li><b>Inside:</b> walk into the villa, open doors with E, and read the documents you find (E).</li>
+          <li><b>Inside:</b> walk into the villa, open doors with <span data-pad="{E}">E</span>, and read the documents you find (<span data-pad="{E}">E</span>).</li>
           <li><b>Then</b> get back to the start hill, where green smoke marks the pick-up.</li>
           <li><b>Look for</b> toolboxes (weapon parts) and weapon crates (rare rifles): you keep what you find.
             Supply caches (ammo, medical, explosives, bottles) are spread around the map.</li>
@@ -127,6 +127,10 @@
               <option value="off">Off</option>
             </select><output></output></label>
           <label class="check"><input id="set-invert" type="checkbox" /> Invert mouse Y</label>
+          <h2 class="set-head">Gamepad</h2>
+          <label>Stick sensitivity <input id="set-pad-sens" type="range" min="0.3" max="2.5" step="0.05" /><output></output></label>
+          <label class="check"><input id="set-pad-invert" type="checkbox" /> Invert stick Y</label>
+          <label class="check"><input id="set-vibration" type="checkbox" /> Vibration</label>
           <h2 class="set-head">Testing</h2>
           <label class="check"><input id="set-testall" type="checkbox" /> Test armoury: every weapon and part unlocked</label>
           <p class="set-note">To try every weapon, scope, suppressor and barrel without finding them first. What you have really found is kept and comes back when you switch this off. While it's on, you can also change your loadout during a mission, from the Loadout tab. The firing range at the start has targets to shoot at.</p>
@@ -135,6 +139,7 @@
         </div>
       </div>
       <div class="tab controls" data-tab="controls">
+        <section id="pad-controls"></section>
         <section><h2>Moving</h2><dl>
           <dt>WASD / arrows</dt><dd>Move</dd>
           <dt>Shift</dt><dd>Sprint</dd>

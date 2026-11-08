@@ -130,3 +130,6 @@ Box3.setFromObject counts children: a block with a model hung on it no longer ma
 
 ## A calm read cannot be filtered into a shout (2026-11-06)
 Direct the performance at generation (Eleven v3 `[shouting]`); filtering or levelling a calm read can't do it. Capitals in Eleven v3 can lose an umlaut ("SANITÄTER" came out "Sanitator"): write such words in normal case, and check each take with speech-to-text.
+
+## Don't call the game unplayed (2026-11-08)
+I wrote "nobody has played it properly" because my own checks are scripted. The user plays every build by hand. Say "I haven't played it by hand" about my own testing, never about the user's.

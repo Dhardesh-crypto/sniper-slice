@@ -238,8 +238,8 @@ export class MountedGuns {
   state() {
     if (this.on) {
       const w = this.on.weapon;
-      return { label: `E · LEAVE THE GUN   ·   BELT ${w.mag} + ${w.reserve}`, progress: 0 };
+      return { label: `{E} · LEAVE THE GUN   ·   BELT ${w.mag} + ${w.reserve}`, progress: 0 };
     }
-    return this.near ? { label: 'E · MAN THE MG42', progress: 0 } : null;
+    return this.near ? { label: '{E} · MAN THE MG42', progress: 0 } : null;
   }
 }

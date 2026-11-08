@@ -75,6 +75,8 @@ import { useMap } from './world/terrain.js';
 import { HEAVY_AMMO } from './weapons/defs.js';
 import { LoadoutUI } from './ui/loadout.js';
 import { installAtmosphere } from './world/atmosphere.js';
+import { PadNav } from './ui/padnav.js';
+import { initGlyphs, fill } from './ui/glyphs.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -130,6 +132,8 @@ document.getElementById('briefing').insertAdjacentHTML('afterbegin', storyLine(m
 if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show (the guards' show you their rounds; a guard who finds yours follows them), and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
 
 const input = new Input(canvas);
+initGlyphs(input);
+input.settings = settings;   // (the pad's vibration setting)
 const audio = new Audio();
 audio.volume = settings.volume;
 audio.musicVolume = settings.music;
@@ -172,7 +176,11 @@ hotspots.wreckage = new Wreckage({ scene, world, fx });   // vehicles that blow 
 const patrol = new CarPatrol({ scene, world, ai, stealth, hotspots, audio, fx, hud, player, seed: runSeed });   // a Kübelwagen up and down the road
 const searchlights = new Searchlights({ scene, world, player, stealth, hotspots, audio, hud });   // lit at dusk, sweeping
 const birds = new Birds({ scene, world, audio, player });   // put up out of the trees by shots and blasts
-explosions.onBlast = (at, size) => birds.flush(at, 1.6 * size);
+explosions.onBlast = (at, size) => {
+  birds.flush(at, 1.6 * size);
+  const near = Math.max(0, 1 - at.distanceTo(player.pos) / (60 * size));   // (the pad shakes for blasts near you)
+  if (near > 0) input.rumble(0.5 * near, near, 180 + 320 * near);
+};
 stealth.glint = new Glint({ scene, world, player, arsenal, camera });   // your scope flashing in the sun, and theirs
 const footprints = new Footprints({ scene, world, player, stealth, hud });   // boot prints in the snow (winter)
 const flashlights = new Flashlights({ scene, world, player });   // and at dusk the guards carry torches
@@ -239,7 +247,7 @@ function openBench() {
   benchOpen = true;
   benchEl.classList.add('on');
   loadoutUI.render(document.getElementById('loadout-bench'), { editable: true });
-  document.exitPointerLock?.();
+  input.unlock();
 }
 function closeBench() {
   if (!benchOpen) return;
@@ -267,6 +275,14 @@ function renderCampaign() {
   }).join('');
   el.querySelectorAll('.camp.playable').forEach(b => b.addEventListener('click', () => {
     const m = missionById(b.dataset.mission);
+    // On the pad a browser dialog can't be answered (no pointer, and it stops the page reading the
+    // pad), so the question is asked on the button itself: press again to go.
+    if (input.device === 'pad') {
+      if (b.dataset.armed) { chooseMission(m.id); return; }
+      b.dataset.armed = '1';
+      b.querySelector('.st').textContent = fill('{SPACE} again to start');
+      return;
+    }
     if (confirm(`Start ${m.name}?\n\n${m.brief}`)) chooseMission(m.id);
   }));
 }
@@ -344,7 +360,7 @@ mission.onComplete = (sum) => {
   audio.setTruck(0); audio.setEngine(0);
   audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
   audio.stopMusic();
-  document.exitPointerLock?.();
+  input.unlock();
 };
 mission.onFail = (why) => {
   deathScreen.querySelector('h2').textContent = why;
@@ -353,7 +369,7 @@ mission.onFail = (why) => {
   audio.setSiren(0);
   audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
   audio.stopMusic();
-  document.exitPointerLock?.();
+  input.unlock();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
 document.getElementById('restart').addEventListener('click', () => location.reload());
@@ -483,6 +499,9 @@ bind('set-fov', 'fov', (v) => `${v}°`);
 bind('set-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
 bind('set-music', 'music', (v) => `${Math.round(v * 100)}%`);
 bind('set-invert', 'invertY');
+bind('set-pad-sens', 'padSensitivity', (v) => v.toFixed(2));
+bind('set-pad-invert', 'padInvertY');
+bind('set-vibration', 'vibration');
 bind('set-lung', 'lungMarker', () => '');
 bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
@@ -534,7 +553,7 @@ document.getElementById('play').addEventListener('click', () => {
   input.lock();
 });
 // The menu doubles as the pause screen once the mission has started (`started`, declared above).
-canvas.addEventListener('click', () => { if (!input.locked) input.lock(); });
+canvas.addEventListener('click', () => { if (!input.pointerLocked) { input.setDevice('kb'); input.lock(); } });
 input.onLockChange = (locked) => {
   const over = player.dead || mission.done;
   // Esc (the browser frees the mouse) while aiming a throw: it's put away, not thrown on resume.
@@ -543,7 +562,9 @@ input.onLockChange = (locked) => {
   if (locked && !started) {
     started = true;
     document.body.classList.add('started');
-    document.getElementById('play').textContent = 'Resume';
+    const play = document.getElementById('play');
+    play.textContent = 'Resume';
+    delete play.dataset.pad; delete play.dataset.kb;   // (no longer "press to play": ui/glyphs.js leaves it be)
     document.querySelector('#menu .sub').textContent = `Paused · ${M.subtitle.split(' · ')[0]}`;
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
@@ -569,10 +590,34 @@ function setMap(open, relock = true) {
   mapView.open = open;
   if (open) document.getElementById('mapside-orders').innerHTML = document.getElementById('briefing').innerHTML;   // (the Orders tab: the briefing as it stands)
   document.body.classList.toggle('mapopen', open);
-  if (open) document.exitPointerLock?.();
+  if (open) input.unlock();
   else if (relock) input.lock();
   else menu.classList.remove('hidden');
 }
+
+// The pad's right stick: look (turn rate in rad/s, on a curve so small pushes aim finely), or the
+// slot on an open wheel, pointed at like a clock hand (the wheels take a cursor: wheelMouse).
+const PAD_TURN = 3.4, PAD_PITCH = 2.2;   // rad/s at full stick, sensitivity 1, unzoomed
+function padLook(realDt, zoomScale) {
+  const s = input.padLook;
+  if (!s) return;
+  const wheel = items.wheelOpen ? items.cursor : arsenal.wwheelOpen ? arsenal.wwCursor : null;
+  if (wheel) {
+    if (Math.hypot(s.x, s.y) < 0.5) return;
+    const to = { x: s.x * 140 - wheel.x, y: s.y * 140 - wheel.y };
+    (items.wheelOpen ? items : arsenal).wheelMouse(to);
+    return;
+  }
+  const curve = (v) => Math.sign(v) * Math.pow(Math.abs(v), 1.8);
+  const k = settings.padSensitivity * zoomScale * realDt / 0.0022;   // player.look's units: mouse counts
+  player.look(curve(s.x) * PAD_TURN * k, curve(s.y) * PAD_PITCH * k, 1, settings.padInvertY);
+}
+const padNav = new PadNav({
+  input, map: mapView,
+  closeMap: () => setMap(false),
+  closeBench: () => closeBench(),
+  resume: () => document.getElementById('play').click(),
+});
 
 // ---- loop ----
 let acc = 0;
@@ -649,7 +694,7 @@ function tick(dt) {
     audio.setSiren(0);
     audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
     audio.stopMusic();
-    document.exitPointerLock?.();
+    input.unlock();
   }
   input.consume();
 }
@@ -677,11 +722,13 @@ function frame(time) {
 
 function step(realDt, draw = true) {
   fps += (1 / Math.max(realDt, 1e-4) - fps) * 0.05;
+  input.poll(realDt, { aiming: arsenal.aiming });   // the pad's buttons become keys (core/gamepad.js)
 
   if (input.wasPressed('KeyM') && !killCam.active && (input.locked || mapView.open)) {
     input.pressed.delete('KeyM');
     setMap(!mapView.open);
   }
+  padNav.frame(realDt);   // menus and the map on the pad (ui/padnav.js)
   if (mapView.open) {
     if (input.wasPressed('Escape')) setMap(false, false);
     input.consume();
@@ -730,6 +777,7 @@ function step(realDt, draw = true) {
   if (items.wheelOpen) items.wheelMouse(m);   // the mouse picks from the wheel instead of turning you
   else if (arsenal.wwheelOpen) arsenal.wheelMouse(m);
   else player.look(m.x, m.y, settings.sensitivity * zoomScale, settings.invertY);
+  padLook(realDt, zoomScale);
   guns.frame();          // on a nest's gun: the view held to its arc, the gun laid on it
   items.drawWheel();
   arsenal.drawWeaponWheel();
@@ -791,7 +839,7 @@ function step(realDt, draw = true) {
   const heal = its.healing && { label: its.healing.id === 'medkit' ? 'USING A MEDKIT…' : 'BANDAGING…', progress: its.healing.progress };
   const pk = pickups.state(), ia = interactions.state(), mg = guns.state(), dg = disguise.state(), dv = driving.state();
   const prompts = heal ? [heal] : driving.vehicle ? [dv] : dg?.progress > 0 ? [dg] : carry.body ? [cs] : takedown.active ? [] : mg && guns.on ? [mg] : [td, cut, rad, pk, ia, ss, dg, dv, td ? null : cs, mg, co && { label: co.label, progress: 0 }].filter(Boolean);
-  const prompt = prompts.length ? { label: prompts.map(p => p.label).join('   ·   '), progress: prompts[0].progress } : null;
+  const prompt = prompts.length ? { label: fill(prompts.map(p => p.label).join('   ·   ')), progress: prompts[0].progress } : null;   // (key names: ui/glyphs.js)
   hud.update(realDt, { camera, player, arsenal, world, fps, search: prompt, waypoint: mapView.waypoint, stealth: st, mission, hotspots, res: post.pixelRatio, items: its });
   mapView.drawMini({ player, stealth: st });
 }

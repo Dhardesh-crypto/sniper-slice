@@ -109,7 +109,7 @@ export class Mission {
     if (!this.radio || !this.obj('radio') || this.obj('radio').done || this.player.climb) return null;
     const p = this.player.pos, j = this.radio.standAt;
     if (Math.hypot(p.x - j.x, p.z - j.z) > 1.5 || Math.abs(p.y - j.y) > 1) return null;
-    return { label: 'E · WRECK THE RADIO', progress: this.radioProgress };
+    return { label: '{E} · WRECK THE RADIO', progress: this.radioProgress };
   }
 
   tickRadio(dt) {

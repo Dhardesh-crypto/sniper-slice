@@ -79,7 +79,7 @@ export class Carry {
   }
 
   state() {
-    if (this.body) return { label: 'F · DROP BODY', progress: 0 };
-    return this.nearestBody() ? { label: 'F · DRAG BODY', progress: 0 } : null;
+    if (this.body) return { label: '{F} · DROP BODY', progress: 0 };
+    return this.nearestBody() ? { label: '{F} · DRAG BODY', progress: 0 } : null;
   }
 }

@@ -44,9 +44,9 @@ export class Driving {
   }
 
   state() {
-    if (this.vehicle) return { label: 'E · GET OUT   ·   W/S DRIVE · A/D STEER · SPACE HANDBRAKE', progress: 0 };
+    if (this.vehicle) return { label: '{E} · GET OUT   ·   {DRIVE}', progress: 0 };
     const v = this.near();
-    return v ? { label: `E · DRIVE ${KINDS[v.kind].name}`, progress: 0 } : null;
+    return v ? { label: `{E} · DRIVE ${KINDS[v.kind].name}`, progress: 0 } : null;
   }
 
   enter(v) {
@@ -60,7 +60,7 @@ export class Driving {
     p.setStance?.('crouch');                                     // (sat: your body low in the seat)
     p.yaw = this.vehicle.yaw + Math.PI;                         // (the camera looks the way it faces; yaw 0 looks −z)
     this.audio.truckStart?.(0);
-    this.hud.message(`AT THE WHEEL · ${k.name.replace('THE ', '')} · E TO GET OUT`, '');
+    this.hud.message(`AT THE WHEEL · ${k.name.replace('THE ', '')} · {E} TO GET OUT`, '');
   }
 
   exit() {
@@ -96,8 +96,9 @@ export class Driving {
     // The engine shot out from under you (the patrol car's weak spot).
     const dead = v.patrol ? v.patrol.stalled : v.truck ? v.truck.stalled : false;
     const inp = this.input, k = v.k;
-    const throttle = dead ? 0 : (inp.down('KeyW') ? 1 : 0) - (inp.down('KeyS') ? 1 : 0);
-    const steerIn = (inp.down('KeyA') ? 1 : 0) - (inp.down('KeyD') ? 1 : 0);
+    const stick = inp.padMove;   // (the pad's left stick: analog throttle and steering)
+    const throttle = dead ? 0 : stick ? -stick.y : (inp.down('KeyW') ? 1 : 0) - (inp.down('KeyS') ? 1 : 0);
+    const steerIn = stick ? -stick.x : (inp.down('KeyA') ? 1 : 0) - (inp.down('KeyD') ? 1 : 0);
     const hand = inp.down('Space');
     // Speed: throttle forward, S brakes then reverses, rolling resistance and drag always.
     if (throttle > 0) v.speed += (v.speed < 0 ? k.brake : k.accel * (1 - Math.max(0, v.speed) / k.top)) * dt;

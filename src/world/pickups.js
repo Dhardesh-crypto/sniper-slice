@@ -261,9 +261,9 @@ export class Pickups {
   state() {
     const b = this.target;
     if (!b) return null;
-    if (this.benches.includes(b)) return { label: 'E · WORKBENCH: CHANGE WEAPONS AND PARTS', progress: 0 };
+    if (this.benches.includes(b)) return { label: '{E} · WORKBENCH: CHANGE WEAPONS AND PARTS', progress: 0 };
     const what = b.kind === 'supply' ? SUPPLY[b.type].name : b.kind === 'weapon' ? 'WEAPON CRATE' : 'TOOLBOX';
-    return { label: `HOLD E · OPEN ${what}`, progress: this.progress };
+    return { label: `HOLD {E} · OPEN ${what}`, progress: this.progress };
   }
 
   // For the map: unopened boxes and the benches.

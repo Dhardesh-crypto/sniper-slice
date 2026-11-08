@@ -91,6 +91,6 @@ export class Search {
 
   // For the HUD prompt.
   state() {
-    return this.target ? { label: this.progress > 0 ? 'SEARCHING…' : 'HOLD E · SEARCH BODY', progress: this.progress } : null;
+    return this.target ? { label: this.progress > 0 ? 'SEARCHING…' : 'HOLD {E} · SEARCH BODY', progress: this.progress } : null;
   }
 }

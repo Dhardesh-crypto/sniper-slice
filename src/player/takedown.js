@@ -98,9 +98,9 @@ export class Takedown {
   state() {
     if (this.active || this.bayo || this.dogStab) return null;
     const b = this.bayonetCandidate();                  // (the bayonet, when it's fixed and the rifle's out)
-    if (b) return { label: b.kind === 'dog' ? 'F · BAYONET THE DOG' : b.kind === 'animal' ? `F · BAYONET THE ${b.ref.kind.toUpperCase()}` : 'F · BAYONET', progress: 0 };
-    if (this.dogCandidate()) return { label: 'F · KNIFE THE DOG', progress: 0 };
-    return this.candidate() ? { label: 'F · TAKEDOWN', progress: 0 } : null;
+    if (b) return { label: b.kind === 'dog' ? '{F} · BAYONET THE DOG' : b.kind === 'animal' ? `{F} · BAYONET THE ${b.ref.kind.toUpperCase()}` : '{F} · BAYONET', progress: 0 };
+    if (this.dogCandidate()) return { label: '{F} · KNIFE THE DOG', progress: 0 };
+    return this.candidate() ? { label: '{F} · TAKEDOWN', progress: 0 } : null;
   }
 
   tick(dt) {

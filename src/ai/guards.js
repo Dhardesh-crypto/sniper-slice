@@ -870,7 +870,7 @@ export class GuardAI {
     if (!this.siren || !this.alarm.working || this.player.climb) return null;
     const p = this.player.pos, j = this.siren.standAt;
     if (Math.hypot(p.x - j.x, p.z - j.z) > 1.4 || Math.abs(p.y - j.y) > 1) return null;
-    return { label: 'E · CUT ALARM WIRE', progress: this.cutProgress };
+    return { label: '{E} · CUT ALARM WIRE', progress: this.cutProgress };
   }
 
   tickSabotage(dt) {

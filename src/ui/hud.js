@@ -1,6 +1,7 @@
 // HUD: DOM panels for vitals/ammo/wind, a canvas for the scope and binocular masks
 // (redrawn only when they change) and a canvas for per-frame markers.
 import * as THREE from 'three';
+import { fill } from './glyphs.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -36,7 +37,7 @@ export class Hud {
   }
 
   message(text, kind = '') {
-    this.el.hitmsg.textContent = text;
+    this.el.hitmsg.textContent = fill(text);   // ({KEY} tokens: ui/glyphs.js)
     this.el.hitmsg.className = `show ${kind}`;
     this.msgT = 2.2;
   }
@@ -266,7 +267,7 @@ export class Hud {
     el.crosshair.classList.toggle('lethal', mode === 'none' && a.weapon === 'pistol' && a.lethal);   // a killing shot
     el.scopeInfo.style.opacity = mode === 'none' ? 0 : 1;
     if (mode === 'scope') el.scopeInfo.textContent = `${a.zoomName}   ZERO ${a.zero} m${(stealth?.glint?.lens ?? 0) > 0.25 ? '   ✷ SUN ON THE LENS' : ''}`;
-    else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS${this.airwar ? (this.airwar.strikesLeft > 0 ? `   G · CALL AN AIR STRIKE (${this.airwar.strikesLeft})` : '   NO STRIKES LEFT') : ''}`;
+    else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS${this.airwar ? (this.airwar.strikesLeft > 0 ? `   ${fill('{G}')} · CALL AN AIR STRIKE (${this.airwar.strikesLeft})` : '   NO STRIKES LEFT') : ''}`;
     el.range.style.opacity = mode === 'binoc' ? 1 : 0;
     if (mode === 'binoc') el.range.textContent = a.range ? `${Math.round(a.range)} m` : '— m';
 
@@ -317,12 +318,12 @@ export class Hud {
     // The item in hand (Q to change, G to use).
     if (items) {
       const box = el.item ?? (el.item = document.getElementById('item'));
-      const key = `${items.name}|${items.count}|${items.charges}`;
+      const key = `${items.name}|${items.count}|${items.charges}|${fill('{Q}')}`;   // (redrawn when the device changes)
       if (box.dataset.key !== key) {
         box.dataset.key = key;
         box.querySelector('b').textContent = items.name;
         box.querySelector('span').textContent = items.count == null ? '' : `×${items.count}`;
-        box.querySelector('small').textContent = `Q change · G use${items.charges ? ` · K detonate (${items.charges})` : ''}`;
+        box.querySelector('small').textContent = fill(`{Q} change · {G} use${items.charges ? ` · {K} detonate (${items.charges})` : ''}`);
       }
     }
     el.mag.innerHTML = `${a.mag}<span>/ ${a.reserve}</span>`;

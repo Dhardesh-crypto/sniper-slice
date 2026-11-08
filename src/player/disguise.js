@@ -107,7 +107,7 @@ export class Disguise {
 
   state() {
     if (this.progress > 0) return { label: this.target ? 'CHANGING INTO HIS UNIFORM…' : 'TAKING THE UNIFORM OFF…', progress: this.progress };
-    if (this.target && !this.player.carrying) return { label: `HOLD U · TAKE HIS UNIFORM${this.target.bloodied ? ' (BLOODSTAINED)' : ''}`, progress: 0 };
+    if (this.target && !this.player.carrying) return { label: `HOLD {U} · TAKE HIS UNIFORM${this.target.bloodied ? ' (BLOODSTAINED)' : ''}`, progress: 0 };
     return null;
   }
 

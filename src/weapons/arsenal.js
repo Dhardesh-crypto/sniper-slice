@@ -195,9 +195,10 @@ export class Arsenal {
 
   tickWeaponWheel(dt) {
     const inp = this.input;
-    if (inp.down('KeyX') && !this.player.dead && !this.mount && !this.handsTied) {
+    // (the pad holds 'PadWheel' only once you've held the d-pad: it opens the wheel at once)
+    if ((inp.down('KeyX') || inp.down('PadWheel')) && !this.player.dead && !this.mount && !this.handsTied) {
       this.wwHeld = (this.wwHeld ?? 0) + dt;
-      if (!this.wwheelOpen && this.wwHeld > 0.18) {
+      if (!this.wwheelOpen && (this.wwHeld > 0.18 || inp.down('PadWheel'))) {
         this.wwheelOpen = true; this.wwHover = null; (this.wwCursor ??= new THREE.Vector2()).set(0, 0);
         if (!this.wwheelEl) this.buildWeaponWheel();
       }
@@ -247,6 +248,7 @@ export class Arsenal {
       if (inp.wasPressed('Digit1') && this.current !== 'rifle') this.beginSwitch('rifle');
       if (inp.wasPressed('Digit2') && this.current !== 'pistol') this.beginSwitch('pistol');
       if (inp.wasPressed('Digit3') && this.current !== 'heavy' && this.loadout?.heavy) this.beginSwitch('heavy');
+      if (inp.wasPressed('PadSwap')) this.beginSwitch(this.current === 'rifle' ? 'pistol' : 'rifle');   // (the pad's d-pad left)
     }
     if (this.switchT > 0) {
       this.switchT = Math.max(0, this.switchT - dt);   // (left at a hair below 0 it read as "still switching")
@@ -378,6 +380,7 @@ export class Arsenal {
 
   fire() {
     const w = this.weapon, def = this.shotDef(), cam = this.camera;
+    this.input.rumble?.(0.35, def.auto ? 0.25 : 0.55, def.auto ? 60 : 130);   // (a kick in the hands on the pad)
     const q = cam.quaternion;
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);

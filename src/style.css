@@ -292,3 +292,15 @@ button:disabled.lo-chip, button:disabled.lo-weapon { cursor: default; opacity: 0
 .doc-paper h2 { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 14px; color: #5a1f16; }
 .doc-body { white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
 .doc-meta { margin: 18px 0 0; font-size: 11px; color: #7a6e58; font-family: inherit; }
+
+/* The gamepad's focus in the menus (ui/padnav.js), and its cursor on the map. */
+.padfocus { outline: 2px solid #ffcf6a !important; outline-offset: 3px; }
+#padcursor { position: fixed; left: -11px; top: -11px; width: 22px; height: 22px; border: 2px solid #ffcf6a; border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6); pointer-events: none; z-index: 60; display: none; }
+#padcursor::after { content: ''; position: absolute; left: 8px; top: 8px; width: 2px; height: 2px; background: #ffcf6a; }
+/* A pad button's name, drawn as a small key cap (ui/glyphs.js). */
+kbd.k { display: inline-block; min-width: 1.5em; padding: 0 0.35em; border: 1px solid currentColor; border-radius: 4px; font: inherit; font-size: 0.92em; text-align: center; line-height: 1.35; }
+kbd.k.pad { border-radius: 999px; }
+
+#pad-controls { order: 99; }
+#pad-controls.first { order: -1; }
