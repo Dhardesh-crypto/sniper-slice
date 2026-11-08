@@ -67,7 +67,7 @@ function padControlsHtml() {
     ['Left stick click (scoped)', 'Hold breath'],
     [n('LB', 'L1') + ' (hold)', 'Binoculars: range and tag · ' + n('RB', 'R1') + ' through them: air strike'],
     [n('RB', 'R1'), 'Use the item: hold to aim a throw, release to throw (' + n('LT', 'L2') + ' cancels)'],
-    [n('A', '✕'), 'Climb a wall or ladder, let go of a ladder · skip the kill cam'],
+    [n('A', '✕'), 'Vault a low wall, climb a wall or ladder, let go of a ladder · skip the kill cam'],
     [n('B', '○'), 'Crouch · hold: prone'],
     [n('X', '□'), 'Interact: open, read, search (hold), drive, man a gun, workbench'],
     [n('Y', '△'), 'Reload (again as the bar crosses the gold mark: quick reload) · hold: detonate TNT and satchels'],

@@ -140,7 +140,7 @@ export class Tutorial {
     const h = (cond, id, text) => { if (cond) this.show(id, text); };
     h(seen.takedown, 'takedown', '{F}: a silent takedown. Come at a guard from behind while he hasn\'t seen you.');
     h(seen.body, 'body', 'Hold {E} to search the body for ammunition and kit. {F} drags it: leave it in tall grass, where nobody finds it.');
-    h(seen.climb, 'climb', '{SPACE} climbs a wall, a ledge or a ladder.');
+    h(seen.climb, 'climb', '{SPACE} vaults a low wall (keep moving), climbs a higher one, a ledge or a ladder.');
     h(seen.gun, 'mg', '{E} mans the machine gun: hold {LMB} to fire, {R} for a new belt, {E} again to leave it.');
     h(seen.bench, 'bench', '{E} at a workbench: change weapons and fit the parts you\'ve found.');
     h(seen.vehicle, 'vehicle', '{E} gets you in: {DRIVE}. Engines are loud.');

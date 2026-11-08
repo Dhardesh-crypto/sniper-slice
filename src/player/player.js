@@ -3,9 +3,10 @@
 // Look is applied per render frame from raw mouse deltas; movement runs at the fixed step.
 import * as THREE from 'three';
 import { STEP } from '../world/world.js';
-import { climbRise } from '../world/characters.js';
+import { climbRise, vaultAt } from '../world/characters.js';
 
 const GRAVITY = 22;
+const VAULT_MAX = 1.3, VAULT_THICK = 0.9;   // a wall you vault over on the move: up to this high, this thick
 const MANTLE_MAX = 2.7;      // highest ledge you can pull yourself onto (the compound wall is 2.6)
 const LADDER_SPEED = 1.8;
 const smooth = t => t * t * (3 - 2 * t);
@@ -235,6 +236,8 @@ export class Player {
     if (this.climb || this.locked || this.mounted || this.carrying || !this.grounded || this.stance === 'prone') return null;
     const lad = this.nearLadder();
     if (lad) return { kind: 'ladder', ladder: lad.ladder, down: lad.down, label: lad.down ? '{SPACE} · CLIMB DOWN' : '{SPACE} · CLIMB LADDER' };
+    const vault = this.findVault();
+    if (vault) return { kind: 'vault', ...vault, label: '{SPACE} · VAULT' };
     const ledge = this.findLedge();
     if (ledge) return { kind: 'mantle', to: ledge, label: '{SPACE} · CLIMB' };
     return null;
@@ -264,6 +267,31 @@ export class Player {
   }
 
   // A ledge in front of you (a wall top, crate, sandbags, truck) you can pull yourself onto.
+  // A low, thin wall in front (a sandbag line, a low garden wall, a fence) with ground to land on
+  // beyond: over it in one movement instead of climbing onto it. Returns where you land, the top's
+  // height and the run, or null.
+  findVault() {
+    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    const feet = this.pos.y;
+    for (const d of [0.45, 0.7, 0.95]) {
+      const x = this.pos.x + fx * d, z = this.pos.z + fz * d;
+      const top = this.world.floorAt(x, z, feet, VAULT_MAX + 0.05);
+      if (top <= feet + STEP || top > feet + VAULT_MAX) continue;
+      const box = this.world.boxes.find(b => Math.abs(b.max.y - top) < 1e-3 && x > b.min.x - 0.06 && x < b.max.x + 0.06 && z > b.min.z - 0.06 && z < b.max.z + 0.06);
+      if (!box || box.min.y > feet + 0.4) continue;
+      // How far along your heading you leave the box (slabs in x and z): its thickness that way.
+      const exit = (lo, hi, p, f) => Math.abs(f) < 1e-4 ? Infinity : Math.max((lo - p) / f, (hi - p) / f);
+      const out = Math.min(exit(box.min.x, box.max.x, this.pos.x, fx), exit(box.min.z, box.max.z, this.pos.z, fz));
+      if (!isFinite(out) || out - d > VAULT_THICK) return null;          // a wide top: climb onto it instead
+      const land = new THREE.Vector3(this.pos.x + fx * (out + 0.7), 0, this.pos.z + fz * (out + 0.7));
+      land.y = this.world.floorAt(land.x, land.z, top + 0.2);
+      if (Math.abs(land.y - feet) > 0.8) return null;                     // a drop or a step up the far side: not a vault
+      if (!this.world.clearAbove(land.x, land.z, land.y, land.y + 1.7) || !this.world.clearAbove(x, z, top, top + 1.0)) return null;
+      return { to: land, top: top - feet };
+    }
+    return null;
+  }
+
   findLedge() {
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     const feet = this.pos.y;
@@ -288,6 +316,15 @@ export class Player {
     if (!opt) return;
     this.vel.set(0, 0, 0);
     this.sprinting = false;
+    if (opt.kind === 'vault') {
+      // The clip's run is 2.27 m in 0.83 s; a longer or shorter run takes proportionally longer.
+      const run = Math.hypot(opt.to.x - this.pos.x, opt.to.z - this.pos.z), keep = Math.max(this.speed, STANCES.stand.walk);
+      this.climb = { kind: 'vault', from: this.pos.clone(), to: opt.to, top: opt.top, t: 0, dur: THREE.MathUtils.clamp(0.83 * run / 2.27, 0.6, 1.1), keep, clip: true };
+      if (this.stance !== 'stand') this.setStance('stand');
+      this.onNoise?.(this.pos.clone(), 4, 'climb');
+      this.audio.rustle?.();
+      return;
+    }
     if (opt.kind === 'mantle') {
       const h = opt.to.y - this.pos.y;
       this.climb = { kind: 'mantle', from: this.pos.clone(), to: opt.to, t: 0, dur: 0.5 + h * 0.3, clip: true };   // (clip: the avatar plays the climb in step with t)
@@ -310,6 +347,23 @@ export class Player {
   tickClimb(dt, fwd) {
     const c = this.climb;
     this.climbRate = 0;
+    if (c.kind === 'vault') {
+      // Along the clip's own path: over the wall, the body lifted as the clip lifts it, and a bit
+      // more for a wall higher than it was made for (about a metre).
+      c.t = Math.min(1, c.t + dt / c.dur);
+      const v = vaultAt(c.t);
+      this.pos.x = c.from.x + (c.to.x - c.from.x) * v.along;
+      this.pos.z = c.from.z + (c.to.z - c.from.z) * v.along;
+      this.pos.y = c.from.y + (c.to.y - c.from.y) * v.along + v.lift * (1 + Math.max(0, c.top - 0.95) / 0.33);
+      if (c.t >= 1) {
+        // Landed: running on at the pace you came in.
+        const dx = c.to.x - c.from.x, dz = c.to.z - c.from.z, l = Math.hypot(dx, dz) || 1;
+        this.vel.set(dx / l * c.keep, 0, dz / l * c.keep);
+        this.pos.y = c.to.y;
+        this.climb = null; this.grounded = true; this.fallTop = this.pos.y;
+      }
+      return;
+    }
     if (c.kind === 'mantle') {
       // Up first, then over: the body rises at the wall, then moves onto the top.
       c.t = Math.min(1, c.t + dt / c.dur);

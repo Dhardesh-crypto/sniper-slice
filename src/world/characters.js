@@ -18,6 +18,7 @@ const CLIP_FILES = {
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',
   takedownAtk: 'anim_takedown_atk', takedownVic: 'anim_takedown_vic', // knife takedown: you, him
   ladderClimb: 'anim_ladder_climb', climbWall: 'anim_climb_wall',          // climbing
+  vault: 'anim_vault',                                                      // over a low wall on the move (Meshy Vault_with_Rifle)
   throw: 'anim_throw', throwCrouch: 'anim_throw_crouch', place: 'anim_place', // grenades, bottles; charges at your feet
   search: 'anim_search', kneelWork: 'anim_kneel_work',                     // searching a body; bandaging, repairs
   hitReact: 'anim_hit_react', lookAround: 'anim_look_around',              // a guard hit; a guard searching
@@ -135,6 +136,19 @@ function buildDerivedClips() {
     assets.climbRise = { times: Array.from(cw.times, t => t / c.climbWall.duration), rise: Array.from({ length: n }, (_, k) => Math.min(1, (v[k * 3 + 1] - y0) / (top - y0))) };
     for (let k = 0; k < n; k++) v[k * 3 + 1] = y0;
   }
+  // The vault's own path (2.27 m forward, the hips up 33 cm over the wall and down again), kept
+  // the same way and then taken out of the clip: player.js carries you along it (vaultPath).
+  const vt = c.vault?.tracks.find(t => t.name === 'Hips.position');
+  if (vt) {
+    const v = vt.values, n = v.length / 3, z0 = v[2], zN = v[(n - 1) * 3 + 2], y0 = v[1];
+    assets.vaultPath = {
+      times: Array.from(vt.times, t => t / c.vault.duration),
+      along: Array.from({ length: n }, (_, k) => (v[k * 3 + 2] - z0) / (zN - z0)),
+      lift: Array.from({ length: n }, (_, k) => (v[k * 3 + 1] - y0) / 100),     // metres (the clip is in cm)
+      length: (zN - z0) / 100,
+    };
+    for (let k = 0; k < n; k++) { v[k * 3 + 1] = y0; v[k * 3 + 2] = z0; }
+  }
   for (const k of ['ladderClimb', 'climbWall']) inPlace(c[k], 'xyz');
   for (const k of ['surrender', 'duckCover']) inPlace(c[k], 'xz');
   // One stride of the backward shuffle, cut where it meets itself, so it loops.
@@ -176,6 +190,18 @@ export function climbRise(t) {
     if (t <= times[i]) { const k = (t - times[i - 1]) / (times[i] - times[i - 1]); return rise[i - 1] + (rise[i] - rise[i - 1]) * k; }
   }
   return 1;
+}
+
+// Where the vault clip has the body at `t` (0 to 1 through it): `along` 0 to 1 of the way over,
+// `lift` how far the hips are above where they started (m).
+export function vaultAt(t) {
+  const p = assets.vaultPath;
+  if (!p) return { along: t, lift: 0.33 * Math.sin(Math.PI * t) };
+  const { times } = p;
+  let i = 1;
+  while (i < times.length - 1 && t > times[i]) i++;
+  const k = THREE.MathUtils.clamp((t - times[i - 1]) / (times[i] - times[i - 1]), 0, 1);
+  return { along: p.along[i - 1] + (p.along[i] - p.along[i - 1]) * k, lift: p.lift[i - 1] + (p.lift[i] - p.lift[i - 1]) * k };
 }
 
 export function assetsReady() {

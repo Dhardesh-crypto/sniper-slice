@@ -243,7 +243,7 @@ export class Avatar {
     } else if (climb) {
       // Hand over hand up the rungs (paced to the climb, reversed going down); hauling up a ledge.
       const ladder = climb.kind === 'ladder';
-      clip = ladder ? (c.action('ladderClimb') ? 'ladderClimb' : 'walkLegs') : (c.action('climbWall') ? 'climbWall' : 'crouchLegs');
+      clip = ladder ? (c.action('ladderClimb') ? 'ladderClimb' : 'walkLegs') : climb.kind === 'vault' && c.action('vault') ? 'vault' : (c.action('climbWall') ? 'climbWall' : 'crouchLegs');
       rate = ladder ? THREE.MathUtils.clamp((st.climbRate ?? 0) / 0.28, -3, 3) : climb.clip ? 0 : 1.6;   // (a wall: held at the climb's own point, below)
     } else if (act && c.action(act.clip)) {
       // Throwing (wound up while you aim, then the throw), placing a charge, bandaging, searching.
@@ -275,6 +275,7 @@ export class Avatar {
     // Up a wall the clip is the clock: its frame is the climb's progress (player.js lifts the body
     // along the same clip's rise), so hands, pull and the body's height agree.
     if (climb?.clip && this.state === 'climbWall' && c.base) c.base.time = Math.min(0.999, climb.t / 0.88) * c.base.getClip().duration;
+    if (climb?.kind === 'vault' && this.state === 'vault' && c.base) c.base.time = Math.min(0.999, climb.t) * c.base.getClip().duration;   // (the vault likewise)
     const busy = !!(climb || st.takedown || st.mounted || (act && this.state === act.clip));   // both hands busy: the rifle goes on the back
 
     // The rifle's way round, and the arms' layer with it: free while it's on his back, holding it
