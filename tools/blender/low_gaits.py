@@ -99,6 +99,12 @@ def stroke(u, pull):
     if u < pull: return u / pull, 0.0
     k = (u - pull) / (1 - pull)
     return 1 - smooth(k), math.sin(math.pi * k)
+def leg_bend(u):
+    """How far one leg is drawn up through the stroke: pushing out straight while the opposite arm
+    pulls (0 to 0.45), lying straight while the other leg works, drawn up again just before its push."""
+    if u < 0.45: return 1 - smooth(u / 0.45)
+    if u < 0.78: return 0.0
+    return smooth((u - 0.78) / 0.22)
 def crawl(ph):
     g = CRAWL; sn = math.sin(TAU * ph)
     clear()
@@ -114,13 +120,22 @@ def crawl(ph):
         hand = Vector((sign * (20 - 3 * k), -68 + 44 * k, 7 + 5 * up))
         limb(s + 'Arm', s + 'ForeArm', s + 'Hand', hand, Vector((sign * 1, 0.25, -0.8)))
         turn(s + 'Hand', R(X, 90))
-    # The opposite leg: drawn up as the arm reaches, pushing as it pulls.
+    # The legs, as a soldier does it: one lies straight out behind him, the other is drawn up with
+    # its knee out to the side along the ground, and it pushes as the opposite arm pulls; then they
+    # change over. bend: 0 straight, 1 drawn right up (leg_bend).
     for s, sign, off in (('Left', 1, 0.5), ('Right', -1, 0.0)):
-        k, up = stroke((ph + off) % 1, g['pull'])
-        ankle = Vector((sign * (34 - 19 * k), at.y + 46 + 34 * k, 13 + 3 * up))
-        limb(s + 'UpLeg', s + 'Leg', s + 'Foot', ankle, Vector((sign * (1 - 0.6 * k), 0, -0.6)))
-        turn(s + 'Foot', R(Z, sign * (-46 + 26 * k)) @ R(X, 104))
-        turn(s + 'ToeBase', R(Z, sign * (-46 + 26 * k)) @ R(X, 104))
+        b = leg_bend((ph + off) % 1)
+        hip = P[s + 'UpLeg'].head.copy()
+        L = (HEAD[s + 'Leg'] - HEAD[s + 'UpLeg']).length + (HEAD[s + 'Foot'] - HEAD[s + 'Leg']).length
+        straight = hip + Vector((sign * 0.1, 1, -0.1)).normalized() * L * 0.97
+        bent = hip + Vector((sign * 24, 30, 0))
+        ankle = straight.lerp(bent, b)
+        ankle.z = 9 + 3 * b * (1 - b)                       # (the boot along the ground, a little up as it slides)
+        pole = Vector((sign * 0.15, 0, -1)).lerp(Vector((sign * 1, -0.6, 0.05)), smooth(b * 1.6))   # knee down (straight) to out sideways (drawn up)
+        limb(s + 'UpLeg', s + 'Leg', s + 'Foot', ankle, pole)
+        yaw = sign * (-14 - 40 * b)                          # the leg turned out: the inside of the boot on the ground
+        turn(s + 'Foot', R(Z, yaw) @ R(X, 100))
+        turn(s + 'ToeBase', R(Z, yaw) @ R(X, 100))
 
 def setup_sheet():
     sc = bpy.context.scene

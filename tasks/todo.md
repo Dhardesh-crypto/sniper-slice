@@ -1326,3 +1326,9 @@ The user played it and picked weak points 5 (look) and 6 (movement), plus gamepa
 - [x] C. Vault over low walls: Meshy library clip Vault_with_Rifle (id 425) rigged on the player model through Higgsfield `3d_rigging` (8 credits, the user's OK), `anim_vault`, same 24-bone skeleton. Its own path (2.27 m forward, hips up 33 cm and down) is kept and taken out of the clip, `player.findVault` offers it for a wall 0.55 to 1.3 m high and at most 0.9 m thick with ground within 0.8 m of your level beyond (wider tops still mantle), and you go over along the clip's path, frame for frame, landing at the pace you came in. The range sandbags (0.75 m): 0.8 s, in at 3.0 m/s, out at 3.2.
   Checked by script: the throw, the gaits by name and speed under an alarm, the turn, the slope feet measured, the mantle's height and clip time per frame. Not checked: how it all looks in motion at full speed (no contact sheets this time), by hand.
 - [ ] D. Look pass (own session, branch look-pass): audit, one material step, regional palettes, per-region grade
+
+## 8 November 2026: the crawl's legs, one straight and one drawn up
+"Normally people crawl with one knee bent and the other straight." Sheet: tasks/crawl-legs-before-after.jpg (old above, new below: side and top views).
+- [x] Cause: both legs bent all the time, splayed wide like a frog's, the boots lifted off the ground (`tools/blender/low_gaits.py`, the crawl's legs).
+- [x] Now a leopard crawl: one leg lies straight out behind, the other is drawn up with its knee out to the side along the ground, pushes out straight while the opposite arm pulls, then they change over (`leg_bend`); the boots stay on the ground with the inside of the boot down. Arms, hips and the clip's speed unchanged.
+- [x] In the game, crawling forward: the knees alternate about 152° (straight) and 60° (drawn up). npm test 3/3. Not checked by hand; a wounded guard's crawl uses the same clip and wasn't looked at.
