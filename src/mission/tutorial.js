@@ -39,6 +39,7 @@ export class Tutorial {
 
   go(i) {
     this.step = i;
+    this.note = null;
     this.track = { from: this.player.pos.clone(), yaw: this.player.yaw, turned: 0 };
     this.steps[i]?.enter?.();
     this.render();
@@ -78,12 +79,17 @@ export class Tutorial {
         enter: () => { const t = this.target(RANGE_DIST); if (t) t.tagged = false; },
         done: () => !!this.target(RANGE_DIST)?.tagged,
       },
-      { // 4: zero and fire
-        text: `Aim with {RMB} and zoom with {V}. The bullet drops: set the zero to ${RANGE_DIST} m with {ZERO}, then put the crosshair on the ${RANGE_DIST} m target and fire with {LMB}.`,
+      { // 4: zero and fire. It's done when a round hits, which the list shows as you go, and a miss
+        // says why (players took "zoom, zero, fire" for the whole job and waited for a tick).
+        text: `Aim with {RMB} and zoom with {V}. The bullet drops over distance: set the zero to ${RANGE_DIST} m with {ZERO}, put the crosshair on the ${RANGE_DIST} m target and fire with {LMB}. Hit him to go on.`,
+        tick: () => { if (a.aiming) tr().aimed = true; if (a.aiming && a.zoomIndex > 0) tr().zoomed = true; },
+        checks: () => [['Aim', tr().aimed], ['Zoom in', tr().zoomed], [`Zero at ${RANGE_DIST} m (now ${a.zero ?? '–'} m)`, a.zero === RANGE_DIST || tr().hit300], [`Hit the ${RANGE_DIST} m target`, tr().hit300]],
         done: () => tr().hit300,
       },
       { // 5: breath and wind
-        text: 'Far shots: hold {SHIFT} while scoped to hold your breath, so the sway stops. The wind (top of the screen) pushes the bullet sideways; the marker in the scope shows where it lands. Hit the 400 or 500 m target holding your breath.',
+        text: 'Far shots: hold {SHIFT} while scoped to hold your breath, so the sway stops. The wind (top of the screen) pushes the bullet sideways; the marker in the scope shows where it lands. Zero for the distance and hit the 400 or 500 m target holding your breath.',
+        tick: () => { if (a.holding) tr().held = true; },
+        checks: () => [['Hold your breath while scoped', tr().held], ['Hit the 400 or 500 m target holding it', tr().breathHit]],
         done: () => tr().breathHit,
       },
       { // 6: the item wheel
@@ -103,10 +109,21 @@ export class Tutorial {
   // From arsenal.onShot / onHit and items.onAction (main.js).
   onShot() { if (this.training) this.track.shotHolding = this.arsenal.holding; }
   onHit(e) {
-    if (!this.training || !e.soldier?.range) return;
+    if (!this.training || (this.step !== 3 && this.step !== 4)) return;
+    if (!e.soldier?.range) { if (e.miss || !e.soldier) this.missed(e); return; }
     const d = e.soldier.rangeDistance;
-    if (this.step === 3 && d === RANGE_DIST) this.track.hit300 = true;
-    if (this.step === 4 && d >= 400 && this.track.shotHolding) this.track.breathHit = true;
+    if (this.step === 3 && d >= RANGE_DIST) this.track.hit300 = true;     // (300 m, or a farther one: harder still)
+    if (this.step === 4 && d >= 400) { if (this.track.shotHolding) this.track.breathHit = true; else this.note = 'A hit, but not holding your breath: hold {SHIFT} as you fire.'; this.render(); }
+  }
+
+  // A shot that hit nothing on the range: say what most likely went wrong, in the panel.
+  missed(e) {
+    const a = this.arsenal, want = this.step === 3 ? RANGE_DIST : 400;
+    const d = e.distance ?? 0;
+    this.note = d > 0 && d < want - 60 ? 'Missed: that hit the ground short of him. Aim at his chest, or zero for his distance.'
+      : this.step === 3 && a.zero !== RANGE_DIST ? `Missed: the zero is at ${a.zero} m. Set it to ${RANGE_DIST} m with {ZERO} (the number in the scope).`
+      : 'Missed: the wind took it. Put the landing marker in the scope, not the crosshair, on him.';
+    this.render();
   }
   onThrow() { if (this.step === 5 && this.items.selected === 'bottle') this.track.threw = true; }
 
@@ -126,6 +143,9 @@ export class Tutorial {
       tr.turned += Math.abs(Math.atan2(Math.sin(this.player.yaw - tr.yaw), Math.cos(this.player.yaw - tr.yaw)));
       tr.yaw = this.player.yaw;
       s.tick?.(dt);
+      // The list of what's done redrawn when something on it changes (the zero, a tick).
+      const list = s.checks ? JSON.stringify(s.checks()) : '';
+      if (list !== this.lastList) { this.lastList = list; this.render(); }
       if (s.done()) {
         if (this.step + 1 < this.steps.length) this.go(this.step + 1);
         else this.finish();
@@ -154,7 +174,9 @@ export class Tutorial {
   render() {
     if (this.training) {
       const s = this.steps[this.step];
-      this.el.innerHTML = `<b>Training · ${this.step + 1} / ${this.steps.length}</b><p>${fillHtml(s.text)}</p><small>${fillHtml('Skip it from the menu ({ESC})')}</small>`;
+      const list = s.checks ? `<ul class="checks">${s.checks().map(([what, ok]) => `<li class="${ok ? 'ok' : ''}">${ok ? '✓' : '○'} ${what}</li>`).join('')}</ul>` : '';
+      const note = this.note ? `<p class="note">${fillHtml(this.note)}</p>` : '';
+      this.el.innerHTML = `<b>Training · ${this.step + 1} / ${this.steps.length}</b><p>${fillHtml(s.text)}</p>${list}${note}<small>${fillHtml('Skip it from the menu ({ESC})')}</small>`;
       this.el.className = 'on train';
     } else if (this.hint) {
       this.el.innerHTML = `<p>${fillHtml(this.hint.text)}</p>`;

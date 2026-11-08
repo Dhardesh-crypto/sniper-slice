@@ -1332,3 +1332,8 @@ The user played it and picked weak points 5 (look) and 6 (movement), plus gamepa
 - [x] Cause: both legs bent all the time, splayed wide like a frog's, the boots lifted off the ground (`tools/blender/low_gaits.py`, the crawl's legs).
 - [x] Now a leopard crawl: one leg lies straight out behind, the other is drawn up with its knee out to the side along the ground, pushes out straight while the opposite arm pulls, then they change over (`leg_bend`); the boots stay on the ground with the inside of the boot down. Arms, hips and the clip's speed unchanged.
 - [x] In the game, crawling forward: the knees alternate about 152° (straight) and 60° (drawn up). npm test 3/3. Not checked by hand; a wounded guard's crawl uses the same clip and wasn't looked at.
+
+## 8 November 2026: training step 4 "doesn't get checked when done"
+- [x] Cause: step 4 only finished on a hit on the 300 m target, but nothing said so and a miss said nothing, so aiming, zooming, zeroing and firing could all be done with the step left open. Every way of hitting it by script did finish it (plain hit, kill cam on, headshot, body shot); a shot that drops short (the zero starts at 150 m) or drifts in the wind didn't, silently.
+- [x] Steps 4 and 5 now show a list that ticks as you go (aim, zoom in, zero at 300 m with the zero as it stands, hit; hold breath, hit far), the text says "Hit him to go on", and a miss says why in the panel (short of him, the zero at the wrong distance, or the wind: put the landing marker on him). A hit on the 400 or 500 m target counts for step 4 too.
+- [x] Checked by script: the list and the live zero show; a miss at a 100 m zero gives the zero note; a hit finishes the step. Not checked by hand.
