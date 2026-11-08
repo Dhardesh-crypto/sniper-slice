@@ -24,7 +24,8 @@ export function pickConditions(map, seed, season = 'random') {
   const L = { ...LIGHT, ...map.light };
   map.winter = true;
   map.light = { ...L, sun: c.kind === 'dusk' ? L.sun : 0xf0f2ff, sunIntensity: L.sunIntensity * 0.8, zenith: Math.max(L.zenith, c.kind === 'dusk' ? L.zenith : 62),
-    hemiSky: 0xcbd5e4, hemiGround: 0xdfe4ea, hemi: (L.hemi ?? 0.5) * 1.15, env: (L.env ?? 0.22) * 1.1, exposure: (L.exposure ?? 0.85) - 0.08 };
+    hemiSky: 0xcbd5e4, hemiGround: 0xdfe4ea, hemi: (L.hemi ?? 0.5) * 1.15, env: (L.env ?? 0.22) * 1.1, exposure: (L.exposure ?? 0.85) - 0.08,
+    warmth: (L.warmth ?? 1) * (c.kind === 'dusk' ? 0.8 : 0.3), saturation: (L.saturation ?? 1.08) * 0.92 };   // (snow light is cold: the grade cools)
   const fog = new THREE.Color(map.fog?.color ?? 0xb9c6cc).lerp(new THREE.Color(0xd2d9e2), 0.6);
   map.fog = { ...map.fog, color: fog.getHex(), near: Math.min(map.fog?.near ?? 400, 260), far: Math.min(map.fog?.far ?? 1600, 1400) };
   const snowing = c.kind === 'overcast' || c.kind === 'rain' ? (c.kind === 'rain' ? 0.9 : 0.5) : 0;
@@ -49,7 +50,8 @@ function pickWeather(map, seed) {
   if (kind === 'overcast' || kind === 'rain') {
     const wet = kind === 'rain';
     map.light = { ...L, clouds: 0.97, sun: 0xdfe4e8, sunIntensity: L.sunIntensity * (wet ? 0.22 : 0.35), turbidity: L.turbidity + 4,
-      hemi: (L.hemi ?? 0.5) * 1.7, hemiSky: 0xc0c8ce, env: (L.env ?? 0.22) * 1.3, exposure: (L.exposure ?? 0.85) + 0.1 };
+      hemi: (L.hemi ?? 0.5) * 1.7, hemiSky: 0xc0c8ce, env: (L.env ?? 0.22) * 1.3, exposure: (L.exposure ?? 0.85) + 0.1,
+      warmth: (L.warmth ?? 1) * 0.5, saturation: (L.saturation ?? 1.08) * 0.93 };   // (grey day: the grade cooler and flatter)
     fog.lerp(grey, wet ? 0.75 : 0.55).multiplyScalar(wet ? 0.85 : 0.95);
     map.fog = { color: fog.getHex(), near: wet ? 110 : 200, far: wet ? 760 : 1250 };
     map.horizonFade = wet ? 0.85 : 0.45;
@@ -59,14 +61,15 @@ function pickWeather(map, seed) {
     // The sun on the hills, the sky going from orange to blue; the searchlights come on. A strong
     // blue fill from the sky keeps the trees and the grass readable in the foreground.
     map.light = { ...L, zenith: 87, sun: 0xff8448, sunIntensity: L.sunIntensity * 0.45, turbidity: 9, rayleigh: 3.4, clouds: 0.45,
-      hemi: (L.hemi ?? 0.5) * 1.6, hemiSky: 0x8c9cc4, hemiGround: 0x5a4c3e, env: (L.env ?? 0.22) * 1.35, exposure: (L.exposure ?? 0.85) + 0.25 };
+      hemi: (L.hemi ?? 0.5) * 1.6, hemiSky: 0x8c9cc4, hemiGround: 0x5a4c3e, env: (L.env ?? 0.22) * 1.35, exposure: (L.exposure ?? 0.85) + 0.25,
+      warmth: (L.warmth ?? 1) + 0.4 };   // (the low sun warms the grade)
     fog.lerp(new THREE.Color(0x8c7c84), 0.6).multiplyScalar(0.72);
     map.fog = { color: fog.getHex(), near: 220, far: 1300 };
     map.horizonFade = 0.55;
     map.sightScale = 0.75;
     map.dusk = true;
   } else {
-    map.light = { ...L, sunIntensity: L.sunIntensity * 0.8, exposure: (L.exposure ?? 0.85) + 0.05 };
+    map.light = { ...L, sunIntensity: L.sunIntensity * 0.8, exposure: (L.exposure ?? 0.85) + 0.05, warmth: (L.warmth ?? 1) * 0.6, saturation: (L.saturation ?? 1.08) * 0.95 };   // (mist: a cooler, softer grade)
     fog.lerp(new THREE.Color(0xd4d8d6), 0.5);
     map.fog = { color: fog.getHex(), near: 120, far: 900 };
     map.horizonFade = 0.7;

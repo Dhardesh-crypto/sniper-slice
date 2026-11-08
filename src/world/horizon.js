@@ -17,26 +17,40 @@ const LAYERS = [
   { radius: 2300, base: 60, height: 380, color: 0xa3b3bd, top: 0xb4c2ca, seed: 3 },
 ];
 
-function ring({ radius, base, height, color, top, seed }) {
-  const SEG = 360;
+// One ring of drawn ridgeline. It used to be a band of one colour, darker at the foot, and read as
+// a flat cut-out: now each slope is lit by how it faces the mission's sun (a ridge's sunny flank
+// light, the far flank in shade), the face is broken by gullies and woods (noise down the slope),
+// and the whole ring is washed toward the map's own fog colour by its distance (layer).
+const HAZE = [0.3, 0.5, 0.68];
+function ring({ radius, base, height, color, top, seed }, layer) {
+  const SEG = 360, ROWS = 5;
   const positions = [], colors = [];
   const lo = new THREE.Color(color), hi = new THREE.Color(top), c = new THREE.Color();
+  const L = activeMap().light ?? {}, fog = new THREE.Color(activeMap().fog?.color ?? 0xb9c6cc);
+  const az = THREE.MathUtils.degToRad(L.azimuth ?? 215), sun = [Math.sin(az), -Math.cos(az)];   // (x, z: compass bearing, north −z)
+  const ridge = (a) => base + height * (0.35 + 0.65 * fbm(Math.cos(a) * 3 + seed * 10, Math.sin(a) * 3 - seed * 7, 5));
   for (let i = 0; i <= SEG; i++) {
     const a = (i / SEG) * Math.PI * 2;
     // Ridgeline: broad swells plus finer peaks, wrapping seamlessly around the circle.
-    const u = Math.cos(a) * 3 + seed * 10, v = Math.sin(a) * 3 - seed * 7;
-    const h = base + height * (0.35 + 0.65 * fbm(u, v, 5));
-    const x = Math.cos(a) * radius, z = Math.sin(a) * radius;
-    positions.push(x, -60, z, x, h, z);
-    c.copy(lo);
-    colors.push(c.r, c.g, c.b);
-    c.copy(lo).lerp(hi, 0.8);
-    colors.push(c.r, c.g, c.b);
+    const h = ridge(a), x = Math.cos(a) * radius, z = Math.sin(a) * radius;
+    // The slope's facing: toward the centre (the viewer), turned along the ring by how steeply the
+    // ridge climbs there. Lit 0.7 (back to the sun) to 1.15 (facing it).
+    const slope = (ridge(a + 0.004) - ridge(a - 0.004)) / (0.008 * radius);
+    let nx = -Math.cos(a) - Math.sin(a) * slope * 2.5, nz = -Math.sin(a) + Math.cos(a) * slope * 2.5;
+    const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl;
+    const lit = 0.92 + 0.23 * (nx * sun[0] + nz * sun[1]);
+    for (let r = 0; r <= ROWS; r++) {
+      const f = r / ROWS, y = -60 + (h + 60) * f;
+      const gully = 0.85 + 0.3 * fbm(Math.cos(a) * 40 + seed * 3, f * 4 + seed, 3);   // (woods and gullies)
+      positions.push(x, y, z);
+      c.copy(lo).lerp(hi, 0.8 * f).multiplyScalar(lit * (r < ROWS ? gully : 1)).lerp(fog, HAZE[layer] * (0.6 + 0.4 * f));
+      colors.push(c.r, c.g, c.b);
+    }
   }
   const index = [];
-  for (let i = 0; i < SEG; i++) {
-    const k = i * 2;
-    index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+  for (let i = 0; i < SEG; i++) for (let r = 0; r < ROWS; r++) {
+    const k = i * (ROWS + 1) + r, n = k + ROWS + 1;
+    index.push(k, k + 1, n, k + 1, n + 1, n);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -74,6 +88,26 @@ function panorama(tex, k) {
   // the horizon is many times brighter than a texture holds), and it's tone-mapped with the rest.
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
   mat.color.setScalar(k);
+  // The far hills read flat: the render's haze, right for the distance, leaves their light and shade
+  // only a few percent apart. Local contrast brings it back: each texel's difference from the
+  // country round it (a blurred mip, 3.5 levels down, about 10 texels), as a ratio of brightness, is
+  // drawn out (to the power 1.8: each texel brighter or darker than its surroundings becomes 1.8
+  // times as much so), which keeps the overall tone, the hue and the haze but shows the ridges,
+  // gullies and woods. Held to 25% darker or 35% lighter: a plain difference turned the Po's poplar
+  // rows, dark against the white haze behind them, black. And only on solid land: the clear sky's
+  // texels still hold the haze colour Blender rendered there, which means nothing in the blur, so
+  // the effect fades out by the blurred texel's own cover (a ridge's edge stays as it was).
+  mat.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+      vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+      vec4 wide4 = texture2D( map, vMapUv, 3.5 );
+      float solid = smoothstep( 0.97, 1.0, wide4.a ) * smoothstep( 0.97, 1.0, sampledDiffuseColor.a );
+      const vec3 LUMA = vec3( 0.2126, 0.7152, 0.0722 );
+      float lr = dot( sampledDiffuseColor.rgb, LUMA ) / max( dot( wide4.rgb, LUMA ), 1e-4 );
+      sampledDiffuseColor.rgb *= mix( 1.0, clamp( pow( lr, 0.8 ), 0.75, 1.35 ), solid );
+      diffuseColor *= sampledDiffuseColor;`);
+  };
+  mat.customProgramCacheKey = () => 'horizon-panorama';
   mat.opacity = 1 - (activeMap().horizonFade ?? 0);   // (under cloud, rain or mist the far country fades)
   const m = new THREE.Mesh(g, mat);
   m.frustumCulled = false;
@@ -97,7 +131,7 @@ export function buildHorizon(scene, id = null) {
   })();
   // Farthest first, so nearer ridges are drawn over them.
   for (const L of [...LAYERS].reverse()) {
-    const m = ring(L);
+    const m = ring(L, LAYERS.indexOf(L));
     m.renderOrder = -10 + LAYERS.indexOf(L);
     group.add(m);
   }

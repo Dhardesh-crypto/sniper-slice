@@ -55,7 +55,7 @@ const map = {
   damage: { pads: [[190, 150, 6.5, 5]], craters: [[-200, -100, 6], [-185, -113, 5], [220, -90, 6], [250, 130, 5.5], [236, 118, 4.5]] },   // the ground the war left (terrain.js)
   wallStyle: 'lombardy',                 // its walls' photographs (public/textures/styles/)
   // Dawn after the night's flying: the sun just up in the east, cold blue shadows.
-  light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95 },
+  light: { zenith: 80, azimuth: 95, sun: 0xff9c5c, sunIntensity: 2.1, turbidity: 9, rayleigh: 2.8, clouds: 0.35, hemiSky: 0xa8bcd8, hemiGround: 0x4a4038, hemi: 0.55, exposure: 0.95, warmth: 0.9, saturation: 1.02 },   // (grade: Lombardy at dawn: the low sun warms it, the plain stays cool)
   fog: { color: 0xe0bcae },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   weather: { mist: 1 },   // ground mist lying over the field at dawn
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 150 }, start: START, navHalf: 300,
@@ -208,7 +208,7 @@ function site(scene, world) {
       blast: { radius: 10, hurt: 16, size: 2.4, burn: true, chain: 14, label: 'FUEL BOWSER' } });
     bowsers.push(tank);
   }
-  for (const [dx, dz] of [[0, 0], [3, 0], [0, 3]]) { const d = place(propModel('drums', { x: 2.1, y: 1.85, z: 1.45 }, { stretch: true, bright: 1.9 }), 104 + dx, Y, 132 + dz); b.box(2.0, 1.8, 1.4, d ? hidden : M.metal, 104 + dx, Y, 132 + dz); }
+  for (const [dx, dz] of [[0, 0], [3, 0], [0, 3]]) { const d = place(propModel('drums', { x: 2.1, y: 1.85, z: 1.45 }, { stretch: true }), 104 + dx, Y, 132 + dz); b.box(2.0, 1.8, 1.4, d ? hidden : M.metal, 104 + dx, Y, 132 + dz); }
   const tractor = vehicleModel('truck');
   tractor.position.set(70, Y, 160); tractor.rotation.y = Math.PI / 2; b.group.add(tractor);
   b.box(6, 2.4, 2.3, hidden, 70, Y + 0.3, 160);

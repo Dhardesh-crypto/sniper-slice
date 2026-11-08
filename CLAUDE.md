@@ -21,7 +21,12 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
   `game.advance(seconds)` runs the game synchronously (works with the tab hidden),
   `game.aimAt(x, y, z)`, `game.input.pressed.add('KeyE')` / `input.buttons.add('Mouse0')` to press.
 - Dev tools in `tools/`: `snap.js` (render a free camera, POST to a receiver on 127.0.0.1:5199),
-  `navcheck.js` (does furniture cut off guard paths), `sky-strip.js` (sample a mission's sky).
+  `navcheck.js` (does furniture cut off guard paths), `sky-strip.js` (sample a mission's sky),
+  `look-audit.js` (every model's albedo, roughness, metalness under one grey light, with contact
+  sheets) and `look-shots.js` (fixed before/after views per mission through the post chain).
+- Materials: every loaded model goes through `src/world/materials.js` `normalize()` once at load
+  (shine by kind, the brightness fixes in `materials.json`, the sky's share). Don't set roughness,
+  metalness or envMapIntensity in a loader; a material's envMapIntensity only counts with its own envMap.
 - Verify in the browser with numbers and pictures before calling something done.
 
 ## Assets

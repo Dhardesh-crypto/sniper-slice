@@ -82,7 +82,7 @@ export default {
     wallStyle: 'tuscany',               // its walls' photographs (public/textures/styles/)
     ...VINEYARD_MAP,
     // Late morning in Tuscany: high, warm sun through a light haze.
-    light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4 },
+    light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4, warmth: 1.45, saturation: 1.12 },   // (grade: Tuscany: the warmest, fullest)
     fog: { color: 0xb6c6cd },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
     animals: [['cow', 95, 40, 18, 4], ['horse', 80, -2, 8, 1]],   // a few cows in the east field, the farm's horse
   },

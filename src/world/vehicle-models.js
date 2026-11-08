@@ -20,8 +20,7 @@ function source(spec) {
   assets.models[spec.key]?.scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; });
   if (mesh) {
     if (!mesh.geometry.attributes.normal) mesh.geometry.computeVertexNormals();
-    if (mesh.material.map) mesh.material.map.colorSpace = THREE.SRGBColorSpace;
-    mesh.material.roughness = 0.8; mesh.material.metalness = 0.15;
+    // (Shine and brightness: the material step at load, kind vehicle, materials.js.)
     mesh.geometry.computeBoundingBox();
   }
   prepared.set(spec.key, mesh);

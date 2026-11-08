@@ -133,3 +133,10 @@ Direct the performance at generation (Eleven v3 `[shouting]`); filtering or leve
 
 ## Don't call the game unplayed (2026-11-08)
 I wrote "nobody has played it properly" because my own checks are scripted. The user plays every build by hand. Say "I haven't played it by hand" about my own testing, never about the user's.
+
+## A material's envMapIntensity does nothing without its own envMap (2026-11-08)
+three.js (r186) applies `material.envMapIntensity` only when `material.envMap` is set; with just `scene.environment`, every material gets `scene.environmentIntensity`. Months of per-loader values (0.15, 0.6) changed nothing. Set the env map on the material (materials.js does) or change scene.environmentIntensity, and measure the uniform, not the property.
+
+## Measure a texture over the surface that uses it (2026-11-08)
+A plain average of a model's texture counts the gutters between its UV islands: a building skin read albedo 0.009 that was really 0.25. Sample the maps at points on the triangles, weighted by area (materials.js `surfaceStats`, `tools/skins/uv-mask.mjs` offline).
+

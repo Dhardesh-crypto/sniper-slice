@@ -41,6 +41,9 @@ M = {
     'bridge': dict(region='serchio', zenith=40, azimuth=170, sun=0xfff0d8, lift=1.2, fade=5000, sea=None, seed=5),
     'airfield': dict(region='lombardy', zenith=80, azimuth=95, sun=0xff9c5c, lift=1.3, fade=4200, sea=None, seed=6),
     'radar': dict(region='coast', zenith=79, azimuth=290, sun=0xff9868, lift=1.7, fade=3600, sea=(-85, 85), seed=7),
+    # (Flak Line, added in the look pass, 8 Nov 2026: an Apennine ridge like the bridge's, so the same
+    #  region; before it the map had only the drawn ridgelines, flat bands of one colour.)
+    'flak': dict(region='serchio', zenith=72, azimuth=205, sun=0xffd9a8, lift=1.4, fade=4800, sea=None, seed=8),
 }[MISSION]
 rng = random.Random(M['seed'])
 SKY = __import__('json').load(open(os.path.join(os.path.dirname(__file__), 'skies.json')))[MISSION]

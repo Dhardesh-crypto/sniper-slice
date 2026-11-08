@@ -14,16 +14,18 @@ import { storeys } from './buildings.js';
 
 import { buildHorizon } from './horizon.js';
 import { makeWater } from './water.js';
+import { setEnvironment } from './materials.js';
 
 // Late-afternoon sun, about 24° up, low enough for long shadows and warm light.
 export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair treads, the terrace)
 
 // A map's own light and weather (all optional; these are the defaults): the sun's angle from the
 // zenith and its compass bearing in degrees, its colour and strength, the sky's haze, the clouds,
-// the sky-and-ground fill, and the exposure.
+// the sky-and-ground fill, and the exposure; warmth and saturation are the region's colour grade
+// (core/post.js: 1 and 1.08 are the grade every map had before; Tuscany warmer, the coast cooler).
 const CHARGE_REACH = 0.8;   // m past whatever a shot meets first that a charge on it still takes the bullet
 export const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
-  hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85 };
+  hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85, warmth: 1, saturation: 1.08 };
 
 export class World {
   // site: the mission's builder, (scene) => { solids, boxes, soldiers, spawn, ladders, … }.
@@ -142,6 +144,7 @@ export class World {
     envScene.add(sky.clone());
     scene.environment = pmrem.fromScene(envScene, 0, 1, 5000).texture;
     scene.environmentIntensity = L.env;
+    setEnvironment(scene.environment, L.env);   // (every loaded model's material gets it as its own, at its kind's share: materials.js)
     pmrem.dispose();
 
     const fog = activeMap().fog;          // a misty map brings the fog in close

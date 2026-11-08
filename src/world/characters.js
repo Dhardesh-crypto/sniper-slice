@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { loadGLB } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { addLods, lodReady } from './lod.js';
+import { normalizeModel } from './materials.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
   enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
@@ -59,7 +60,7 @@ export async function loadAssets(onProgress = () => {}) {
   await Promise.all(jobs.map(async ([key, file, kind]) => {
     try {
       const gltf = await loadGLB(url(file));
-      if (kind === 'model') assets.models[key] = gltf;
+      if (kind === 'model') { normalizeModel(gltf.scene, key); assets.models[key] = gltf; }   // (the one material step: materials.js)
       else assets.clips[key] = gltf.animations[0];
     } catch (e) {
       console.warn(`model ${file} missing`, e);

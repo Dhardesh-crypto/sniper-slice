@@ -149,7 +149,7 @@ const map = {
   ruinDust: 1,                         // (ruins.js: the low sun)
   wallStyle: 'umbria',                 // its walls' photographs (public/textures/styles/)
   // Late afternoon: a low golden sun from the west, long shadows down the streets.
-  light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9 },
+  light: { zenith: 70, azimuth: 250, sun: 0xffc488, sunIntensity: 2.6, turbidity: 7, rayleigh: 1.9, clouds: 0.35, hemiSky: 0xd8d0c0, exposure: 0.9, warmth: 1.2, saturation: 1.06 },   // (grade: Umbria: warm stone, a little less)
   fog: { color: 0xc4c4c0 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1], ['cow', -95, 215, 22, 4], ['goat', -175, 120, 14, 4], ['horse', -150, 205, 8, 1]],   // below the south wall; round the farm
   half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 310,   // (the guards' map reaches the farm and the crossroads)

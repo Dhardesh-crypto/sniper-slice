@@ -65,9 +65,9 @@ const map = {
   damage: { pads: [[-150, 215, 7, 5.5]], craters: [[-147, 205, 4.5], [40, 205, 5], [-60, 200, 5], [-20, 212, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Late autumn in the foothills: a low, pale sun through haze, the far ridges blue.
-  light: { zenith: 72, azimuth: 205, sun: 0xffd9a8, sunIntensity: 2.2, turbidity: 7, rayleigh: 1.8, clouds: 0.55, hemiSky: 0xb7c3cf, hemi: 0.55, exposure: 0.9 },
+  light: { zenith: 72, azimuth: 205, sun: 0xffd9a8, sunIntensity: 2.2, turbidity: 7, rayleigh: 1.8, clouds: 0.55, hemiSky: 0xb7c3cf, hemi: 0.55, exposure: 0.9, warmth: 0.7, saturation: 1.0 },   // (grade: an Apennine ridge)
   fog: { color: 0xaab4bb, near: 220, far: 1300 },
-  horizon: 'bridge', music: 'flak',               // (the Serchio valley's far country suits these hills; its own score)
+  horizon: 'flak', music: 'flak',               // (its own far country: Apennine ridges under its own sun, tools/horizons.sh; its own score)
   animals: [['cow', FARM.x + 40, FARM.z + 30, 18, 3]],
   half: 480, playHalf: 450, focus: { x: 0, z: 40, r: 170 }, start: START, navHalf: 330,
   maxSlope: 0.95,

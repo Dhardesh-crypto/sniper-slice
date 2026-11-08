@@ -1,0 +1,617 @@
+{
+ "public/textures/styles/tuscany/plaster.jpg": {
+  "region": "tuscany",
+  "target": {
+   "L": 56.57,
+   "a": 1.49,
+   "b": 15.93,
+   "sd": 9.83
+  },
+  "from": {
+   "L": 57.15,
+   "a": 2.69,
+   "b": 19.19,
+   "sd": 7.87
+  }
+ },
+ "public/textures/styles/tuscany/plaster2.jpg": {
+  "region": "tuscany",
+  "target": {
+   "L": 56.57,
+   "a": 1.49,
+   "b": 15.93,
+   "sd": 9.83
+  },
+  "from": {
+   "L": 63.87,
+   "a": -2.42,
+   "b": 11.38,
+   "sd": 5.89
+  }
+ },
+ "public/textures/styles/tuscany/stone.jpg": {
+  "region": "tuscany",
+  "target": {
+   "L": 56.57,
+   "a": 1.49,
+   "b": 15.93,
+   "sd": 9.83
+  },
+  "from": {
+   "L": 50.78,
+   "a": 2.91,
+   "b": 13.05,
+   "sd": 7.27
+  }
+ },
+ "public/models/skin_vineyard_28_-38.glb": {
+  "region": "tuscany",
+  "target": {
+   "L": 56.57,
+   "a": 1.49,
+   "b": 15.93,
+   "sd": 9.83
+  },
+  "from": {
+   "L": 54.5,
+   "a": 2.77,
+   "b": 20.11,
+   "sd": 18.3
+  }
+ },
+ "public/textures/styles/umbria/plaster.jpg": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 59.36,
+   "a": 1.95,
+   "b": 8.32,
+   "sd": 9.0
+  }
+ },
+ "public/textures/styles/umbria/plaster2.jpg": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 63.42,
+   "a": 3.71,
+   "b": 2.54,
+   "sd": 4.52
+  }
+ },
+ "public/textures/styles/umbria/stone.jpg": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 61.97,
+   "a": 2.01,
+   "b": 2.75,
+   "sd": 19.04
+  }
+ },
+ "public/models/skin_town_-114_165.glb": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 49.73,
+   "a": 2.74,
+   "b": 11.07,
+   "sd": 19.57
+  }
+ },
+ "public/models/skin_town_104_-8.glb": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 62.23,
+   "a": 2.75,
+   "b": 9.75,
+   "sd": 15.56
+  }
+ },
+ "public/models/skin_town_55_-112.glb": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 60.1,
+   "a": 2.03,
+   "b": 10.68,
+   "sd": 15.4
+  }
+ },
+ "public/models/skin_town_80_-33.glb": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 54.41,
+   "a": 1.91,
+   "b": 15.22,
+   "sd": 19.19
+  }
+ },
+ "public/models/skin_town_80_-87.glb": {
+  "region": "umbria",
+  "target": {
+   "L": 58.56,
+   "a": 2.95,
+   "b": 8.74,
+   "sd": 14.68
+  },
+  "from": {
+   "L": 57.3,
+   "a": 6.53,
+   "b": 9.6,
+   "sd": 15.14
+  }
+ },
+ "public/textures/styles/apennine/concrete.jpg": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 52.57,
+   "a": 0.18,
+   "b": -0.55,
+   "sd": 6.75
+  }
+ },
+ "public/textures/styles/apennine/plaster.jpg": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 50.89,
+   "a": -0.07,
+   "b": -0.67,
+   "sd": 6.31
+  }
+ },
+ "public/textures/styles/apennine/plaster2.jpg": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 61.41,
+   "a": 0.56,
+   "b": 5.55,
+   "sd": 8.0
+  }
+ },
+ "public/textures/styles/apennine/stone.jpg": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 42.26,
+   "a": -0.61,
+   "b": 4.11,
+   "sd": 20.8
+  }
+ },
+ "public/models/skin_bridge_-140_58.glb": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 38.55,
+   "a": 1.01,
+   "b": 2.01,
+   "sd": 18.68
+  }
+ },
+ "public/models/skin_forest_-10_190.glb": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 43.55,
+   "a": 0.46,
+   "b": 1.38,
+   "sd": 18.45
+  }
+ },
+ "public/models/skin_forest_-120_75.glb": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 38.47,
+   "a": 0.53,
+   "b": 2.37,
+   "sd": 19.08
+  }
+ },
+ "public/models/skin_forest_95_-45.glb": {
+  "region": "apennine",
+  "target": {
+   "L": 45.84,
+   "a": 0.45,
+   "b": 2.13,
+   "sd": 14.14
+  },
+  "from": {
+   "L": 38.98,
+   "a": 1.52,
+   "b": 2.84,
+   "sd": 15.07
+  }
+ },
+ "public/textures/styles/po/plaster.jpg": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 67.77,
+   "a": -1.72,
+   "b": 16.41,
+   "sd": 5.36
+  }
+ },
+ "public/textures/styles/po/plaster2.jpg": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 52.11,
+   "a": 6.8,
+   "b": 10.9,
+   "sd": 8.44
+  }
+ },
+ "public/textures/styles/po/stone.jpg": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 40.69,
+   "a": 6.29,
+   "b": 5.28,
+   "sd": 10.1
+  }
+ },
+ "public/models/skin_railway_0_-16.glb": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 60.11,
+   "a": -0.11,
+   "b": 25.73,
+   "sd": 17.55
+  }
+ },
+ "public/models/skin_railway_60_26.glb": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 64.77,
+   "a": -0.69,
+   "b": 20.38,
+   "sd": 18.06
+  }
+ },
+ "public/models/skin_railway_78_-11.glb": {
+  "region": "po",
+  "target": {
+   "L": 55.21,
+   "a": 1.75,
+   "b": 13.28,
+   "sd": 12.45
+  },
+  "from": {
+   "L": 45.8,
+   "a": -0.07,
+   "b": 0.95,
+   "sd": 15.17
+  }
+ },
+ "public/textures/styles/liguria/concrete.jpg": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 54.92,
+   "a": 0.64,
+   "b": 1.05,
+   "sd": 8.08
+  }
+ },
+ "public/textures/styles/liguria/plaster.jpg": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 65.9,
+   "a": 0.24,
+   "b": 0.43,
+   "sd": 7.21
+  }
+ },
+ "public/textures/styles/liguria/plaster2.jpg": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 64.67,
+   "a": 2.83,
+   "b": 16.45,
+   "sd": 5.3
+  }
+ },
+ "public/textures/styles/liguria/stone.jpg": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 48.48,
+   "a": 0.08,
+   "b": 1.5,
+   "sd": 23.15
+  }
+ },
+ "public/models/skin_harbour_-140_30.glb": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 57.69,
+   "a": 3.31,
+   "b": 19.95,
+   "sd": 16.95
+  }
+ },
+ "public/models/skin_harbour_-40_30.glb": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 57.69,
+   "a": 3.3,
+   "b": 19.95,
+   "sd": 16.95
+  }
+ },
+ "public/models/skin_harbour_0_25.glb": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 54.09,
+   "a": 2.57,
+   "b": 16.12,
+   "sd": 17.55
+  }
+ },
+ "public/models/skin_radar_-30_30.glb": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 63.36,
+   "a": 0.1,
+   "b": 5.1,
+   "sd": 16.43
+  }
+ },
+ "public/models/skin_radar_60_70.glb": {
+  "region": "liguria",
+  "target": {
+   "L": 57.23,
+   "a": 1.43,
+   "b": 9.06,
+   "sd": 14.29
+  },
+  "from": {
+   "L": 48.29,
+   "a": -0.2,
+   "b": 1.02,
+   "sd": 16.99
+  }
+ },
+ "public/textures/styles/lombardy/concrete.jpg": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 50.73,
+   "a": 0.22,
+   "b": -0.81,
+   "sd": 5.31
+  }
+ },
+ "public/textures/styles/lombardy/plaster.jpg": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 58.85,
+   "a": 1.62,
+   "b": 8.09,
+   "sd": 6.16
+  }
+ },
+ "public/textures/styles/lombardy/plaster2.jpg": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 55.16,
+   "a": -5.12,
+   "b": 2.26,
+   "sd": 7.35
+  }
+ },
+ "public/textures/styles/lombardy/stone.jpg": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 53.85,
+   "a": 17.89,
+   "b": 13.23,
+   "sd": 10.53
+  }
+ },
+ "public/models/skin_airfield_-150_170.glb": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 49.1,
+   "a": -0.11,
+   "b": -0.32,
+   "sd": 15.84
+  }
+ },
+ "public/models/skin_airfield_40_112.glb": {
+  "region": "lombardy",
+  "target": {
+   "L": 54.32,
+   "a": 2.49,
+   "b": 5.27,
+   "sd": 10.82
+  },
+  "from": {
+   "L": 58.23,
+   "a": 0.47,
+   "b": 9.2,
+   "sd": 19.71
+  }
+ }
+}
