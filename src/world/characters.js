@@ -85,6 +85,32 @@ function removeYaw(track) {
   }
 }
 
+// Square up the stance of a clip that swings the hips round on planted feet (Meshy's idle turns
+// the hips through some 90 degrees while the feet stay put, shuffling the right one). Taking the
+// twist out of the hips alone left the legs' counter-twist in, so the legs swung round under a
+// still body and the feet slid and pivoted. Standing square, the legs have nothing to do: the
+// lower body holds the clip's first pose, turned to face forward (each leg kept as it was in the
+// world, under the squared hips), and the spine and arms above it go on breathing.
+function squareStance(clip) {
+  const find = n => clip.tracks.find(t => t.name === n);
+  const hipQ = find('Hips.quaternion');
+  if (!hipQ) return;
+  const at0 = t => t.createInterpolant().evaluate(0).slice();
+  const twistOf = q => new THREE.Quaternion(0, q.y, 0, q.w).normalize();
+  const raw = new THREE.Quaternion().fromArray(at0(hipQ));
+  const turn = twistOf(raw).invert();                     // the one turn that squares the stance
+  const swing = raw.clone().multiply(turn);               // the hips without their twist
+  const hold = (t, values) => { clip.tracks[clip.tracks.indexOf(t)] = new t.constructor(t.name, [0, clip.duration], [...values, ...values]); };
+  hold(hipQ, swing.toArray());
+  const hipP = find('Hips.position');
+  if (hipP) hold(hipP, new THREE.Vector3().fromArray(at0(hipP)).applyQuaternion(turn).toArray());
+  for (const side of ['Left', 'Right']) {
+    const up = find(side + 'UpLeg.quaternion');
+    if (up) hold(up, swing.clone().invert().multiply(turn).multiply(raw).multiply(new THREE.Quaternion().fromArray(at0(up))).toArray());
+    for (const b of ['Leg', 'Foot', 'ToeBase']) { const t = find(side + b + '.quaternion'); if (t) hold(t, at0(t)); }
+  }
+}
+
 // Take the travel out of a clip (the game moves the body itself): the hips' net drift over the
 // clip, along these axes, is removed, keeping the sway within it. The clips are in centimetres.
 function inPlace(clip, axes) {
@@ -111,8 +137,9 @@ function buildDerivedClips() {
   }
   if (c.idle) {
     c.idle = c.idle.clone();
-    const SQUARE = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck'];
+    const SQUARE = ['Spine02', 'Spine01', 'Spine', 'neck'];
     for (const t of c.idle.tracks) if (t.name.endsWith('.quaternion') && SQUARE.includes(boneOf(t))) removeYaw(t);
+    squareStance(c.idle);
   }
   // Lower-body versions of the stand/walk/crouch clips (the arms come from the hold layer).
   for (const k of ['idle', 'walk', 'crouch', 'lookAround']) {

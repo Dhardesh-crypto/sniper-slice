@@ -1293,3 +1293,18 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
       (the standalone-env Python has no torch).
 - Not tried: PBR maps (would need normal maps on the skins in the game), TRELLIS.2 meshes (Meta's DINOv3 licence),
   SkinTokens rigging (needs an NVIDIA card).
+
+## 8 November 2026: the idle's legs stand still
+
+- [x] Standing still, the legs swung round under the body and the feet slid and pivoted (the right foot up to 0.46 m and some 50 degrees). Cause: Meshy's idle turns the hips through about 90 degrees on planted feet; we took that twist out of the hips to square him up, but the legs kept their counter-twist, so they swung instead.
+- [x] `squareStance` in `src/world/characters.js`: the lower body holds the clip's first pose, turned to face forward; the spine, head and arms still breathe. Guards share the clip, so they stand still too.
+- [x] Checked by measuring the feet over the clip (fixed to the millimetre now) and by frames before and after: `tasks/idle-legs-before-after.jpg` (rows 1 and 3 before, 2 and 4 after). Not yet looked at by hand in a mission.
+
+## 8 November 2026: the view went wild on the MG42
+
+- [x] On the Sea Wall nest's gun the camera tumbled (sky, ground, upside down, frame after frame). Cause: the recoil springs (`arsenal.js`, kick and roll) were stepped once per frame, and the kick's spring goes unstable once a frame takes longer than about 1/12 s. The recording shows the game at 6 to 10 fps there, and frames are capped at 0.1 s, so every burst grew instead of settling (simulated at 10 fps: 460,000 rad).
+- [x] Now stepped in slices of at most 1/120 s. Tested: simulated at 60, 12 and 10 fps (the kick stays under 0.01 rad), and 160 rounds from the Sea Wall nest with the game run at 10 fps (the camera's pitch stayed within 0.4 degrees).
+- [x] Why the game sank to 6 to 10 fps there: two costs that grew with a long burst, made worse by the fixed-step loop (a slow frame runs several game steps to catch up, which makes the next frame slower still).
+  - Bullets: each round was raycast against the world's 710 targets six times a step (once a substep), some 100 raycasts a step with 15 to 20 MG42 rounds in the air. Now once a step along the chord (it strays about a millimetre from the curve); `simulate()` does the same, so the kill cam still matches. 300 random shots against the Sea Wall map hit the same thing in the same body zone both ways, at most 9 mm apart. Bullets: 6.5 to 1.8 ms a frame while firing.
+  - Guards' routes (`nav.js`, `guards.js`): men up to 350 m off ran toward the gunfire and planned their whole route again every second as the spot shifted, 20 to 80 ms a search on the 640 m grid, with failed searches at about 40 ms. Now the search leans toward the goal (weighted A*, weight 2: the same 107 routes take 60 ms instead of 520, routes 2.3% longer on average, 11% at worst), a far-off target must move a tenth of the way before a new plan, and a place with no way there isn't searched again for 3 s. AI: 4.8 to 1.4 ms a frame; the second-by-second spikes of 100 to 200 ms are gone (one of 137 ms in 8 s of firing).
+  - Rendering is still the biggest share (25 ms a frame in the hidden test pane, which isn't a fair measure of a real screen). Not played by hand yet.

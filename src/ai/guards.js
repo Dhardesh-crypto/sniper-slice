@@ -932,12 +932,17 @@ export class GuardAI {
     if (s.limp) speed *= 0.45;                          // and limping after it
     if (Math.hypot(target.x - pos.x, target.z - pos.z) < 0.6 && Math.abs(target.y - pos.y) < 1.6) { b.path = null; return true; }   // (not the room overhead)
     b.repathT -= dt;
-    const moved = b.pathTarget && b.pathTarget.distanceTo(target) > 2;
+    // A new route when the target has moved: 2 m when it's near, a tenth of the way when it's far
+    // (a man 300 m off needn't plan his whole way again for every few metres the spot shifts).
+    const far = Math.hypot(target.x - pos.x, target.z - pos.z);
+    const moved = b.pathTarget && b.pathTarget.distanceTo(target) > Math.max(2, 0.1 * far);
+    // Where there was just no way, don't search the whole map again every step (a few seconds).
+    if (!b.path && b.noWay && b.noWay.distanceTo(target) < 2 && this.world.time - b.noWayT < 3) { this.stop(s); return true; }
     if (!b.path || ((moved || b.stuck) && b.repathT <= 0)) {
       b.path = this.nav.path(pos, target);
       b.pathTarget = target.clone();
       b.wpi = 0; b.repathT = 1;
-      if (!b.path) { this.stop(s); b.lookT = b.lookT || 0.01; return true; } // no way there: treat it as reached
+      if (!b.path) { b.noWay = target.clone(); b.noWayT = this.world.time; this.stop(s); b.lookT = b.lookT || 0.01; return true; } // no way there: treat it as reached
     }
     const wp = b.path[b.wpi];
     const dx = wp.x - pos.x, dz = wp.z - pos.z, dist = Math.hypot(dx, dz);

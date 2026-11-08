@@ -13,6 +13,8 @@ const NEAR_MISS = 1.6;            // m from his head: a round this close and he 
 const _nm = new THREE.Vector3(), _nh = new THREE.Vector3(), _nq = new THREE.Vector3();
 const FIXED_STEP = 1 / 60;
 const _v = new THREE.Vector3();
+// The substep points of a step that come before a hit `dist` along the chord from `from`.
+const before = (from, pts, dist) => pts.filter(p => p.distanceTo(from) < dist);
 
 function tanFov(deg) { return Math.tan(THREE.MathUtils.degToRad(deg) / 2); }
 function fovFromTan(t) { return THREE.MathUtils.radToDeg(Math.atan(t) * 2); }
@@ -447,15 +449,16 @@ export class Arsenal {
     const pos = bullet.pos.clone(), vel = bullet.vel.clone(), prev = new THREE.Vector3();
     const path = [pos.clone()];
     const h = FIXED_STEP / BULLET_SUBSTEPS;
-    for (let t = 0; t < maxTime; t += h) {
+    for (let t = 0; t < maxTime; t += FIXED_STEP) {
       prev.copy(pos);
-      integrate(pos, vel, bullet.def.drag, this.ballisticWind, h);
+      const pts = [];
+      for (let i = 0; i < BULLET_SUBSTEPS; i++) { integrate(pos, vel, bullet.def.drag, this.ballisticWind, h); pts.push(pos.clone()); }
       const hit = this.world.raycastSegment(prev, pos);
       if (hit) {
-        path.push(hit.point.clone());
-        return { path, hit, time: t + h, vel };
+        path.push(...before(prev, pts, hit.distance), hit.point.clone());
+        return { path, hit, time: t + FIXED_STEP * hit.distance / Math.max(1e-6, prev.distanceTo(pos)), vel };
       }
-      path.push(pos.clone());
+      path.push(...pts);
     }
     return { path, hit: null, time: maxTime, vel };
   }
@@ -490,25 +493,27 @@ export class Arsenal {
     return { bullet, ...sim, distance };
   }
 
+  // The flight is integrated in small substeps, but the world is asked once a step, along the
+  // chord from where the round was to where it is (over 1/60 s it bows from that line by about a
+  // millimetre). A raycast a substep made a long MG42 burst cost some 100 raycasts a step, and
+  // with the fixed-step loop catching up on slow frames, that sank the game to 6 to 10 fps.
   tickBullets(dt) {
     const h = dt / BULLET_SUBSTEPS;
     for (const b of this.bullets) {
-      for (let i = 0; i < BULLET_SUBSTEPS && !b.dead; i++) {
-        b.prev.copy(b.pos);
-        integrate(b.pos, b.vel, b.def.drag, this.ballisticWind, h);
-        b.time += h;
-        // (the man it just went through doesn't stop it, but whoever stands right behind him does:
-        // skipping the whole step skipped a man within a metre of him, so no triple kills)
-        const hit = this.world.raycastSegment(b.prev, b.pos, b.ignore);
-        this.nearMisses(b, b.prev, hit ? hit.point : b.pos);
-        if (hit) {
-          b.path.push(hit.point.clone());
-          this.resolveHit(b, hit);
-          b.dead = true;
-        } else {
-          b.path.push(b.pos.clone());
-          if (b.time > 4 || b.pos.y < -100) b.dead = true;
-        }
+      b.prev.copy(b.pos);
+      const pts = [];
+      for (let i = 0; i < BULLET_SUBSTEPS; i++) { integrate(b.pos, b.vel, b.def.drag, this.ballisticWind, h); pts.push(b.pos.clone()); }
+      b.time += dt;
+      // (the man it just went through doesn't stop it, but whoever stands right behind him does)
+      const hit = this.world.raycastSegment(b.prev, b.pos, b.ignore);
+      this.nearMisses(b, b.prev, hit ? hit.point : b.pos);
+      if (hit) {
+        b.path.push(...before(b.prev, pts, hit.distance), hit.point.clone());
+        this.resolveHit(b, hit);
+        b.dead = true;
+      } else {
+        b.path.push(...pts);
+        if (b.time > 4 || b.pos.y < -100) b.dead = true;
       }
       if (b.dead) this.lastTrajectory = b.path;
     }
@@ -737,12 +742,16 @@ export class Arsenal {
     }
 
     // Recoil: damped springs kick the view up and roll it, plus a short shake.
-    const k = 140, c = 2 * Math.sqrt(k) * 0.75;
-    this.recoilVel += (-k * this.recoil - c * this.recoilVel) * dt;
-    this.recoil += this.recoilVel * dt;
-    const kr = 90, cr = 2 * Math.sqrt(kr) * 0.6;
-    this.rollVel += (-kr * this.roll - cr * this.rollVel) * dt;
-    this.roll += this.rollVel * dt;
+    // Stepped in slices of at most 1/120 s: in one step these stiff springs blow up once a frame
+    // takes longer than about 1/12 s (a slow frame under a long burst threw the view right round).
+    const k = 140, c = 2 * Math.sqrt(k) * 0.75, kr = 90, cr = 2 * Math.sqrt(kr) * 0.6;
+    const n = Math.ceil(dt * 120), h = dt / Math.max(1, n);
+    for (let i = 0; i < n; i++) {
+      this.recoilVel += (-k * this.recoil - c * this.recoilVel) * h;
+      this.recoil += this.recoilVel * h;
+      this.rollVel += (-kr * this.roll - cr * this.rollVel) * h;
+      this.roll += this.rollVel * h;
+    }
     if (this.player.jolt) { this.shake = Math.max(this.shake, this.player.jolt); this.player.jolt = 0; }   // (a near miss: player.js)
     this.shake *= Math.exp(-10 * dt);
     if (this.shake > 0.01) {
