@@ -22,6 +22,26 @@ function snowOn(mat, amount, from = 0.35) {
   mat.needsUpdate = true;
 }
 
+// Snow by a per-vertex amount the model carries (`snowCover`, 0…1): the grown trees' crowns
+// (tools/blender/trees.py). Their normals lean toward the sky so a crown's underside isn't black
+// against a bright sky, which means they can't say which side is really on top any more; the
+// model works that out when it's built (the top of the umbrella pine's roof, the outside of the
+// cypress's column) and the snow follows it, so it lies on the upper branches only.
+function snowCoverOn(mat, amount) {
+  if (mat.userData.snowed) return;
+  mat.userData.snowed = true;
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey?.bind(mat);
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.vertexShader = 'attribute float snowCover;\nvarying float vSnowCover;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vSnowCover = snowCover;`);
+    sh.fragmentShader = 'varying float vSnowCover;\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      diffuseColor.rgb = mix(diffuseColor.rgb, ${SNOW}, smoothstep(0.1, 0.8, vSnowCover) * ${amount.toFixed(2)});`);
+  };
+  mat.customProgramCacheKey = () => (prevKey?.() ?? '') + '|snowCover';
+  mat.needsUpdate = true;
+}
+
 // The far country (an unlit picture of summer hills): drained of colour and lifted, as if snowed on.
 function paleOn(mat) {
   if (mat.userData.snowed) return;
@@ -46,6 +66,7 @@ export function applyWinter(scene) {
       if (o.renderOrder === -5 && mat.isMeshBasicMaterial && mat.map) { paleOn(mat); continue; }   // (the horizon)
       if (mat.transparent && !mat.alphaTest) continue;                // (glows, smoke, decals, glass)
       if (mat.vertexColors && mat.isMeshLambertMaterial) continue;    // (the grass: its own colours)
+      if (mat.userData.snowCover && o.geometry.attributes.snowCover) { snowCoverOn(mat, 0.85); continue; }   // (the grown trees' crowns)
       if (mat.isMeshStandardMaterial || mat.isMeshLambertMaterial || mat.isMeshPhongMaterial) snowOn(mat, mat.alphaTest ? 0.6 : 0.8, mat.alphaTest ? 0.0 : 0.35);   // (leaf cards: snow lies on more of a crown than its tops)
     }
   });

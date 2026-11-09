@@ -6,7 +6,7 @@ import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
-import { propGeometry, treeParts } from './props.js';
+import { treeParts } from './props.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
@@ -152,14 +152,14 @@ function makeTreeTypes() {
       ], 0x34512a, 0x84a55c, { cards: 200, cardSize: 1.8, seed: 5 }),
       coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.85, 1.25],
     },
-    { // Italian cypress (the modelled one where it's loaded)
-      name: 'cypress', count: 380, model: propGeometry('cypress', { y: 10 }), lod: propGeometry('cypressLod', { y: 10 }),
+    { // Italian cypress (grown in Blender, trees.py; the drawn one if it isn't loaded)
+      name: 'cypress', count: 380, blender: 'treeCypress', shade: { trunk: 0.5, crown: [0.6, 0.62, 0.46], far: [0.6, 0.62, 0.46] }, noAO: true,
       trunk: new THREE.CylinderGeometry(0.16, 0.22, 2, 10).translate(0, 1, 0), trunkR: 0.25,
       crown: canopy([[cypressCone, 0, 5.6, 0]], 0x2a4421, 0x5c7f48, { cards: 260, cardSize: 1.25, seed: 1 }),
-      coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.8, 1.3],
+      coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.75, 1.15],   // (11.4 m at 1)
     },
-    { // umbrella (stone) pine: a wide flat crown of overlapping clumps (or the model)
-      name: 'pine', count: 160, model: propGeometry('pine', { y: 9 }), lod: propGeometry('pineLod', { y: 9 }),
+    { // umbrella (stone) pine: a wide flat crown of overlapping clumps (grown in Blender, or drawn)
+      name: 'pine', count: 160, blender: 'treePine', shade: { trunk: 0.5, crown: [0.38, 0.42, 0.26], far: [0.38, 0.42, 0.26] }, noAO: true,
       trunk: new THREE.CylinderGeometry(0.2, 0.32, 7, 10).translate(0, 3.5, 0), trunkR: 0.32,
       crown: canopy([
         [blob(2.4, 1.3, 0.45, 1.3, 1, 0.22, 2), 0, 7.6, 0],
@@ -167,7 +167,7 @@ function makeTreeTypes() {
         [blob(1.6, 1.2, 0.5, 1.2, 3), -1.7, 7.3, -1.0],
         [blob(1.4, 1.2, 0.5, 1.2, 4), 0.3, 7.1, -2.1],
       ], 0x2c4220, 0x6f9050, { cards: 160, cardSize: 1.8, seed: 2 }),
-      coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.8, 1.2],
+      coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.65, 0.95],   // (13 m at 1: 8.5–12 m, the old 7–11 m a little grown)
     },
     { // olive: silvery, clumpy and low
       name: 'olive', count: 520, blender: 'treeOlive', shade: { trunk: 0.45, crown: 0.75, far: 0.75 },
@@ -248,11 +248,9 @@ export function buildTrees(scene) {
         scene.add(im);
         return im;
       };
-      // A modelled tree draws itself whole; its trunk stays, undrawn, for bullets.
-      const parts = type.model || built ? [[type.trunk, HIDDEN]]
+      // A Blender tree draws itself (below); its trunk stays, undrawn, for bullets.
+      const parts = built ? [[type.trunk, HIDDEN]]
         : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
-      // (A model with a far version draws whole only near by: see below.)
-      if (type.model && !built && !type.lod) parts.push([type.model.geometry, type.model.material]);
       const meshes = parts.map(instanced);
       trunks.push(meshes[0]);
       const [cx, cz] = k.split(',').map(Number);
@@ -260,12 +258,13 @@ export function buildTrees(scene) {
       const c = chunks.get(k);
       c.meshes.push(...meshes);
       if (built) {
-        c.near.push(instanced([built.trunk.geometry, built.trunk.material]), instanced([built.crown.geometry, built.crown.material]));
-        c.far.push(instanced([built.far.geometry, built.far.material]));
-      } else if (type.model && type.lod) {
-        // A modelled tree and its decimated far version (a sixth of the triangles), with its texture.
-        c.near.push(instanced([type.model.geometry, type.model.material]));
-        c.far.push(instanced([type.lod.geometry, type.model.material]));
+        const crown = instanced([built.crown.geometry, built.crown.material]), far = instanced([built.far.geometry, built.far.material]);
+        // noAO: kept out of the AO's normal pass (post.js), which draws every mesh with one material
+        // that knows nothing of alpha: each card counted as a solid quad, and the big cards of
+        // a crown seen against the sky left dark rectangles round its edges.
+        if (type.noAO) crown.userData.noAO = far.userData.noAO = true;
+        c.near.push(instanced([built.trunk.geometry, built.trunk.material]), crown);
+        c.far.push(far);
       }
     }
   }

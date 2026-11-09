@@ -74,13 +74,13 @@ export const PROPS = {
   kitchen: { file: 'prop_kitchen', turn: 1 },
   supplies: { file: 'prop_supplies', turn: 0 },
   fishingBoat: { file: 'prop_fishing_boat', turn: 0 },
-  // The realism pass: vegetation (the vineyard's rows, cypresses, umbrella pines, rocks) and burnt-out wrecks.
+  // The realism pass: vegetation (the vineyard's rows, rocks) and burnt-out wrecks.
   // (Leafy crowns don't come out of image-to-3D: the olives and oaks stay the drawn leaf-card trees.)
   // Trees built in Blender (tools/blender/trees.py): see treeParts().
   groundDetail: { file: 'ground_detail', turn: 0 }, archKit: { file: 'arch_kit', turn: 0 }, interiorKit: { file: 'interior_kit', turn: 0 }, anatomy: { file: 'anatomy', turn: 0 },   // the houses' stone dressing (arch.js)
   treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
-  vineRow: { file: 'prop_vine_row', turn: 1 }, cypress: { file: 'tree_cypress', turn: 0 }, pine: { file: 'tree_pine', turn: 0 },
-  cypressLod: { file: 'tree_cypress_lod', turn: 0 }, pineLod: { file: 'tree_pine_lod', turn: 0 },   // far versions (tools/blender/lods.py)
+  treePine: { file: 'tree_pine', turn: 0 }, treeCypress: { file: 'tree_cypress', turn: 0 },   // (grown from a seed: trees.py grow())
+  vineRow: { file: 'prop_vine_row', turn: 1 },
   rock: { file: 'prop_rock', turn: 0 },
   ruinKit: { file: 'ruin_kit', turn: 0 },   // debris for ruins.js (tools/blender/ruin_kit.py)
   wreckPanzer: { file: 'wreck_panzer', turn: 3 }, wreckTiger: { file: 'wreck_tiger', turn: 2 }, wreckTruck: { file: 'wreck_truck', turn: 3 },
@@ -129,6 +129,25 @@ function cardMap(t) {
   }
   return cardMaps.get(t);
 }
+// A double-sided material normally turns a face's normal round when its back is toward you. A
+// grown crown's normals don't belong to its cards but to the crown (bent out from its middle and
+// up toward the sky), so turned round they pointed into the crown and down: every card seen from
+// behind went dark beside its sunlit neighbours, a patchwork of light and dark leaves. Here both
+// sides count as the front, so the whole crown shades as one mass. And no sheen: normals leaning
+// skyward meet a level view at a grazing angle, where every surface turns mirror-like (Fresnel),
+// and the crown's sunny side went white with reflected sky; needles are matte.
+function crownShading(m) {
+  const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey?.bind(m);
+  m.onBeforeCompile = (sh, r) => {
+    prev?.call(m, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>',
+      THREE.ShaderChunk.normal_fragment_begin.replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;'))
+      .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
+        material.specularF90 = 0.04; material.specularColorBlended = vec3( 0.02 );`);
+  };
+  m.customProgramCacheKey = () => (prevKey?.() ?? '') + '|crown';
+}
+
 export function modelParts(k, shade = {}) {
   const src = assets.models[k]?.scene;
   if (!src) return null;
@@ -146,7 +165,15 @@ export function modelParts(k, shade = {}) {
     const s = shade[o.name] ?? 1, fix = m.userData.look?.fix ?? 1;
     if (Array.isArray(s)) m.color.setRGB(...s); else m.color.setScalar(s);
     m.color.multiplyScalar(fix);
-    parts[o.name] = { geometry: o.geometry.clone().applyMatrix4(o.matrixWorld), material: m };
+    const geometry = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    // A grown tree's crown (trees.py) says where its snow lies (`_snow`, glTF's _SNOW; winter.js
+    // reads it), and its normals are worked out for the crown as a whole: see crownShading().
+    if (geometry.attributes._snow) {
+      geometry.setAttribute('snowCover', geometry.attributes._snow); geometry.deleteAttribute('_snow');
+      m.userData.snowCover = true;
+      crownShading(m);
+    }
+    parts[o.name] = { geometry, material: m };
   });
   return parts;
 }
