@@ -16,7 +16,8 @@ const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tan
   guardLuftwaffe: 'guard_luftwaffe', guardSailor: 'guard_sailor', guardPionier: 'guard_pionier', guardTanker: 'guard_tanker',
   // Tripo models rigged onto our skeleton in Blender (tools/blender/tripo_rig.py).
   // Alpine trooper, military policeman, paratrooper, Italian soldier, grenadier in a greatcoat, sniper.
-  guardAlpine: 'guard_alpine', guardMP: 'guard_mp', guardPara: 'guard_para', guardItalian: 'guard_italian', guardWinter: 'guard_winter', guardSniper: 'guard_sniper' };
+  guardAlpine: 'guard_alpine', guardMP: 'guard_mp', guardPara: 'guard_para', guardItalian: 'guard_italian', guardWinter: 'guard_winter', guardSniper: 'guard_sniper',
+  guardFlamer: 'guard_flamer' };   // the flamethrower man (world/flamer.js)
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',

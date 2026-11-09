@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { clearXray } from './anatomy.js';
 import { Character, buildHitZones, solveArmIK } from './characters.js';
 import { Ragdoll, setBodyPose } from './ragdoll.js';
+import { fitFlamer } from './flamer.js';
 
 const UP = new THREE.Vector3(0, 1, 0), MIDDLE = new THREE.Vector3(0, 0.9, 0);
 const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fq = new THREE.Quaternion(), _fq2 = new THREE.Quaternion(), _fq3 = new THREE.Quaternion();   // (flinch scratch)
@@ -55,6 +56,7 @@ export class Soldier {
     const zones = buildHitZones(this.char, this);
     this.hitMeshes = zones.meshes;
     this.frames = zones.frames;
+    if (look === 'guardFlamer') fitFlamer(this);   // the flame gun, and a hit zone on his fuel tanks (world/flamer.js)
 
     this.root.position.copy(position);
     this.root.rotation.y = yaw;
@@ -145,6 +147,8 @@ export class Soldier {
 
   applyHit(zone, weapon, bulletDir, opts = {}) {
     if (!this.alive) return { zone, killed: false, damage: 0, already: true };
+    // The flamethrower's tanks: one round and they go up (world/flamer.js makes the blast), him with them.
+    if (zone === 'tanks') { if (this.flamer && !this.flamer.blown) this.flamer.blownPending = true; weapon = { damage: { tanks: 999 } }; }
     const damage = weapon.damage[zone] ?? 50;
     this.hp -= damage;
     if (this.hp <= 0) {

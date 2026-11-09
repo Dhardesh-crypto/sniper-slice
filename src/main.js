@@ -79,6 +79,7 @@ import { PadNav } from './ui/padnav.js';
 import { Tutorial } from './mission/tutorial.js';
 import { initGlyphs, fill } from './ui/glyphs.js';
 import { findApproaches, faceTarget } from './mission/approaches.js';
+import { Flamers } from './world/flamer.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -331,6 +332,8 @@ if (orders?.sight) stealth.sightK = orders.sight;
 if (orders?.ears) stealth.earsK = orders.ears;
 if (orders?.dogs) dogs.more(orders.dogs);
 const counterfire = new CounterFire({ scene, world, player, stealth, ai, audio, explosions, beltGrenades });
+const flamers = new Flamers({ world, player, stealth, audio, fx, explosions, ai });   // the flamethrower men (world/flamer.js)
+ai.flamers = flamers;
 hud.grenades = () => counterfire.near();
 const clues = new Clues({ world, stealth, interactions });
 if (orders?.mate) clues.mateTime = orders.mate;
@@ -701,6 +704,7 @@ function tick(dt) {
   alarms.tick(dt);
   ai.tick(dt);
   counterfire.tick(dt);
+  flamers.tick(dt);
   dogs.tick(dt);
   patrol.tick(dt);
   searchlights.tick(dt);

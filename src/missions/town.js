@@ -419,6 +419,7 @@ function site(scene) {
   add(-50, -41, Math.PI / 2, { name: 'North patrol' });
   add(-50, 40, Math.PI / 2, { name: 'South patrol', look: 'guardItalian' });
   add(-48, -30, 0, { name: 'West patrol', look: 'guardSergeant' });
+  add(-44, -28, Math.PI / 2, { name: 'Flamethrower', stance: 'alert', look: 'guardFlamer' });   // (for clearing houses: he comes for you, world/flamer.js)
   add(-70, -2.5, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(-70, 2.5, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(13, 18, -Math.PI / 2, { name: 'Driver' });

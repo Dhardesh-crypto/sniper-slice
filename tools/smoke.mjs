@@ -29,11 +29,14 @@ function chromium() {
   throw new Error('no headless Chromium in ' + root);
 }
 
-const browser = spawn(chromium(), [`--remote-debugging-port=${PORT}`, '--window-size=1280,720', 
-  '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
+// A fresh Chromium for each mission: one browser playing mission after mission sometimes stalled
+// (SwiftShader at 700-900% CPU, nothing coming back for minutes) on the second or third, while
+// each mission alone ran clean in under a minute.
+let browser = null, ws = null, nextId = 1;
+const waiting = new Map(), events = [];
 // However this run ends (finished, an error, stopped with Ctrl-C or killed by a tool), its
 // Chromium goes with it: left running, a game in it carries on (alarm and all).
-const stop = () => { try { browser.kill('SIGKILL'); } catch { /* already gone */ } };
+const stop = () => { try { browser?.kill('SIGKILL'); } catch { /* already gone */ } browser = null; };
 process.on('exit', stop);
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { stop(); process.exit(130); });
 process.on('uncaughtException', (e) => { console.error(e); stop(); process.exit(1); });
@@ -51,15 +54,6 @@ async function connect() {
   throw new Error('Chromium did not start');
 }
 
-const ws = new WebSocket(await connect());
-await new Promise(r => ws.addEventListener('open', r, { once: true }));
-let nextId = 1;
-const waiting = new Map(), events = [];
-ws.addEventListener('message', (m) => {
-  const msg = JSON.parse(m.data);
-  if (msg.id && waiting.has(msg.id)) { waiting.get(msg.id)(msg); waiting.delete(msg.id); }
-  else if (msg.method) events.push(msg);
-});
 const send = (method, params = {}) => new Promise((res) => { const id = nextId++; waiting.set(id, res); ws.send(JSON.stringify({ id, method, params })); });
 const evaluate = async (expr, timeout = 120000) => {
   const r = await Promise.race([send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }), sleep(timeout).then(() => ({ timeout: true }))]);
@@ -68,7 +62,20 @@ const evaluate = async (expr, timeout = 120000) => {
   return r.result?.result?.value;
 };
 
-await send('Runtime.enable'); await send('Log.enable'); await send('Network.enable'); await send('Page.enable');
+async function openBrowser() {
+  stop();
+  browser = spawn(chromium(), [`--remote-debugging-port=${PORT}`, '--window-size=1280,720',
+    '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
+  ws = new WebSocket(await connect());
+  await new Promise(r => ws.addEventListener('open', r, { once: true }));
+  waiting.clear();
+  ws.addEventListener('message', (m) => {
+    const msg = JSON.parse(m.data);
+    if (msg.id && waiting.has(msg.id)) { waiting.get(msg.id)(msg); waiting.delete(msg.id); }
+    else if (msg.method) events.push(msg);
+  });
+  await send('Runtime.enable'); await send('Log.enable'); await send('Network.enable'); await send('Page.enable');
+}
 
 // What one mission's run does, inside the page.
 const PLAY = `(async () => {
@@ -108,6 +115,7 @@ const PLAY = `(async () => {
 const report = [];
 let failed = false;
 for (const id of MISSIONS) {
+  await openBrowser();
   events.length = 0;
   await send('Page.navigate', { url });
   await sleep(1500);
@@ -127,7 +135,7 @@ for (const id of MISSIONS) {
   for (const e of r.errors) console.log('   error:', e);
   for (const b of r.requests) console.log('   request:', b);
 }
-ws.close();
-browser.kill();
+try { ws?.close(); } catch { /* gone */ }
+stop();
 console.log(failed ? '\nSome missions had errors.' : '\nAll missions ran clean.');
 process.exit(failed ? 1 : 0);

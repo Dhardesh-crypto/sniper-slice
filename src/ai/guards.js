@@ -389,6 +389,7 @@ export class GuardAI {
 
   // ---------------------------------------------------------------- combat
   combat(s, dt) {
+    if (s.flamer) { this.flamers?.combat(s, dt); return; }   // the flamethrower man closes in and burns (world/flamer.js)
     const b = s.brain, a = s.aware, p = this.player;
     // Cover first: a spot behind something solid within a short run, away from your line of fire.
     if (!b.fixed && !b.coverTried) {
@@ -584,7 +585,7 @@ export class GuardAI {
       let best = null, bestD = 70;
       for (const s of this.guards()) {
         const b = s.brain;
-        if (s.officer || b.fixed || b.nest || s.riding || s.surrendered || this.alarm.runner === s || s.aware.state !== 'alerted') continue;
+        if (s.officer || s.flamer || b.fixed || b.nest || s.riding || s.surrendered || this.alarm.runner === s || s.aware.state !== 'alerted') continue;   // (not the flamethrower man: his job is to burn you out)
         const d = s.root.position.distanceTo(n.seat);
         if (d < bestD) { best = s; bestD = d; }
       }
@@ -678,7 +679,7 @@ export class GuardAI {
       al.pickT = 1;
       let best = null, bestD = Infinity;
       for (const s of this.guards()) {
-        if (s.officer || s.brain.fixed || s.brain.nest || s.riding || s.manning || s.surrendered || s.aware.state !== 'alerted' || al.cantReach?.has(s)) continue;
+        if (s.officer || s.flamer || s.brain.fixed || s.brain.nest || s.riding || s.manning || s.surrendered || s.aware.state !== 'alerted' || al.cantReach?.has(s)) continue;   // (nor does he run for the siren)
         const d = s.root.position.distanceTo(this.siren.pos);
         if (d < bestD) { best = s; bestD = d; }
       }
@@ -960,8 +961,12 @@ export class GuardAI {
     // Round a sharp corner he slows (a man can't take a right angle at a run), and picks up again
     // as he comes round to face the way.
     const pace = speed;                         // (the gait he's in, whatever the corner does to his speed)
-    let turn = Math.atan2(dx, dz) - s.root.rotation.y;
+    // (The turn measured against the way he was last going, not the way he faces: an alert man
+    // keeps looking toward the threat as he runs, and measured from his facing he crawled.)
+    const heading = Math.atan2(dx, dz);
+    let turn = heading - (b.lastHeading ?? heading);
     turn = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
+    b.lastHeading = THREE.MathUtils.lerp(b.lastHeading ?? heading, b.lastHeading == null ? heading : b.lastHeading + Math.atan2(Math.sin(heading - b.lastHeading), Math.cos(heading - b.lastHeading)), Math.min(1, 4 * dt));
     if (turn > 0.6) speed *= Math.max(0.35, 1 - (turn - 0.6) / 1.6);
     const step = Math.min(dist, speed * dt);
     pos.x += (dx / dist) * step;

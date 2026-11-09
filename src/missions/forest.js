@@ -297,6 +297,7 @@ function site(scene) {
   add(lx + 4, lz + 1, Math.PI / 2, { y: up, name: 'Lodge sentry', stance: 'alert' });          // upstairs, at the windows
   add(-180, 30, Math.PI / 2, { name: 'Camp patrol' });
   add(cx - 18, cz + 20, Math.PI, { name: 'Dump guard', stance: 'alert', look: 'guardSergeant' });
+  add(cx - 14, cz + 16, Math.PI, { name: 'Flamethrower', stance: 'alert', look: 'guardFlamer' });   // (to burn the partisans out of their hides)
   add(cx - 10, cz + 31, -Math.PI / 2, { name: 'Dump guard' });
   add(cx - 22, cz - 4, Math.PI / 2, { name: 'Sawmill guard' });
   add(cx, roadZ(cx) + 4, -Math.PI / 2, { name: 'Road guard', stance: 'alert' });

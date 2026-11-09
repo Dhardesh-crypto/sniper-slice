@@ -138,6 +138,21 @@ if WEIGHTS == 'copy':
 print('WEIGHTS', WEIGHTS)
 bpy.ops.object.vertex_group_limit_total(group_select_mode='ALL', limit=4)
 bpy.ops.object.vertex_group_normalize_all(group_select_mode='ALL', lock_active=False)
+# --rigid-back D: whatever stands more than D metres behind the upper spine (a pack, the
+# flamethrower's fuel tanks) is carried rigidly by the spine; bone heat gave the tanks by the
+# shoulders to the arms, and a raised arm bent the tank with it.
+RIGID = opt('--rigid-back')
+if RIGID:
+    sp = arm.matrix_world @ arm.data.bones['Spine02'].head_local
+    hips = arm.matrix_world @ arm.data.bones['Hips'].head_local
+    la = arm.matrix_world @ arm.data.bones['LeftArm'].head_local       # (only between the shoulders:
+    half = abs(la.x - sp.x) + 0.04                                       #  the back of a sleeve stays the arm's)
+    back = [v for v in body.data.vertices if v.co.y > sp.y + float(RIGID) and v.co.z > hips.z and abs(v.co.x - sp.x) < half]
+    gi = body.vertex_groups['Spine02'].index
+    for v in back:
+        for g in list(v.groups): body.vertex_groups[g.group].remove([v.index])
+        body.vertex_groups[gi].add([v.index], 1.0, 'REPLACE')
+    print('RIGID back', len(back), 'vertices on Spine02')
 unweighted = sum(1 for v in body.data.vertices if not any(g.weight > 0 for g in v.groups))
 print('UNWEIGHTED', unweighted)
 
