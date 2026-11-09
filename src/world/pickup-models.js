@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
 import { makeRng } from './noise.js';
+import { normalize } from './materials.js';
 
 // ---- textures drawn once ----
 
@@ -160,6 +161,7 @@ function materials() {
     sBottles: decal(stencil(['WEIN · LEER ZURÜCK'], { color: '#2a2018', seed: 16, h: 96 })),
     redCross: decal(redCross()),
   });
+  for (const m of Object.values(MAT)) normalize(m, 'pickup', 'pickup');   // (their own shine kept; the sky's share: materials.js)
   return MAT;
 }
 

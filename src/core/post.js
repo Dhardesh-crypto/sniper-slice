@@ -1,5 +1,8 @@
 // Post-processing: multisampled HDR render, ambient occlusion, a touch of bloom, then a
-// warm colour grade with a soft vignette, and finally tone mapping to the screen.
+// colour grade with a soft vignette, and finally tone mapping to the screen. The grade is one
+// shader for every map; its warmth and saturation come from the map's light settings (after this
+// run's conditions have changed them), so each region keeps its own colour: Tuscany warm and
+// full, the Ligurian coast cooler, the misty Apennine forest cold and muted.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -7,6 +10,8 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { activeMap } from '../world/terrain.js';
+import { LIGHT } from '../world/world.js';
 
 const GradeShader = {
   uniforms: {
@@ -66,8 +71,17 @@ export class Post {
     hp.needsUpdate = true;
     this.composer.addPass(this.bloom);
     this.grade = new ShaderPass(GradeShader);
+    const L = { ...LIGHT, ...activeMap().light };
+    this.setGrade(L.warmth, L.saturation);
     this.composer.addPass(this.grade);
     this.composer.addPass(new OutputPass());
+  }
+
+  // The grade's warmth (1: red up 4%, blue down 6%, the grade every map had; 0 neutral; above 1
+  // warmer) and saturation (1 = none added).
+  setGrade(warmth = 1, saturation = 1.08) {
+    this.grade.uniforms.uWarm.value.set(1 + 0.04 * warmth, 1, 1 - 0.06 * warmth);
+    this.grade.uniforms.uSaturation.value = saturation;
   }
 
   // high: up to 2x pixel ratio + AO; medium: up to 1.5x + AO; low: 1x, no AO or bloom.

@@ -65,7 +65,7 @@ const map = {
   damage: { pads: [[105, 72, 8.5, 5.5]], craters: [[-150, 40, 5], [140, 30, 5], [128, 42, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'liguria',                 // its walls' photographs (public/textures/styles/)
   // Dusk before the landings: a low sun in the west under heavy cloud, haze over the sea.
-  light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95 },
+  light: { zenith: 79, azimuth: 290, sun: 0xff9868, sunIntensity: 1.7, turbidity: 10, rayleigh: 2.2, clouds: 0.75, hemiSky: 0xa8b0b8, hemi: 0.6, exposure: 0.95, warmth: 0.45, saturation: 1.0 },   // (grade: the cliffs at dusk haze: cool)
   fog: { color: 0xa6adb2, near: 180, far: 1100 },
   weather: { spray: true },   // the surf throws spray at the foot of the cliffs
   animals: [['goat', -250, 120, 25, 5]],   // goats on the heath inland

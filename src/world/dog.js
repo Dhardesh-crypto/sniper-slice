@@ -23,8 +23,7 @@ export function makeDog(scene, x, z) {
     if (o.isBone) bones[o.name] = o;
     if (!o.isMesh) return;
     o.material = o.material.clone();
-    if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
-    o.material.envMapIntensity = 0.6;
+    // (Shine and the sky's share: the material step at load, kind animal, materials.js.)
     o.castShadow = o.receiveShadow = true;
     o.userData.animal = true;
     o.frustumCulled = false;       // (its bounds are the standing dog's, not where the bones have put it)

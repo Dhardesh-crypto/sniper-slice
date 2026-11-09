@@ -79,7 +79,7 @@ const map = {
   damage: { pads: [[92, -22, 6, 5]], craters: [[-140, 30, 4.5], [-125, 21, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Bright midday in the mountains: a high sun, crisp shadows in the gorge.
-  light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3 },
+  light: { zenith: 40, azimuth: 170, sun: 0xfff0d8, sunIntensity: 2.9, turbidity: 4, rayleigh: 1.4, clouds: 0.3, warmth: 0.8, saturation: 1.04 },   // (grade: the Apennine gorge at midday)
   fog: { color: 0xb4c7cf },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280, waterLevel: WATER, waterCalm: 0.35,   // (a river in a gorge: ripples, not a sea's waves)
   wade: WATER - BED + 0.1,               // how deep you can walk: all of it, so nowhere in the river is a dead end

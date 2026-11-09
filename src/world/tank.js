@@ -52,8 +52,7 @@ function buildPanzer(model) {
   let mesh = null;
   assets.models.tank?.scene?.traverse(o => { if (o.isMesh && !mesh) mesh = o; });
   const mat = mesh ? mesh.material.clone() : new THREE.MeshStandardMaterial({ color: 0xa08a52 });
-  if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-  mat.roughness = 0.85; mat.metalness = 0.2;
+  // (Meshy delivered it fully metal with no map: the material step at load makes it painted steel, materials.js.)
   const parts = mesh ? splitTurret(mesh.geometry) : { hull: new THREE.BoxGeometry(0.5, 0.29, 0.75).translate(0, -0.07, -0.08), turret: new THREE.BoxGeometry(0.3, 0.12, 0.32).translate(0, 0.06, 0) };
   const hull = new THREE.Mesh(parts.hull, mat), turret = new THREE.Mesh(parts.turret, mat), pivot = new THREE.Group();
   pivot.position.set(0, DECK, TURRET_Z);

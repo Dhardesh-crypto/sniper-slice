@@ -12,6 +12,7 @@ import { rockMaterial, ROCK_LOOK } from './stone.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 import { loadGLB } from './gltf.js';
+import { normalizeModel } from './materials.js';
 
 // file: in public/models; turn: quarter turns (about y) that lay its length along x with the
 // front toward −x (measured from each mesh; see the comments).
@@ -101,7 +102,7 @@ export const PROPS = {
 export async function loadProps(keys, onProgress = () => {}) {
   let done = 0;
   await Promise.all([...new Set(keys)].filter(k => PROPS[k] && !assets.models[k]).map(async (k) => {
-    try { assets.models[k] = await loadGLB(`${import.meta.env.BASE_URL}models/${PROPS[k].file}.glb`); }
+    try { assets.models[k] = await loadGLB(`${import.meta.env.BASE_URL}models/${PROPS[k].file}.glb`); normalizeModel(assets.models[k].scene, k); }   // (materials.js)
     catch (e) { console.warn(`prop ${k} missing`, e); }
     onProgress(++done / keys.length);
   }));
@@ -113,6 +114,8 @@ export const hasProp = (k) => !!assets.models[k];
 // meshes by name, each { geometry, material }. Cards (branches, fronds, litter) are cut out by
 // alpha and seen from both sides. shade: per mesh, a multiplier on the colour (a number, or
 // [r, g, b]): the textures are rendered albedo, and in the game's light they need taking down.
+// (Shine and sky reflection come from the material step at load: kind foliage or kit, materials.js;
+// the shade is on top of the asset's brightness fix there.)
 const CARDS = new Set(['crown', 'far', 'fern', 'bush', 'litter']);
 const cardMaps = new WeakMap();      // a card texture → its version with leafy mips (foliage-mips.js)
 function cardMap(t) {
@@ -139,11 +142,10 @@ export function modelParts(k, shade = {}) {
       Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
       if (m.map) m.map = cardMap(m.map);
     }
-    // Matte: a sheen of sky on the cards turned the needles minty.
-    Object.assign(m, { roughness: 1, metalness: 0, envMapIntensity: 0.15 });
     for (const t of [m.map, m.normalMap]) if (t) t.anisotropy = 8;
-    const s = shade[o.name] ?? 1;
+    const s = shade[o.name] ?? 1, fix = m.userData.look?.fix ?? 1;
     if (Array.isArray(s)) m.color.setRGB(...s); else m.color.setScalar(s);
+    m.color.multiplyScalar(fix);
     parts[o.name] = { geometry: o.geometry.clone().applyMatrix4(o.matrixWorld), material: m };
   });
   return parts;
@@ -158,9 +160,9 @@ export function treeParts(k, shade = {}) {
 
 // A copy of prop `k` fitted into `size` ({ x, y, z } in metres; give one for a uniform scale, or
 // several with stretch: true to fill a box exactly). own: its own materials (a wreck blackens it).
-// bright: multiplies its colour (for a texture that came out too dark).
+// (A texture that came out too dark is lifted once at load: its fix in materials.json.)
 let rockProp = null;
-export function propModel(k, size, { stretch = false, own = false, turn = 0, bright = 1 } = {}) {
+export function propModel(k, size, { stretch = false, own = false, turn = 0 } = {}) {
   const outer = new THREE.Group();
   const src = assets.models[k]?.scene;
   if (!src) return null;
@@ -168,11 +170,8 @@ export function propModel(k, size, { stretch = false, own = false, turn = 0, bri
   const meshes = [];
   inner.traverse(o => {
     if (!o.isMesh) return;
-    if (own || bright !== 1) o.material = o.material.clone();
-    if (bright !== 1) o.material.color.multiplyScalar(bright);      // (a dark texture lifted)
+    if (own) o.material = o.material.clone();
     if (k === 'rock') o.material = rockProp ??= rockMaterial({ ...ROCK_LOOK, scale: 0.8 });   // (stone.js, like the ground's stones)
-    if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
-    o.material.envMapIntensity = 0.6;
     o.castShadow = o.receiveShadow = true;
     meshes.push(o);
   });
@@ -321,7 +320,7 @@ const DRESS = {
   sentryBox: { size: { x: 1.8, y: 2.9, z: 1.8 }, block: [1.7, 2.6, 1.7] },
   mgNest: { size: { x: 5, y: 1.2, z: 5 }, block: null },
   searchlight: { size: { y: 2.6 }, block: [1.6, 1.4, 1.6] },
-  drums: { size: { x: 2.1, y: 1.85, z: 1.45 }, block: [2.0, 1.8, 1.4], bright: 1.9 },
+  drums: { size: { x: 2.1, y: 1.85, z: 1.45 }, block: [2.0, 1.8, 1.4] },
   crates: { size: { x: 1.7, y: 1.64, z: 0.95 }, block: [1.6, 1.6, 0.9] },
   pontoons: { size: { x: 6, y: 1.5, z: 2.2 }, block: [6, 1.4, 2.2] },
   hedgehog: { size: { x: 2.2, y: 1.6, z: 2.2 }, block: null },
@@ -357,7 +356,7 @@ export function dressProps(scene, items, heightAt, avoid = [], vehicleModel = nu
   for (const [key, x, z, rotY = 0] of items) {
     const spec = DRESS[key];
     if (!spec) continue;
-    const model = spec.vehicle ? vehicleModel?.(spec.vehicle) : propModel(key, spec.size, { stretch: Object.keys(spec.size).length > 1, bright: spec.bright ?? 1 });
+    const model = spec.vehicle ? vehicleModel?.(spec.vehicle) : propModel(key, spec.size, { stretch: Object.keys(spec.size).length > 1 });
     if (!model) continue;
     const y = heightAt(x, z);
     // (blocks are axis-aligned: swap their footprint when the prop is turned across)

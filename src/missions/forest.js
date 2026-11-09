@@ -78,7 +78,7 @@ const map = {
   damage: { pads: [[-142, 62, 5.5, 4.5]], craters: [[13, 190, 4.5], [-12, 172, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // A wet autumn morning: rain under a low grey sky, the sun no more than a glow in the east.
-  light: { zenith: 72, azimuth: 115, sun: 0xdde2e6, sunIntensity: 1.1, turbidity: 10, clouds: 0.95, hemi: 0.7, hemiSky: 0xb8c0c4, env: 0.26, exposure: 0.8 },
+  light: { zenith: 72, azimuth: 115, sun: 0xdde2e6, sunIntensity: 1.1, turbidity: 10, clouds: 0.95, hemi: 0.7, hemiSky: 0xb8c0c4, env: 0.26, exposure: 0.8, warmth: 0.25, saturation: 0.94 },   // (grade: misty mountain pines: cold and muted)
   weather: { rain: 1 },   // steady rain: it hides a little of your noise
   animals: [['deer', -150, 220, 30, 3]],   // red deer, far from the lodge
   half: 500, playHalf: 470, focus: { x: LODGE.x, z: LODGE.z, r: 60 }, start: START, navHalf: 285,
@@ -237,7 +237,7 @@ function site(scene) {
   for (const dx of [-8, 0, 8]) {
     const [dxp, dzp] = [cx - 18 + dx, cz + 26];
     const parts = [];
-    const stack = propModel('drums', { x: 2.1, y: 1.85, z: 1.45 }, { stretch: true, own: true, bright: 1.9 });
+    const stack = propModel('drums', { x: 2.1, y: 1.85, z: 1.45 }, { stretch: true, own: true });
     if (stack) { stack.position.set(dxp, cy, dzp); b.group.add(stack); parts.push(...stack.userData.meshes); }
     else for (let layer = 0; layer < 2; layer++) for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
       const d = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.88, 12), drumMat);

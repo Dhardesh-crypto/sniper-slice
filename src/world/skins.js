@@ -5,6 +5,7 @@
 // doors). A skin that doesn't load leaves the building as it was.
 import { loadGLB } from './gltf.js';
 import { built } from './buildings.js';
+import { normalizeModel } from './materials.js';
 
 // The buildings that have one, by mission and the building's centre (x_z): public/models/skin_<that>.glb.
 export const SKINNED = new Set([
@@ -28,6 +29,7 @@ export function skinBuildings(scene, mission) {
 
 export function addSkin(scene, file, x, y, z) {
   loadGLB(`${import.meta.env.BASE_URL}models/${file}.glb`).then(({ scene: skin }) => {
+    normalizeModel(skin, file, 'skin');           // (matte, its brightness fix, the sky's share: materials.js)
     skin.position.set(x, y, z);
     skin.traverse(o => {
       if (!o.isMesh) return;
