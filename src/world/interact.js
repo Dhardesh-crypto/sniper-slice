@@ -23,7 +23,7 @@ export class Interactions {
     this.safes = [];
     this.levers = [];
     this.known = new Set();       // combinations you've read: safe ids
-    this.found = new Set();       // documents read this mission
+    this.found = new Set();       // documents read this mission (side jobs' papers too)
     this.target = null;
     this.progress = 0;
     this.reading = null;
@@ -34,7 +34,9 @@ export class Interactions {
 
   addDoors(doors) { this.doors.push(...doors); }
 
-  // A document lying somewhere: { id, title, text, at, reveals?: safeId, onRead? }.
+  // A document lying somewhere: { id, title, text, at, reveals?: safeId, onRead?, side? }. side: a
+  // side job's paper (mission/sidejobs.js), not one of the mission's own: not kept in your intel
+  // and not counted in the mission's documents.
   addDocument(doc) {
     const mesh = paper();
     mesh.position.copy(doc.at);
@@ -140,7 +142,7 @@ export class Interactions {
       const safe = this.safes.find(s => s.id === doc.reveals);
       this.hud.message(`COMBINATION FOUND · ${safe?.name ?? 'SAFE'} · ${safe?.combination ?? ''}`, 'head');
     }
-    this.profile?.addIntel?.(this.missionId, doc.id);
+    if (!doc.side) this.profile?.addIntel?.(this.missionId, doc.id);
     doc.onRead?.();
     this.onDocument?.(doc);
     this.reading = doc;
@@ -173,6 +175,9 @@ export class Interactions {
     const known = this.known.has(t.item.id);
     return { label: this.progress > 0 ? (known ? 'DIALLING THE COMBINATION…' : 'CRACKING THE SAFE BY EAR… (NOISY)') : known ? `HOLD {E} · OPEN THE SAFE (${t.item.combination})` : 'HOLD {E} · CRACK THE SAFE (SLOW, NOISY: OR FIND THE COMBINATION)', progress: this.progress };
   }
+
+  // How many of the mission's own documents you've read (out of its documentsTotal).
+  ownFound() { return [...this.found].filter(id => !this.documents.find(d => d.id === id)?.side).length; }
 
   // Saves.
   snapshot() {

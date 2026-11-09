@@ -54,8 +54,14 @@ function killCommander(crew, zone) {
   if (crew.commanderDead) return { killed: false };
   crew.commanderDead = true;
   crew.slump = 0;
-  for (const m of crew.commanderHits ?? []) { const i = ctx?.world.raycastTargets.indexOf(m) ?? -1; if (i >= 0) ctx.world.raycastTargets.splice(i, 1); }
+  dropCommanderHits(crew);
   return { killed: true, zone };
+}
+// His hit boxes out of the world's targets: once he's dead, or once the tank is (however it went:
+// blown up, off the bridge, a save of either), so a shot at the wreck doesn't kill him again.
+function dropCommanderHits(crew) {
+  for (const m of crew.commanderHits ?? []) { const i = ctx?.world.raycastTargets.indexOf(m) ?? -1; if (i >= 0) ctx.world.raycastTargets.splice(i, 1); }
+  crew.commanderHits = null;
 }
 
 // Register a turret. pivot: the Object3D that turns (yaw about its parent's y); gun: the
@@ -142,6 +148,7 @@ export function tickTurrets(dt) {
   const at = new THREE.Vector3(), local = new THREE.Vector3();
   let tracks = 0, trackSpeed = 0, trackDist = Infinity, turret = 0, turretDist = Infinity;
   for (const c of crews) {
+    if (c.dead && c.commanderHits) dropCommanderHits(c);
     if (c.commander) c.commander.root.visible = !c.dead && (c.slump ?? 0) < 1;
     if (c.commanderDead && c.slump < 1) { c.slump = Math.min(1, c.slump + dt / 0.6); c.commander.root.position.y = c.commanderY - 1.1 * c.slump * c.slump / c.commander.root.parent.getWorldScale(at).y; }
     const range = range0 * (c.commanderDead ? 0.5 : 1);

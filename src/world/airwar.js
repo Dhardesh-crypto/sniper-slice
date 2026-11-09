@@ -18,6 +18,18 @@ const BOMBER = { speed: 85, alt: 620, length: 16, span: 20.6, first: [45, 80], e
 const FIGHTER = { speed: 125, length: 11, cruise: 520, delay: 28, release: 300, strafe: [800, 330] };
 const STRIKES = 2;
 const BOMB = { radius: 11, hurt: 24 };
+// One set of parachute and bomb meshes' parts, shared by all of them (none is changed per drop),
+// so the many made in a long mission don't each leave geometry and materials behind.
+const CHUTE = {
+  silkGeo: new THREE.SphereGeometry(3.2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+  silkMat: new THREE.MeshLambertMaterial({ color: 0xe8e4d8, side: THREE.DoubleSide }),
+  manGeo: new THREE.CapsuleGeometry(0.25, 1.1, 3, 6),
+  manMat: new THREE.MeshLambertMaterial({ color: 0x5a4a32 }),
+  linesGeo: new THREE.BufferGeometry().setFromPoints([0, 1, 2, 3].flatMap(i => { const a = i * Math.PI / 2; return [new THREE.Vector3(0, 0.6, 0), new THREE.Vector3(Math.cos(a) * 3, 6, Math.sin(a) * 3)]; })),
+  linesMat: new THREE.LineBasicMaterial({ color: 0x777066 }),
+};
+const bombGeo = new THREE.CylinderGeometry(0.18, 0.18, 1.4, 8).rotateX(Math.PI / 2);
+const bombMat = new THREE.MeshStandardMaterial({ color: 0x3d4030, roughness: 0.7 });
 const PUFFS = 160;
 
 function plainPlane(length, span, color) {
@@ -263,11 +275,11 @@ export class AirWar {
   // A parachute: a white canopy, a man hanging under it, drifting down with the wind.
   chute(at) {
     const g = new THREE.Group();
-    const silk = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xe8e4d8, side: THREE.DoubleSide }));
+    const silk = new THREE.Mesh(CHUTE.silkGeo, CHUTE.silkMat);
     silk.scale.y = 0.55; silk.position.y = 6; g.add(silk);
-    const man = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 1.1, 3, 6), new THREE.MeshLambertMaterial({ color: 0x5a4a32 }));
+    const man = new THREE.Mesh(CHUTE.manGeo, CHUTE.manMat);
     g.add(man);
-    const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([0, 1, 2, 3].flatMap(i => { const a = i * Math.PI / 2; return [new THREE.Vector3(0, 0.6, 0), new THREE.Vector3(Math.cos(a) * 3, 6, Math.sin(a) * 3)]; })), new THREE.LineBasicMaterial({ color: 0x777066 }));
+    const lines = new THREE.LineSegments(CHUTE.linesGeo, CHUTE.linesMat);
     g.add(lines);
     g.position.copy(at);
     g.traverse(o => { o.userData.noSnow = true; });
@@ -400,7 +412,7 @@ export class AirWar {
   }
 
   dropBomb(at, vel, aim) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.4, 8).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3d4030, roughness: 0.7 }));
+    const m = new THREE.Mesh(bombGeo, bombMat);
     m.position.copy(at);
     this.scene.add(m);
     // Steer the throw so it lands on the mark: it keeps the dive's downward speed, so the fall

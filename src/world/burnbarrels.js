@@ -63,7 +63,7 @@ export class BurnBarrels {
       drum.position.copy(at);
       drum.rotation.y = rnd() * 6.3;
       drum.castShadow = drum.receiveShadow = true;
-      const embers = new THREE.Mesh(new THREE.CircleGeometry(R * 0.95, 16).rotateX(-Math.PI / 2), glow);
+      const embers = new THREE.Mesh(new THREE.CircleGeometry(R * 0.95, 16).rotateX(-Math.PI / 2), glow.clone());   // (its own: each fire flickers on its own phase)
       embers.position.y = H * 0.82;
       drum.add(embers);
       scene.add(drum);

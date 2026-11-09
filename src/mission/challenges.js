@@ -13,7 +13,7 @@ const LIST = [
   { id: 'blade', text: 'Kill the target with the knife', offered: m => !!m.officer, met: s => s.stats.targetBy === 'knife' },
   { id: 'one', text: 'Kill nobody but the target', offered: m => !!m.officer, met: s => s.stats.kills === 1 && !s.mission.officer.alive },
   { id: 'thorough', text: 'Finish every optional objective', offered: m => m.objectives.some(o => o.optional), met: s => s.mission.objectives.every(o => !o.optional || o.done) },
-  { id: 'reader', text: 'Find every document', offered: m => (m.documentsTotal ?? 0) > 0, met: s => (s.mission.interactions?.found.size ?? 0) >= s.mission.documentsTotal },
+  { id: 'reader', text: 'Find every document', offered: m => (m.documentsTotal ?? 0) > 0, met: s => (s.mission.interactions?.ownFound() ?? 0) >= s.mission.documentsTotal },
   { id: 'quick', text: 'Finish in under 15 minutes', met: s => s.time < PAR },
 ];
 

@@ -15,6 +15,8 @@ import * as THREE from 'three';
 import { put, hasPart, onFace, ROT } from './arch.js';
 import { M } from './kit.js';
 import { worldUVs } from './textures.js';
+import { cloneMat } from './materials.js';
+import { makeRng } from './noise.js';
 
 const registered = [];
 let added = [];                                   // the collision boxes put in (see dressInteriors)
@@ -25,15 +27,10 @@ const INSIDE = { s: 'n', n: 's', e: 'w', w: 'e' };
 const CEILING = new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.95 });   // whitewash
 const dadoCache = new Map();
 function dadoFor(mat) {                          // the wall's own plaster, painted darker below the rail
-  if (!dadoCache.has(mat)) dadoCache.set(mat, Object.assign(mat.clone(), { color: mat.color.clone().multiplyScalar(0.74) }));
+  if (!dadoCache.has(mat)) dadoCache.set(mat, Object.assign(cloneMat(mat), { color: mat.color.clone().multiplyScalar(0.74) }));
   return dadoCache.get(mat);
 }
 const CURTAINS = [0xe8e2d2, 0xc9b88a, 0x9aa8b8, 0xb86a5a, 0xd8c8a8].map(h => new THREE.Color(h));
-
-function rngFor(x, z) {
-  let s = (Math.floor(x * 73.13) ^ Math.floor(z * 31.71) * 2654435761) >>> 0;
-  return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-}
 
 // soldiers: the mission's, so nothing solid is put where one stands. Returns the furniture's
 // collision boxes (a mission may have copied its builders' boxes into the world's list already).
@@ -48,7 +45,7 @@ export function dressInteriors(soldiers = []) {
 
 function dressBuilding(e, posts) {
   const { b, x, z, y, w, d, floors, h, wall, mat, timber, openings, well, walls } = e;
-  const rnd = rngFor(x, z);
+  const rnd = makeRng(Math.floor(x * 73.13) ^ Math.floor(z * 31.71) * 2654435761);   // (the same building, the same furniture)
   const inner = { x0: x - w / 2 + wall, x1: x + w / 2 - wall, z0: z - d / 2 + wall, z1: z + d / 2 - wall };
   const office = w * d >= 120;                   // the big buildings are the occupiers' (a hall, a lodge, an HQ)
   for (let f = 0; f < floors; f++) {

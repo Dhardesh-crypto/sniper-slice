@@ -11,7 +11,7 @@
 // lookout on its gallery.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
-import { M, Builder } from '../world/kit.js';
+import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
@@ -206,16 +206,7 @@ function site(scene, world) {
 
   // The siren by the bunker.
   const [sx, sz] = [-10, 20], sy = heightAt(sx, sz);
-  b.box(0.2, 5.2, 0.2, M.wood, sx, sy, sz);
-  const junction = b.box(0.36, 0.46, 0.2, M.metal, sx, sy + 1.0, sz + 0.2, { solid: false });
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
-  horn.position.set(sx + 0.25, sy + 5.0, sz);
-  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
-  hornBody.position.set(sx - 0.05, sy + 5.0, sz);
-  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
-  wire.position.set(sx + 0.12, sy + 3.1, sz + 0.12);
-  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
-  const siren = { pos: new THREE.Vector3(sx, sy, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, sy, sz + 0.9) };
+  const siren = sirenPole(b, sx, sy, sz);
 
   // The surf at the foot of the cliffs covers shots from the beach.
   world.soundSources = [{ name: 'surf', at: (pos) => { const d = pos.z - zc(pos.x); return pos.y < 15 && d < 0 ? Math.max(0, Math.min(0.8, 1.2 - Math.max(0, d + 45) / 40)) : 0; } }];
@@ -338,9 +329,9 @@ const def = {
     if (radarsLeft === 0) m.complete('radar', 'BOTH RADARS WRECKED');
     const gunsLeft = hs.filter(h => h.kind === 'gun' && !h.exploded).length;
     if (gunsLeft === 0) m.complete('guns', 'ALL THREE GUNS DESTROYED');
-    if (hs.some(h => h.kind === 'flak20' && h.exploded)) m.complete('flak', 'THE FLAK GUN IS DESTROYED');
     else if (site.gunsLeft !== undefined && gunsLeft < site.gunsLeft) m.hud.message(`COASTAL GUN DESTROYED · ${gunsLeft} LEFT`, '');
     site.gunsLeft = gunsLeft;
+    if (hs.some(h => h.kind === 'flak20' && h.exploded)) m.complete('flak', 'THE FLAK GUN IS DESTROYED');
     for (const r of site.radars) if (r.model && !r.down && hs.find(h => h.meshes[0] === r.cabin)?.exploded) { r.down = true; r.model.rotation.z = 0.45; r.model.position.y -= 0.8; }
   },
   markers(m) {

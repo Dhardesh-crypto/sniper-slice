@@ -61,6 +61,7 @@ class Grid {
     this.g = new Float32Array(nx * nz);
     this.from = new Int32Array(nx * nz);
     this.stamp = new Uint32Array(nx * nz);
+    this.done = new Uint32Array(nx * nz);     // (expanded in search no. `stamp`, at its g then)
     this.ys = new Float32Array(nx * nz);
     this.search = 0;
   }
@@ -175,6 +176,8 @@ class Grid {
     while (open.size && expanded < Math.max(40000, this.nx * this.nz / 4)) {   // (on a big grid a way round a gorge can be long)
       const k = open.pop();
       if (k === goal) { found = true; break; }
+      if (this.done[k] === stamp) continue;          // (an older, dearer entry for a cell already expanded)
+      this.done[k] = stamp;
       expanded++;
       const i = k % n, j = Math.floor(k / n), gk = this.g[k];
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
@@ -188,7 +191,7 @@ class Grid {
         if (this.stamp[nk] === stamp && ng >= this.g[nk]) continue;
         const ny = this.cellFloor(nk, this.ys[k]);
         if (this.ys[k] - ny > DROP) continue;                                            // (no stepping off a ledge)
-        this.stamp[nk] = stamp; this.g[nk] = ng; this.from[nk] = k; this.ys[nk] = ny;
+        this.stamp[nk] = stamp; this.g[nk] = ng; this.from[nk] = k; this.ys[nk] = ny; this.done[nk] = 0;   // (cheaper now: expand it again)
         open.push(nk, ng + h(nk));
       }
     }

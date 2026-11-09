@@ -3,7 +3,7 @@
 // Other modules import MAP_HALF, COMPOUND, START_HILL, heightAt… as live values, so they follow
 // whichever map `useMap` puts in place before the world is built.
 import * as THREE from 'three';
-import { fbm, lerp, smoothstep, clamp } from './noise.js';
+import { fbm, lerp, smoothstep } from './noise.js';
 import { textures } from './textures.js';
 import { snowTexture } from './winter.js';
 
@@ -55,7 +55,9 @@ const H_VINEYARD = baseHeight(20, -30);
 // a flattened shooting-range lane and mountains closing the edges.
 export const VINEYARD_MAP = {
   half: 400, playHalf: 375, focus: { x: 20, z: -30, r: 70 }, start: { x: -210, z: 170 },
-  heightAt: vineyardHeight, roadCenterZ: vineyardRoadZ, laneDistance: vineyardLaneDistance,
+  heightAt: vineyardHeight, roadCenterZ: vineyardRoadZ,
+  // Tall grass that's always there on the way to the compound from the start hill (vegetation.js).
+  coverPatches: [{ x: -150, z: 95, r: 12 }, { x: -95, z: 40, r: 10 }, { x: -40, z: 30, r: 9 }],
   // Grass and trees stay off the compound, the range lane and the road.
   keepClear(x, z, margin = 0) {
     if (Math.hypot(x - 20, z + 30) < 50 + margin) return true;
@@ -126,7 +128,6 @@ const clearOfDamage = (x, z, m) => PADS.some(p => Math.abs(x - p.x) < p.hw + 2 +
 
 export function heightAt(x, z) { return damaged(x, z, MAP.heightAt(x, z)); }
 export function roadCenterZ(x) { return MAP.roadCenterZ ? MAP.roadCenterZ(x) : NaN; }
-export function laneDistance(x, z) { return MAP.laneDistance ? MAP.laneDistance(x, z) : Infinity; }
 export function keepClear(x, z, margin = 0) { return clearOfDamage(x, z, margin) || (MAP.keepClear ? MAP.keepClear(x, z, margin) : false); }
 
 export function normalAt(x, z, out = new THREE.Vector3()) {
@@ -214,4 +215,3 @@ export function intersectTerrain(a, b, out = new THREE.Vector3()) {
 }
 
 export const inPlayArea = (x, z) => Math.abs(x) < PLAY_HALF && Math.abs(z) < PLAY_HALF;
-export { clamp };

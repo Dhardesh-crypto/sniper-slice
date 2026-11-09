@@ -24,7 +24,6 @@ export class Mission {
     const exAt = def.extraction ?? START_HILL;
     const ex = new THREE.Vector3(exAt.x, 0, exAt.z);
     ex.y = world.groundAt(ex.x, ex.z);
-    this.extraction = ex;
     this.pickups = [{ at: ex, name: 'EXTRACTION' }];   // (more with setPickups: mission/approaches.js)
     this.smokeT = 0;
     this.objectives = (def.objectives ?? [
@@ -108,7 +107,7 @@ export class Mission {
 
   // The pick-up points: any of them ends the mission once it's open (the start, and the other
   // ways in: mission/approaches.js). [{ at, name }]; the first is the mission's own.
-  setPickups(list) { this.pickups = list.map((p, i) => ({ at: p.at.clone(), name: i ? `PICK-UP · ${p.side.toUpperCase()}` : 'EXTRACTION' })); this.extraction = this.pickups[0].at; }
+  setPickups(list) { this.pickups = list.map((p, i) => ({ at: p.at.clone(), name: i ? `PICK-UP · ${p.side.toUpperCase()}` : 'EXTRACTION' })); }
 
   radioOption() {
     if (!this.radio || !this.obj('radio') || this.obj('radio').done || this.player.climb) return null;
@@ -154,7 +153,7 @@ export class Mission {
         ['Objectives', this.objectives.filter(o => !o.hidden).map(o => `${o.done ? '✓' : '✗'} ${o.text}`).join('\n')],
         ['Kills', `${s.kills} (${s.headshots} headshots, ${s.takedowns} takedowns)`],
         ['Parts found', String(s.parts ?? 0)],
-        ['Documents found', `${this.interactions?.found.size ?? 0} / ${this.documentsTotal ?? 0}`],
+        ['Documents found', `${this.interactions?.ownFound() ?? 0} / ${this.documentsTotal ?? 0}`],
         ['Longest kill', s.longest ? `${Math.round(s.longest)} m` : '–'],
         ['Accuracy', s.shots ? `${Math.round((100 * s.hits) / s.shots)} % (${s.hits}/${s.shots})` : '–'],
         ['Times spotted', String(s.spotted)],
@@ -164,9 +163,12 @@ export class Mission {
     };
   }
 
-  // Points for the compass and on-screen markers.
+  // Points for the compass and on-screen markers. Built once a tick and kept: the HUD, the map
+  // and Kestrel's thoughts all ask for them every frame (don't change the list you get back).
   markers() {
-    const out = [];
+    if (this.marks && this.marksAt === this.time) return this.marks;
+    this.marksAt = this.time;
+    const out = this.marks = [];
     if (this.obj('officer') && this.officer && !this.obj('officer').done) {
       const ta = this.def.targetArea ?? { x: COMPOUND.x + 8, z: COMPOUND.z - 4 };
       out.push(this.officer.tagged

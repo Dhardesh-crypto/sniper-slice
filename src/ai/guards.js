@@ -256,7 +256,7 @@ export class GuardAI {
           s.targetYaw = Math.PI; // face the junction box
           this.alarm.activateT += dt;
           if (this.alarm.activateT > SIREN_ACTIVATE) {
-            if (this.alarm.working) this.soundAlarm();
+            if (this.alarm.working) this.soundAlarm(a.stimulus ?? s.root.position);
             else {
               this.alarm.knownDead = true; // nobody runs for it again
               this.hud.message('THEY FOUND THE SIREN DEAD', '');
@@ -272,6 +272,7 @@ export class GuardAI {
         const task = b.task;
         if (this.goTo(s, task.at, WALK, dt)) {
           this.stop(s);
+          if (s.root.position.distanceTo(task.at) > 1.5) { b.task = null; break; }   // (goTo gave up, no way there: it can be asked for again)
           s.targetYaw = 0; // face the generator (+z)
           if (s.char.action('kneelWork')) s.nextActivity = 'kneelWork'; else s.crouchTarget = 0.7;
           if ((task.t -= dt) <= 0) { b.task = null; s.crouchTarget = 0; task.done(); }
@@ -395,8 +396,10 @@ export class GuardAI {
       b.cover = this.findCover(s);
     }
     if (b.cover && !b.atCover) {
-      if (this.goTo(s, b.cover, RUN, dt)) { b.atCover = true; this.stop(s); }
-      else return;
+      if (!this.goTo(s, b.cover, RUN, dt)) return;
+      this.stop(s);
+      if (s.root.position.distanceTo(b.cover) < 1.5) b.atCover = true;
+      else b.cover = null;                  // (goTo gave up on the way: he fights from where he is)
     }
     this.stop(s);
     const target = (a.spotted ? p.pos : b.lastSeen ?? p.pos);
@@ -695,15 +698,18 @@ export class GuardAI {
     }
   }
 
-  soundAlarm() {
+  // `where`: what the alarm was raised over (the runner's news), for when nobody has seen you.
+  soundAlarm(where) {
     const al = this.alarm;
     al.on = true; al.quietT = 0; al.count++;
     if (al.count === 1) al.reinforceT = REINFORCE_DELAY;
     this.stealth.alarm = true;
     this.audio.setSiren(1);
     this.hud.message('ALARM RAISED', 'wound');
-    // Every guard hears it and heads for roughly where you were seen.
-    const known = this.guards().reduce((k, s) => (s.brain.lastSeenT > (k?.t ?? -1) ? { t: s.brain.lastSeenT, at: s.brain.lastSeen } : k), null)?.at ?? this.player.pos;
+    // Every guard hears it and heads for roughly where you were seen; if nobody has seen you, for
+    // where the alarm came from, else the compound (never where you really are: they don't know).
+    const known = this.guards().reduce((k, s) => (s.brain.lastSeenT > (k?.t ?? -1) && s.brain.lastSeen ? { t: s.brain.lastSeenT, at: s.brain.lastSeen } : k), null)?.at
+      ?? where ?? new THREE.Vector3(COMPOUND.x, this.world.groundAt(COMPOUND.x, COMPOUND.z), COMPOUND.z);
     for (const s of this.guards()) {
       const guess = known.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 0, (Math.random() - 0.5) * 20));
       this.stealth.raise(s, 'alerted', guess, 'shout');
@@ -830,13 +836,14 @@ export class GuardAI {
     if (!quiet) this.hud.message('ENEMY REINFORCEMENTS COMING ON FOOT', 'wound');
   }
 
-  // A reinforcement just arrived: alerted, facing in, heading for where the player was last seen.
+  // A reinforcement just arrived: alerted, facing in, heading for where the player was last seen
+  // (if nobody has seen him, the yard he's to guard: they don't know where he is).
   rushIn(s) {
     const at = s.root.position;
     s.root.rotation.y = s.targetYaw = Math.atan2(COMPOUND.x - at.x, COMPOUND.z - at.z);
     s.brain.path = null;                     // (his post: the yard, as spawnReinforcement set it)
     const known = this.guards().reduce((k, o) => (o.brain.lastSeenT > (k?.t ?? -1) && o.brain.lastSeen ? { t: o.brain.lastSeenT, at: o.brain.lastSeen } : k), null)?.at;
-    const guess = (known ?? this.player.pos).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
+    const guess = (known ?? s.home).clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 0, (Math.random() - 0.5) * 30));
     this.stealth.raise(s, 'alerted', guess, 'shout');
     s.brain.lastSeen = guess;
   }
@@ -846,7 +853,7 @@ export class GuardAI {
     if (this.guards().some(s => s.brain.task)) return;
     let best = null, bestD = 120;
     for (const s of this.guards()) {
-      if (s.officer || s.brain.fixed || s.surrendered || s === this.alarm.runner || s.aware.state === 'alerted') continue;
+      if (s.riding || s.officer || s.brain.fixed || s.surrendered || s === this.alarm.runner || s.aware.state === 'alerted') continue;
       const d = s.root.position.distanceTo(at);
       if (d < bestD) { best = s; bestD = d; }
     }
@@ -1058,9 +1065,5 @@ export class GuardAI {
     }
     this.pathLines.geometry.dispose();
     this.pathLines.geometry = new THREE.BufferGeometry().setFromPoints(pts);
-  }
-
-  state() {
-    return { alarm: this.alarm.on, alarmWorking: this.alarm.working, runner: !!this.alarm.runner, truck: !!this.truck && !this.truck.unloaded };
   }
 }

@@ -10,7 +10,7 @@
 // bridge goes while vehicles are on it, they go down with it.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
-import { M, Builder } from '../world/kit.js';
+import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
@@ -291,16 +291,7 @@ function site(scene, world) {
   // The camp's generator (it covers sound close by) and siren.
   const gen = b.box(1.6, 1.1, 1, M.metal, cx - 20, cy, cz - 2);
   const [sx, sz] = [cx - 8, cz - 2];
-  b.box(0.2, 5.2, 0.2, M.wood, sx, cy, sz);
-  const junction = b.box(0.36, 0.46, 0.2, M.metal, sx, cy + 1.0, sz + 0.2, { solid: false });
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
-  horn.position.set(sx + 0.25, cy + 5.0, sz);
-  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
-  hornBody.position.set(sx - 0.05, cy + 5.0, sz);
-  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
-  wire.position.set(sx + 0.12, cy + 3.1, sz + 0.12);
-  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
-  const siren = { pos: new THREE.Vector3(sx, cy, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, cy, sz + 0.9) };
+  const siren = sirenPole(b, sx, cy, sz);
 
   // ---- the column: two Panzers and three trucks, waiting out of sight in the east ----
   const column = buildColumn(scene);
@@ -581,9 +572,11 @@ function runColumn(m, dt) {
       m.complete('column', 'A VEHICLE OF THE COLUMN WENT INTO THE GORGE');
     }
   }
-  // The rumble of engines and tracks.
+  // The rumble of engines and tracks: a loop of its own, so it and the reinforcement truck
+  // (guards.js, setTruck) don't overwrite each other's level every frame. Silent once you're dead.
   const lead = c.vehicles.find(v => !v.fallen);
-  a.setTruck(c.visible && c.v > 0.5 && lead ? Math.max(0, 1 - lead.pos.distanceTo(m.player.pos) / 450) : 0);
+  const k = c.visible && c.v > 0.5 && lead && !m.player.dead ? Math.max(0, 1 - lead.pos.distanceTo(m.player.pos) / 450) : 0;
+  a.loopSample('column', 'army_truck', k * k * 0.9, { dull: 1 - k });
 }
 
 const def = {

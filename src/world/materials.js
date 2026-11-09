@@ -17,6 +17,7 @@
 //     the scene's environment map itself, once world.js has made it: setEnvironment().)
 import * as THREE from 'three';
 import FIX from './materials.json';
+import { toLin } from './foliage-mips.js';
 
 
 // Per kind: env, a multiplier on the mission's environment strength (1 = what everything had
@@ -65,7 +66,6 @@ function pixels(tex) {
   texels.set(im, d);
   return d;
 }
-const LIN = new Float32Array(256).map((_, v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
 const LUM = [0.2126, 0.7152, 0.0722];
 
 // What a material looks like over the surface it covers: its maps read at points on the meshes'
@@ -109,7 +109,7 @@ export function surfaceStats(m, meshes = []) {
         acc.all += w;
         if (maps.map && read(maps.map, m.map, u, v, 3) < 128) continue;    // (a cut-out card's clear part)
         acc.w += w; acc.solid += w;
-        for (let c = 0; c < 3; c++) acc.rgb[c] += w * vcol[c] * (maps.map ? LIN[read(maps.map, m.map, u, v, c)] : 1);
+        for (let c = 0; c < 3; c++) acc.rgb[c] += w * vcol[c] * (maps.map ? toLin[read(maps.map, m.map, u, v, c)] : 1);
         acc.r += w * (maps.r ? read(maps.r, m.roughnessMap, u, v, 1) / 255 : 1);
         acc.mt += w * (maps.mt ? read(maps.mt, m.metalnessMap, u, v, 2) / 255 : 1);
       }
@@ -234,6 +234,16 @@ function addDetail(m) {
           diffuseColor.rgb *= 1.0 + (d - 0.5) * 0.56 * near; }`);
   };
   m.customProgramCacheKey = () => (prevKey?.() ?? '') + '|detail';
+}
+
+// A copy of a material that keeps its shader patches (the detail above, winter.js's snow). three's
+// clone() copies userData but not onBeforeCompile or customProgramCacheKey, so a plain clone still
+// says it has them (userData.look, userData.snowed) and draws without, and nothing patches it again.
+export function cloneMat(m) {
+  const c = m.clone();
+  c.onBeforeCompile = m.onBeforeCompile;
+  c.customProgramCacheKey = m.customProgramCacheKey;
+  return c;
 }
 
 // Every mesh's material in a loaded model (a material shared by several meshes is done once).

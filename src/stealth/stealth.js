@@ -31,8 +31,8 @@ const POINT_BLANK = 2.5;
 const REACTION = 1.0;
 
 export class Stealth {
-  constructor({ world, player, arsenal, masking, audio, hud }) {
-    Object.assign(this, { world, player, arsenal, masking, audio, hud });
+  constructor({ world, player, masking, audio, hud }) {
+    Object.assign(this, { world, player, masking, audio, hud });
     this.time = 0;
     this.noiseRadius = 0;        // your footsteps, for the minimap ring
     this.lastShot = null;        // { radius, masked, t }
@@ -44,7 +44,7 @@ export class Stealth {
     for (const s of world.soldiers) this.enlist(s);
   }
 
-  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && !s.takenDown); }
+  guards() { return this.world.soldiers.filter(s => s.alive && !s.range && !s.takenDown && !s.downed); }   // (a wounded man on the ground watches nothing: guards.js tickDowned)
 
   // A soldier who joins during play (reinforcements) gets an awareness record.
   enlist(s) {
@@ -77,9 +77,9 @@ export class Stealth {
 
   // ---- noise events ----
   gunshot(origin, def) {
-    const masked = this.masking.loudnessAt(origin).amount;
+    const loud = this.masking.loudnessAt(origin), masked = loud.amount;
     const radius = def.noiseRadius * (1 - (1 - MASKED_SHOT) * masked) * level(this.settings, 'guards').hearing;
-    this.lastShot = { radius, masked, t: this.time, source: this.masking.loudnessAt(origin).source, origin: origin.clone(), heard: [] };
+    this.lastShot = { radius, masked, t: this.time, source: loud.source, origin: origin.clone(), heard: [] };
     this.noise(origin, radius, 'shot');
     this.onGunshot?.(this.lastShot);                // (ai/counterfire.js: are they getting a fix on you?)
   }
@@ -268,10 +268,8 @@ export class Stealth {
   state() {
     let worst = 'calm';
     for (const s of this.guards()) if (s.aware.state === 'alerted') worst = 'alerted'; else if (s.aware.state === 'suspicious' && worst === 'calm') worst = 'suspicious';
-    // Concealed: crouched or prone in tall grass (standing, the grass hides you only a little).
-    const p = this.player;
-    const concealed = this.inGrass && p.stance !== 'stand' && !p.sprinting;
-    return { inGrass: !!this.inGrass, concealed,
+    // Concealed: crouched or prone in tall grass (standing, the grass hides you only a little), as tick() worked out.
+    return { inGrass: !!this.inGrass, concealed: !!this.concealed,
       alarm: this.alarm, mask: this.mask, noise: this.noiseRadius, lastShot: this.lastShot, time: this.time, worst, upcoming: this.masking.upcoming() };
   }
 }

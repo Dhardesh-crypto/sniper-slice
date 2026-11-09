@@ -26,7 +26,7 @@ function reach(mat) {
 export function throughCover(hit, dir, speed, ap = false) {
   const o = hit.object;
   if (!o || hit.terrain || hit.soldier) return null;
-  const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+  const mat = Array.isArray(o.material) ? o.material[hit.face?.materialIndex ?? 0] : o.material;   // (a many-material mesh: the one the round struck)
   const can = reach(mat) * (ap ? 2 : 1) * Math.min(1.3, (speed / 800) ** 2);
   if (can < 0.005) return null;
   // Out the far side: back along the shot from as far as it could get, to the surface.
@@ -38,4 +38,10 @@ export function throughCover(hit, dir, speed, ap = false) {
   const thick = can + 0.01 - back.distance;
   if (thick >= can) return null;
   return { exit: back.point.clone().addScaledVector(dir, 0.02), keep: Math.sqrt(1 - thick / can), thick };
+}
+
+// A weakened round's damage table: every zone times `f`, but the 999 that means "always lethal"
+// (a head shot) isn't a number to scale; it becomes `head` (by default it stays lethal).
+export function weakened(damage, f, head = 999) {
+  return Object.fromEntries(Object.entries(damage).map(([z, v]) => [z, v === 999 ? head : v * f]));
 }

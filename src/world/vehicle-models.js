@@ -5,6 +5,7 @@
 // end of a truck, the windscreen sits toward a car's front.)
 import * as THREE from 'three';
 import { assets } from './characters.js';
+import { cloneMat } from './materials.js';
 
 const SPECS = {
   truck: { key: 'opel', length: 6.0, front: '+z' },
@@ -34,7 +35,7 @@ export function vehicleModel(kind, { front } = {}) {
   const spec = SPECS[kind], src = source(spec);
   const outer = new THREE.Group();
   if (!src) return outer;
-  const mesh = new THREE.Mesh(src.geometry, src.material.clone());   // own material: wrecks blacken one at a time
+  const mesh = new THREE.Mesh(src.geometry, cloneMat(src.material));   // own material: wrecks blacken one at a time
   mesh.castShadow = mesh.receiveShadow = true;
   const bb = src.geometry.boundingBox, size = bb.getSize(new THREE.Vector3());
   const axis = (front ?? spec.front ?? '+z').slice(1);

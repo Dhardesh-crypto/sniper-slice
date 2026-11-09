@@ -660,6 +660,9 @@ export class Audio {
       src.start();
       v = this.loops[key] = { src, lp, g };
     }
+    // (Called every frame: only queue a ramp when something has changed, as setRain does.)
+    if (Math.abs((v.level ?? -1) - level) + Math.abs((v.rate ?? -1) - rate) + Math.abs((v.dull ?? -1) - dull) <= 1e-3) return;
+    Object.assign(v, { level, rate, dull });
     const t = this.ctx.currentTime;
     v.g.gain.setTargetAtTime(level, t, 0.12);
     v.src.playbackRate.setTargetAtTime(rate, t, 0.3);
@@ -674,7 +677,14 @@ export class Audio {
   // A truck's engine on the move (the column, the reinforcements): the recording once it has
   // loaded, the synthesised engine until then.
   setTruck(level) {
-    if (this.samples?.army_truck) { this.loopSample('truck', 'army_truck', level * level * 0.9, { dull: 1 - level }); return; }
+    if (this.samples?.army_truck) {
+      this.loopSample('truck', 'army_truck', level * level * 0.9, { dull: 1 - level });
+      // A truck already running on the synthesised engine hands over to the recording (once:
+      // the airfield's run-up uses that engine too).
+      if (this.truckSynth) { this.truckSynth = false; this.setEngine(0); }
+      return;
+    }
+    this.truckSynth = true;
     this.setEngine(level);
   }
 
@@ -798,7 +808,8 @@ export class Audio {
 
   // Wind ambience follows the actual wind speed.
   setWind(speed) {
-    if (!this.windGain) return;
+    if (!this.windGain || Math.abs((this.windSet ?? -1) - speed) <= 1e-3) return;   // (every frame: only when it changes)
+    this.windSet = speed;
     const t = this.ctx.currentTime;
     this.windGain.gain.setTargetAtTime(0.025 + speed * 0.012, t, 0.5);
     this.windFilter.frequency.setTargetAtTime(250 + speed * 80, t, 0.5);

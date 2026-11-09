@@ -24,6 +24,7 @@ export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair
 // the sky-and-ground fill, and the exposure; warmth and saturation are the region's colour grade
 // (core/post.js: 1 and 1.08 are the grade every map had before; Tuscany warmer, the coast cooler).
 const CHARGE_REACH = 0.8;   // m past whatever a shot meets first that a charge on it still takes the bullet
+const _inst = new THREE.Matrix4(); // (one instance's matrix, for the face normal of a tree trunk or rock hit)
 export const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
   hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85, warmth: 1, saturation: 1.08 };
 
@@ -191,6 +192,11 @@ export class World {
     // (accumulating the time), which is invisible at that range. Dying ones always update.
     this.frame = (this.frame ?? 0) + 1;
     for (const s of this.soldiers) {
+      // A body come to rest (fallen, rifle down, not being carried) is a still pose: his clips and
+      // matrices needn't run every frame. A second at rest first, for a clip still fading out.
+      const rest = !s.alive && !s.rag && !s.fall && !s.fly && s.deathT >= 1 && (!s.drop || s.drop.done) && !s.char.base?.isRunning() && !s.dragged && !s.throwing && !(s.staggerT > 0);
+      s.restT = rest ? (s.restT ?? 0) + dt : 0;
+      if (s.restT > 1) { s.lodDt = 0; continue; }
       s.lodDt = (s.lodDt ?? 0) + dt;
       const d2 = this.viewer ? s.root.position.distanceToSquared(this.viewer) : 0;
       const far = this.viewer && s.alive && d2 > 120 * 120;
@@ -267,8 +273,11 @@ export class World {
       // that meets the thing first, just short of the charge, still sets the charge off.
       const charge = !hits[0].object.userData.trap && all.find(h => h.object.userData.trap && h.distance - hits[0].distance < CHARGE_REACH);
       const h = charge || hits[0];
-      const normal = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
-      best = { point: h.point, distance: h.distance, object: h.object, normal, zone: h.object.userData.zone, soldier: h.object.userData.soldier, hotspot: h.object.userData.hotspot, trap: h.object.userData.trap };
+      // An instanced trunk or rock is turned and tilted by its own instance matrix before the mesh's.
+      const normal = h.face ? h.face.normal.clone() : new THREE.Vector3(0, 1, 0);
+      if (h.face && h.instanceId != null) { h.object.getMatrixAt(h.instanceId, _inst); normal.transformDirection(_inst); }
+      if (h.face) normal.transformDirection(h.object.matrixWorld);
+      best = { point: h.point, distance: h.distance, object: h.object, face: h.face, normal, zone: h.object.userData.zone, soldier: h.object.userData.soldier, hotspot: h.object.userData.hotspot, trap: h.object.userData.trap };
     }
     const t = intersectTerrain(a, b);
     if (t && (!best || t.distance < best.distance)) {

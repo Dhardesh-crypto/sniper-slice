@@ -18,7 +18,7 @@ const HEEL = new THREE.Vector3(-0.9, 0, -0.9);   // where it walks: at his left,
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const MOUTH = 0.5;             // m off the ground: what a bite has to get past
 const REROUTE = 0.5;           // s between looks for the way round
-const ray = new THREE.Ray(), meets = new THREE.Vector3(), from = new THREE.Vector3(), to = new THREE.Vector3();
+const from = new THREE.Vector3(), to = new THREE.Vector3();
 
 export class Dogs {
   constructor({ scene, world, player, stealth, audio, fx, hud, nav, seed }) {
@@ -111,10 +111,7 @@ export class Dogs {
     const p = this.player.pos;
     from.set(pos.x, pos.y + MOUTH, pos.z);
     to.set(p.x, p.y + MOUTH, p.z);
-    const len = from.distanceTo(to);
-    if (len < 1e-3) return false;
-    ray.set(from, to.sub(from).divideScalar(len));
-    return this.world.boxes.some(b => ray.intersectBox(b, meets) && meets.distanceTo(from) < len);
+    return this.world.boxAlong(from, to) !== null;
   }
 
   // Where it runs to reach you: straight at you in the open, else the next corner of the way round.

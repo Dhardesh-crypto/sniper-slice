@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { fill } from './glyphs.js';
 
 const $ = (id) => document.getElementById(id);
+// Text that's mostly the same from frame to frame: written only when it changes, since every
+// write makes the browser lay the page out again.
+const put = (node, s, prop = 'textContent') => { if (node.dataset.put !== s) { node.dataset.put = s; node[prop] = s; } };
 
 export class Hud {
   constructor() {
@@ -15,7 +18,7 @@ export class Hud {
       crosshair: $('crosshair'), wind: $('wind'), windArrow: $('wind-arrow'), windText: $('wind-text'),
       stance: $('stance'), heart: $('heart'), heartText: $('heart-text'), breath: $('breath'), breathFill: $('breath-fill'),
       ammo: $('ammo'), weapon: $('weapon-name'), mag: $('mag'), zero: $('zero'),
-      scopeInfo: $('scope-info'), hitmsg: $('hitmsg'), range: $('range'), debug: $('debug'), hint: $('hint'),
+      scopeInfo: $('scope-info'), hitmsg: $('hitmsg'), range: $('range'), debug: $('debug'),
     };
     this.overlayKey = '';
     this.hitMarker = 0;
@@ -34,6 +37,7 @@ export class Hud {
     }
     this.dpr = dpr;
     this.overlayKey = '';
+    this.compassSize = null;   // (measured again on the next draw)
   }
 
   message(text, kind = '') {
@@ -90,17 +94,17 @@ export class Hud {
     const el = this.el.mask ?? (this.el.mask = document.getElementById('mask'));
     const names = { generator: 'GENERATOR', plane: 'AIRCRAFT', artillery: 'ARTILLERY' };
     if (st.mask.amount > 0.5) {
-      el.textContent = `SOUND MASKED · ${names[st.mask.source] ?? String(st.mask.source).toUpperCase()}`;
+      put(el, `SOUND MASKED · ${names[st.mask.source] ?? String(st.mask.source).toUpperCase()}`);
       el.className = 'on';
     } else if (st.upcoming && st.upcoming.in < 6 && st.upcoming.in > 0) {
-      el.textContent = st.upcoming.kind === 'plane' ? 'AIRCRAFT APPROACHING' : 'ARTILLERY INCOMING';
+      put(el, st.upcoming.kind === 'plane' ? 'AIRCRAFT APPROACHING' : 'ARTILLERY INCOMING');
       el.className = 'soon';
     } else el.className = '';
     // Overall state
     const banner = this.el.banner ?? (this.el.banner = document.getElementById('alertstate'));
-    banner.textContent = st.alarm ? 'ALARM' : st.worst === 'alerted' ? 'ENEMIES ALERTED' : st.worst === 'suspicious' ? 'SUSPICIOUS' : '';
+    const state = st.alarm ? 'ALARM' : st.worst === 'alerted' ? 'ENEMIES ALERTED' : st.worst === 'suspicious' ? 'SUSPICIOUS' : '';
     const guise = this.disguise?.status();
-    if (guise) banner.textContent = banner.textContent ? `${banner.textContent} · ${guise}` : guise;
+    put(banner, guise ? (state ? `${state} · ${guise}` : guise) : state);
     banner.className = st.alarm ? 'alarm' : st.worst;
   }
 
@@ -207,7 +211,9 @@ export class Hud {
   // Compass strip: heading ticks, and markers for objectives, the waypoint and tagged enemies.
   drawCompass(player, marks) {
     const c = this.el.compass ?? (this.el.compass = document.getElementById('compass'));
-    const d = this.dpr, W = c.clientWidth * d, H = c.clientHeight * d;
+    // (its size read once per resize: reading it every frame forces a layout every frame)
+    if (!this.compassSize && c.clientWidth) this.compassSize = [c.clientWidth, c.clientHeight];
+    const d = this.dpr, [cw, ch] = this.compassSize ?? [0, 0], W = cw * d, H = ch * d;
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
     const g = c.getContext('2d');
     g.clearRect(0, 0, W, H);
@@ -266,10 +272,10 @@ export class Hud {
     el.crosshair.style.opacity = mode === 'none' && !player.sprinting ? 0.85 : 0;
     el.crosshair.classList.toggle('lethal', mode === 'none' && a.weapon === 'pistol' && a.lethal);   // a killing shot
     el.scopeInfo.style.opacity = mode === 'none' ? 0 : 1;
-    if (mode === 'scope') el.scopeInfo.textContent = `${a.zoomName}   ZERO ${a.zero} m${a.autoZero ? ' (AUTO)' : ''}${(stealth?.glint?.lens ?? 0) > 0.25 ? '   ✷ SUN ON THE LENS' : ''}`;
-    else if (mode === 'binoc') el.scopeInfo.textContent = `${a.binocZoomName}   BINOCULARS${this.airwar ? (this.airwar.strikesLeft > 0 ? `   ${fill('{G}')} · CALL AN AIR STRIKE (${this.airwar.strikesLeft})` : '   NO STRIKES LEFT') : ''}`;
+    if (mode === 'scope') put(el.scopeInfo, `${a.zoomName}   ZERO ${a.zero} m${a.autoZero ? ' (AUTO)' : ''}${(stealth?.glint?.lens ?? 0) > 0.25 ? '   ✷ SUN ON THE LENS' : ''}`);
+    else if (mode === 'binoc') put(el.scopeInfo, `${a.binocZoomName}   BINOCULARS${this.airwar ? (this.airwar.strikesLeft > 0 ? `   ${fill('{G}')} · CALL AN AIR STRIKE (${this.airwar.strikesLeft})` : '   NO STRIKES LEFT') : ''}`);
     el.range.style.opacity = mode === 'binoc' ? 1 : 0;
-    if (mode === 'binoc') el.range.textContent = a.range ? `${Math.round(a.range)} m` : '— m';
+    if (mode === 'binoc') put(el.range, a.range ? `${Math.round(a.range)} m` : '— m');
 
     // Wind relative to where you face: up = blowing away from you, right = to your right.
     const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
@@ -277,9 +283,9 @@ export class Hud {
     const wv = world.wind;
     const ang = Math.atan2(wv.x * rgtX + wv.z * rgtZ, wv.x * fwdX + wv.z * fwdZ);
     el.windArrow.style.transform = `rotate(${THREE.MathUtils.radToDeg(ang).toFixed(1)}deg)`;
-    el.windText.textContent = `${world.windSpeed.toFixed(1)} m/s`;
+    put(el.windText, `${world.windSpeed.toFixed(1)} m/s`);
 
-    el.stance.textContent = player.stance.toUpperCase();
+    put(el.stance, player.stance.toUpperCase());
     // Concealment in tall grass: an icon over the stance and a faint green edge to the view.
     const cc = el.conceal ?? (el.conceal = document.getElementById('conceal'));
     const edge = el.hiddenEdge ?? (el.hiddenEdge = document.getElementById('hidden-edge'));
@@ -296,14 +302,14 @@ export class Hud {
     hurt.style.opacity = String(Math.max(player.dead ? 0.9 : 0, Math.max(0, 1 - player.hurtT / 0.9), player.health < 35 ? 0.35 : 0));
     const sup = el.suppress ?? (el.suppress = document.getElementById('suppress'));
     if (sup) sup.style.opacity = String(player.dead ? 0 : Math.min(0.85, (player.suppress ?? 0) * 0.85));   // under fire: sight closes in
-    el.heartText.textContent = Math.round(player.heartRate);
+    put(el.heartText, String(Math.round(player.heartRate)));
     el.heart.style.animationDuration = `${(60 / player.heartRate).toFixed(3)}s`;
     el.breath.style.opacity = a.scoped ? 1 : 0;
     el.breathFill.style.width = `${(a.breath * 100).toFixed(1)}%`;
     el.breath.classList.toggle('holding', a.holding);
     el.breath.classList.toggle('exhausted', a.exhausted);
 
-    el.weapon.textContent = a.quick ? 'QUICK RELOAD' : a.reloading ? 'RELOADING… R IN THE MARK: QUICK' : a.name;
+    put(el.weapon, a.quick ? 'QUICK RELOAD' : a.reloading ? 'RELOADING… R IN THE MARK: QUICK' : a.name);
     // The reload bar: how far along, and the window where R gives a quick reload.
     const rb = el.reloadBar ?? (el.reloadBar = document.getElementById('reloadbar'));
     if (rb) {
@@ -326,8 +332,8 @@ export class Hud {
         box.querySelector('small').textContent = fill(`{Q} change · {G} use${items.charges ? ` · {K} detonate (${items.charges})` : ''}`);
       }
     }
-    el.mag.innerHTML = `${a.mag}<span>/ ${a.reserve}</span>`;
-    el.zero.textContent = a.zero ? `ZERO ${a.zero} m` : '';
+    put(el.mag, `${a.mag}<span>/ ${a.reserve}</span>`, 'innerHTML');
+    put(el.zero, a.zero ? `ZERO ${a.zero} m` : '');
 
     if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) el.hitmsg.className = ''; }
 
@@ -413,7 +419,8 @@ export class Hud {
     // Objectives: diamonds in the world with a name and distance.
     if (mission) {
       const COLORS = { target: '255,207,106', radio: '143,208,255', extract: '143,224,138', papers: '217,179,255', tank: '255,138,90' };
-      for (const m of mission.markers()) {
+      const list = mission.markers();
+      for (const m of list) {
         const at = (this.v3 ?? (this.v3 = new THREE.Vector3())).copy(m.pos); at.y += m.height;
         const sp = project(at);
         if (!sp) continue;
@@ -428,7 +435,7 @@ export class Hud {
         g.fillText(`${m.label} · ${dist} m`, sp.x, sp.y - 13 * d);
       }
       this.drawObjectives(mission);
-      const marks = mission.markers();
+      const marks = [...list];   // (a copy: the mission keeps its list for the rest of the frame)
       if (waypoint) marks.push({ pos: waypoint, kind: 'waypoint' });
       for (const s of world.soldiers) if (s.tagged && s.alive && !s.officer) marks.push({ pos: s.root.position, kind: 'enemy' });
       for (const h of hotspots?.tagged() ?? []) marks.push({ pos: h.center(), kind: 'weakspot' });
@@ -517,7 +524,7 @@ export class Hud {
     const pr = document.getElementById('prompt');
     pr.classList.toggle('show', !!search && mode === 'none');
     if (search) {
-      pr.querySelector('span').textContent = search.label;
+      put(pr.querySelector('span'), search.label);
       pr.querySelector('#prompt-ring').style.strokeDashoffset = String(94.25 * (1 - search.progress));
     }
 
@@ -525,7 +532,7 @@ export class Hud {
       const p = player.pos;
       el.debug.textContent = `${fps.toFixed(0)} fps · res ×${(res ?? 0).toFixed(2)} · pos ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ` +
         `HR ${player.heartRate.toFixed(0)} · wind ${world.wind.x.toFixed(1)},${world.wind.z.toFixed(1)} · ` +
-        `bullets ${arsenal.bullets.length} · grass ${world.tuftCount} · stats ${JSON.stringify(arsenal.stats)}`;
+        `bullets ${arsenal.bullets.length} · grass ${world.tuftCount} · stats ${JSON.stringify(mission?.stats)}`;
     }
     el.debug.style.display = this.debugOn ? 'block' : 'none';
   }

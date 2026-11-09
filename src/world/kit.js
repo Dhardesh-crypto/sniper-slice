@@ -207,3 +207,19 @@ export function mergeDecor(scene) {
     scene.add(merged);
   }
 }
+
+// The alarm siren on its pole, the same in every mission: a guard who sees you runs to it to
+// sound it; cut the wire at the junction box (hold E) and it stays silent. (x, y, z): the foot
+// of the pole. Returns the siren the alarm and the wire-cutting read (stealth, world/wire.js).
+export function sirenPole(b, x, y, z) {
+  b.box(0.2, 5.2, 0.2, M.wood, x, y, z);
+  const junction = b.box(0.36, 0.46, 0.2, M.metal, x, y + 1.0, z + 0.2, { solid: false });
+  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
+  horn.position.set(x + 0.25, y + 5.0, z);
+  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
+  hornBody.position.set(x - 0.05, y + 5.0, z);
+  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
+  wire.position.set(x + 0.12, y + 3.1, z + 0.12);
+  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
+  return { pos: new THREE.Vector3(x, y, z), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(x, y, z + 0.9) };
+}

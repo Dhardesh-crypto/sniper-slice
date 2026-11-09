@@ -145,13 +145,27 @@ function dugout(b, sys, g, heightAt) {
   const W = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];      // local → world
   const floor = heightAt(x, z), plank = M.darkWood;
   const box = (bw, bh, bd, mat, lx, y, lz, opts = {}) => { const [wx, wz] = W(lx, lz); return b.box(bw, bh, bd, mat, wx, y, wz, { rotY: yaw, ...opts }); };
-  // Floor, back and side walls (solid), the front wall either side of the doorway.
+  // A wall stops you as a row of short boxes along it: one box round the whole turned wall (kit.js
+  // addSolid) would reach into the room, at 17° by a third of it. Bullets meet the wall itself.
+  const wall = (bw, bh, bd, lx, y, lz) => {
+    const mesh = box(bw, bh, bd, plank, lx, y, lz, { solid: false });
+    mesh.updateMatrixWorld(true);
+    b.solids.push(mesh);
+    const along = bw >= bd, len = along ? bw : bd, n = Math.ceil(len / 0.5), seg = len / n;
+    const ax = (along ? seg : bw) / 2, az = (along ? bd : seg) / 2;
+    const hx = Math.abs(c) * ax + Math.abs(s) * az, hz = Math.abs(s) * ax + Math.abs(c) * az;
+    for (let i = 0; i < n; i++) {
+      const o = -len / 2 + seg * (i + 0.5), [cx, cz] = W(lx + (along ? o : 0), lz + (along ? 0 : o));
+      b.boxes.push(new THREE.Box3(new THREE.Vector3(cx - hx, y, cz - hz), new THREE.Vector3(cx + hx, y + bh, cz + hz)));
+    }
+  };
+  // Floor, back and side walls, the front wall either side of the doorway.
   box(w, 0.06, d, plank, 0, floor, 0, { solid: false });
-  box(w + 0.2, h, 0.15, plank, 0, floor, -d / 2);
-  for (const sd of [-1, 1]) box(0.15, h, d, plank, sd * w / 2, floor, 0);
+  wall(w + 0.2, h, 0.15, 0, floor, -d / 2);
+  for (const sd of [-1, 1]) wall(0.15, h, d, sd * w / 2, floor, 0);
   const door = 1.0, side = (w - door) / 2;
-  for (const sd of [-1, 1]) box(side, h, 0.15, plank, sd * (door / 2 + side / 2), floor, d / 2);
-  box(door, h - 1.85, 0.15, plank, 0, floor + 1.85, d / 2);              // over the doorway
+  for (const sd of [-1, 1]) wall(side, h, 0.15, sd * (door / 2 + side / 2), floor, d / 2);
+  wall(door, h - 1.85, 0.15, 0, floor + 1.85, d / 2);                    // over the doorway
   // The roof: logs across, then earth heaped over, higher in the middle.
   for (let lz = -d / 2; lz <= d / 2 + 0.01; lz += 0.24) box(w + 0.6, 0.2, 0.22, M.wood, 0, floor + h, lz);
   box(w + 1.2, 0.45, d + 1.0, M.earth, 0, floor + h + 0.2, 0);

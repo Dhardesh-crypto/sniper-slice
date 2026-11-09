@@ -118,7 +118,7 @@ const MISSION_MODULES = {
   radar: () => import('./missions/coast.js'),
   flak: () => import('./missions/flak.js'),
 };
-const missionId = MISSION_MODULES[currentMissionId()] && missionById(currentMissionId()).ready ? currentMissionId() : 'vineyard';
+const missionId = MISSION_MODULES[currentMissionId()] ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
 // The mission's modelled props (and the safe every mission has), before its site is built.
 playBtn.disabled = true;
@@ -272,9 +272,9 @@ function renderCampaign() {
   const el = document.getElementById('campaign');
   el.innerHTML = CAMPAIGN.map((m, i) => {
     const done = profile.completed(m.id), open = profile.unlocked(CAMPAIGN, m.id), current = m.id === missionId;
-    const status = current ? 'playing' : !m.ready ? 'in preparation' : !open ? 'locked' : done ? 'done ✓' : 'ready';
+    const status = current ? 'playing' : !open ? 'locked' : done ? 'done ✓' : 'ready';
     const intel = profile.intel(m.id).length;
-    return `<button class="camp${current ? ' current' : ''}${m.ready && open && !current ? ' playable' : ''}${!open || !m.ready ? ' locked' : ''}" data-mission="${m.id}" ${m.ready && open && !current ? '' : 'disabled'}>
+    return `<button class="camp${current ? ' current' : ''}${open && !current ? ' playable' : ''}${!open ? ' locked' : ''}" data-mission="${m.id}" ${open && !current ? '' : 'disabled'}>
       <span class="n">${i + 1}</span><span><b>${m.name}</b><small>${m.place}${intel ? ` · ${intel} document${intel === 1 ? '' : 's'} found` : ''}</small></span><span class="st">${status}</span></button>`;
   }).join('');
   el.querySelectorAll('.camp.playable').forEach(b => b.addEventListener('click', () => {
@@ -341,6 +341,12 @@ if (orders) document.getElementById('briefing').insertAdjacentHTML('afterbegin',
 document.getElementById('briefing').insertAdjacentHTML('beforeend', challengesHtml(mission, profile.challenges(missionId)));
 stealth.onRaise = (why) => mission.onRaise(why);
 const endScreen = document.getElementById('end');
+// The mission is over (won, failed or dead): every running loop stops, the music too.
+function silence() {
+  audio.setSiren(0); audio.setTruck(0); audio.setEngine(0); audio.loopSample('column', 'army_truck', 0);
+  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
+  audio.stopMusic();
+}
 mission.onComplete = (sum) => {
   profile.completeMission(missionId);     // the next mission unlocks
   noteHabits(profile, mission.stats, ai.alarm.count);
@@ -352,7 +358,7 @@ mission.onComplete = (sum) => {
   // Ellis's report: what it's bought, and where it leads.
   if (story) { document.getElementById('report').innerHTML = `<p class="from">${HANDLER} · to Kestrel</p><p>${story.outro}</p>`; playVoice(`story_${missionId}_outro`); }
   // On to the next mission in the campaign (the last one: only playing it again).
-  const next = CAMPAIGN.slice(CAMPAIGN.findIndex(m => m.id === missionId) + 1).find(m => m.ready);
+  const next = CAMPAIGN[CAMPAIGN.findIndex(m => m.id === missionId) + 1];
   const nextBtn = document.getElementById('next'), againBtn = document.getElementById('again');
   nextBtn.hidden = !next;
   againBtn.classList.toggle('ghost', !!next);
@@ -360,19 +366,14 @@ mission.onComplete = (sum) => {
   nextBtn.onclick = next ? () => chooseMission(next.id) : null;
   endScreen.classList.add('on');
   menu.classList.add('hidden');
-  audio.setSiren(0);
-  audio.setTruck(0); audio.setEngine(0);
-  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
-  audio.stopMusic();
+  silence();
   input.unlock();
 };
 mission.onFail = (why) => {
   deathScreen.querySelector('h2').textContent = why;
   deathScreen.classList.add('on');
   menu.classList.add('hidden');
-  audio.setSiren(0);
-  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
-  audio.stopMusic();
+  silence();
   input.unlock();
 };
 document.getElementById('again').addEventListener('click', () => location.reload());
@@ -566,6 +567,8 @@ input.onLockChange = (locked) => {
   const over = player.dead || mission.done;
   // Esc (the browser frees the mouse) while aiming a throw: it's put away, not thrown on resume.
   if (!locked) items.cancelThrow();
+  // Keys pressed in the menu (F9, R, H, G...) must not all go off on the first step after Resume.
+  if (locked) input.consume();
   menu.classList.toggle('hidden', locked || mapView.open || over || benchOpen);
   if (locked && !started) {
     started = true;
@@ -663,6 +666,7 @@ let fps = 60;
 const timer = new THREE.Timer();
 timer.connect(document);
 const lookAhead = new THREE.Vector3();
+const avatarPos = new THREE.Vector3();   // (reused every frame: the avatar copies it)
 let paused = false;
 
 function tick(dt) {
@@ -738,9 +742,7 @@ function tick(dt) {
     deathScreen.classList.add('on');
     deathScreen.querySelector('h2').textContent = player.fellFrom ? `KILLED IN A ${Math.round(player.fellFrom)} M FALL` : 'KILLED IN ACTION';
     menu.classList.add('hidden');
-    audio.setSiren(0);
-    audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
-    audio.stopMusic();
+    silence();
     input.unlock();
   }
   input.consume();
@@ -848,7 +850,7 @@ function step(realDt, draw = true) {
   camera.updateMatrixWorld();
 
   avatar.update(dt, {
-    pos: new THREE.Vector3().lerpVectors(player.prevPos, player.pos, alpha),
+    pos: avatarPos.lerpVectors(player.prevPos, player.pos, alpha),
     lookYaw: driving.bodyYaw() ?? player.yaw, lookPitch: driving.vehicle ? 0 : player.pitch, moveYaw: driving.bodyYaw() ?? player.moveYaw,
     groundAt: driving.vehicle ? null : (x, z) => world.floorAt(x, z, player.pos.y + 0.6),   // (feet on a slope: characters.js footIK)
     stance: player.stance, speed: driving.vehicle ? 0 : player.speed, sprinting: player.sprinting, carrying: !!player.carrying, climb: player.climb, climbRate: player.climbRate, dead: player.dead, concealed: stealth.state().concealed, takedown: !!takedown.active, takedownYaw: takedown.active?.yaw,
@@ -892,12 +894,21 @@ function step(realDt, draw = true) {
   mapView.drawMini({ player, stealth: st });
 }
 // A load the player asked for (the page was reloaded to rebuild the world from the save).
-// A save that can't be applied must never leave a black screen: start the mission fresh instead.
+// A save that can't be applied must never leave a black screen, nor a world half put back:
+// reload for a fresh start (applyPending already dropped the note) and say so after it.
 let loadedSlot = null;
 try { loadedSlot = saves.applyPending(); if (loadedSlot) briefed = true; } catch (e) {
   console.error('Could not load the save', e);
-  hud.message('COULD NOT LOAD THAT SAVE · STARTING FRESH', 'wound');
+  try { sessionStorage.setItem('sniper-slice.loadFailed', '1'); } catch { /* storage blocked */ }
+  location.reload();
+  await new Promise(() => {});   // (nothing more runs on this page)
 }
+try {
+  if (sessionStorage.getItem('sniper-slice.loadFailed')) {
+    sessionStorage.removeItem('sniper-slice.loadFailed');
+    hud.message('COULD NOT LOAD THAT SAVE · STARTING FRESH', 'wound');
+  }
+} catch { /* storage blocked */ }
 if (loadedSlot) {
   document.querySelector('#menu .sub').textContent = `Loaded: ${SLOT_NAMES[loadedSlot]}`;
   hud.message('GAME LOADED', '');

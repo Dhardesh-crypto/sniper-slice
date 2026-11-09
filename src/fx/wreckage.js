@@ -4,6 +4,7 @@
 // bounce and lie where they land, still burning a while. Then the fuel goes up a moment later.
 // The burnt-out wreck itself is hotspots.js's (wreck / swapForWreck).
 import * as THREE from 'three';
+import { cloneMat } from '../world/materials.js';   // (a plain clone drops the detail and snow patches)
 
 const MAX_PIECES = 160;
 const GRAVITY = 9.8;
@@ -29,7 +30,7 @@ export class Wreckage {
     const span = Math.max(dims.x, dims.z);
     // Burnt paint: the vehicle's own material (its texture), charred.
     const src = Array.isArray(body?.material) ? body.material[0] : body?.material;
-    const paint = src?.isMaterial ? src.clone() : new THREE.MeshStandardMaterial({ color: 0x4a4a40 });
+    const paint = src?.isMaterial ? cloneMat(src) : new THREE.MeshStandardMaterial({ color: 0x4a4a40 });
     paint.color?.setRGB(0.13, 0.12, 0.11);   // (scorched; a set level: some models' colours run past white under the texture)
     paint.roughness = 1; paint.metalness = 0.2;
     // Panels and chunks, more off a bigger vehicle.
@@ -57,7 +58,7 @@ export class Wreckage {
       const crew = turret.userData.crew;
       if (crew) crew.dead = true;
       this.scene.attach(turret);
-      turret.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color?.multiplyScalar(0.3); if ('metalness' in o.material) { o.material.metalness = 0.15; o.material.roughness = 1; } } });
+      turret.traverse(o => { if (o.isMesh) { o.material = cloneMat(o.material); o.material.color?.multiplyScalar(0.3); if ('metalness' in o.material) { o.material.metalness = 0.15; o.material.roughness = 1; } } });
       const side = Math.random() * Math.PI * 2, out = 2.5 + Math.random() * 1.5;   // (over the side: it comes down beside the hull, not on it)
       const p = { mesh: turret, vel: new THREE.Vector3(Math.cos(side) * out, 8 + Math.random() * 2, Math.sin(side) * out), spin: new THREE.Vector3(Math.random() - 0.5, (Math.random() - 0.5) * 0.4, Math.random() - 0.5).normalize(), rate: 3 + Math.random() * 3, half: 0.15, burn: 6, heavy: true };
       this.add(p);

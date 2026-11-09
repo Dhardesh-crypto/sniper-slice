@@ -101,7 +101,7 @@ const POOL = {
         const id = `side-intel-${i}`;
         ids.push(id);
         // (marked as the job's, so it isn't taken for one of the mission's own papers)
-        c.interactions.addDocument({ id, title: `Intelligence paper: ${title}`, text, at, onRead: () => {
+        c.interactions.addDocument({ id, title: `Intelligence paper: ${title}`, text, at, side: true, onRead: () => {
           const n = ids.filter(d => c.interactions.found.has(d)).length;
           if (n < 3) c.hud.message(`SIDE JOB · INTELLIGENCE PAPER ${n} OF 3`, 'head');
         } });

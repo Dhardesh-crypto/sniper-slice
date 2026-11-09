@@ -11,7 +11,7 @@
 // once you've been near them.
 import * as THREE from 'three';
 import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ, activeMap } from './terrain.js';
-import { CATALOG, HEAVY_AMMO, partById } from '../weapons/defs.js';
+import { CATALOG, HEAVY_AMMO } from '../weapons/defs.js';
 import { takeSupplies } from '../player/supplies.js';
 import { PickupModels } from './pickup-models.js';
 
@@ -274,8 +274,6 @@ export class Pickups {
     ];
   }
 }
-
-export { partById };
 
 function seededRandom(seed) {
   return () => { seed = (seed + 0x6D2B79F5) >>> 0; let x = seed; x = Math.imul(x ^ x >>> 15, x | 1); x ^= x + Math.imul(x ^ x >>> 7, x | 61); return ((x ^ x >>> 14) >>> 0) / 4294967296; };

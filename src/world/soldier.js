@@ -374,10 +374,10 @@ export class Soldier {
       const hit = { dir: blast > 0 ? push.clone() : bulletDir.clone(), point, zone, power, blast, vel: facing.clone().multiplyScalar(this.speed ?? 0) };
       // (No reeling clip first: it threw his arms up and fought the fall. How long he stays on his
       // feet is the muscle in ragdoll.js.)
-      this.ragPending = { t: 0, hit };
       this.deathT = 0;
       if (this.char.rifle.visible) this.dropRifle(bulletDir.clone().setY(0).add(blast > 0 ? new THREE.Vector3(0, 0.6, 0) : new THREE.Vector3()));
-      this.startRagdoll();
+      this.rag = new Ragdoll(this, hit);
+      this.ragdolled = true;            // (his pose is his own now: saves keep it)
       return;
     }
     // Turned as he goes: round to fall along the push (the clips fall straight ahead or straight
@@ -417,13 +417,6 @@ export class Soldier {
     if (!delay) this.startFall();
   }
 
-  startRagdoll() {
-    const { hit } = this.ragPending;
-    this.ragPending = null;
-    this.rag = new Ragdoll(this, hit);
-    this.ragdolled = true;            // (his pose is his own now: saves keep it)
-  }
-
   startFall() {
     this.fall.played = true;
     this.char.play(this.deathClip, { fade: this.fall.delay ? 0.15 : 0.08, once: true, timeScale: this.fall.rate });
@@ -431,8 +424,6 @@ export class Soldier {
 
   // The fall, after the death clip has posed him: the turn, the shove, or the flight through the air.
   updateFall(dt) {
-    if (this.ragPending && (this.ragPending.t -= dt) <= 0) this.startRagdoll();
-    if (this.ragPending) return;
     if (this.rag) {
       if (this.dragged) this.rag.stop();     // (picked up: he goes where he's pulled)
       else this.rag.step(dt);
@@ -551,7 +542,7 @@ export class Soldier {
     }
     this.char.update(dt);
     if (this.drop) this.updateDrop(dt);
-    if (!this.alive && (this.rag || this.ragPending || this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
+    if (!this.alive && (this.rag || this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
     if (this.reactT > 0 && (this.reactT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.coverT > 0 && (this.coverT -= dt) <= 0 && this.alive) this.applyStance(0.3);
     if (this.throwing && (!this.alive || this.downed || (this.throwing.t -= dt) <= 0)) this.releaseGrenade(!this.alive || this.downed);
@@ -642,7 +633,7 @@ export class Soldier {
     if (this.fallFrom) this.root.position.copy(this.fallFrom);
     this.fallFrom = null;
     this.fall = this.fly = null;
-    this.rag = this.ragPending = null; this.ragdolled = false;
+    this.rag = null; this.ragdolled = false;
     if (this.char.hold) this.char.hold.play().setEffectiveWeight(1);   // (a fall stops every clip)
     this.root.rotation.set(0, this.root.rotation.y, 0);
     this.downed = null;

@@ -208,10 +208,6 @@ export function vaultAt(t) {
   return { along: p.along[i - 1] + (p.along[i] - p.along[i - 1]) * k, lift: p.lift[i - 1] + (p.lift[i] - p.lift[i - 1]) * k };
 }
 
-export function assetsReady() {
-  return !!(assets.models.player && assets.models.guard && assets.clips.idle);
-}
-
 // ---------------------------------------------------------------------------------
 
 export function rifleModel(kind = 'springfield') {
@@ -330,7 +326,7 @@ export function fitBayonet(gun, on, forward = 1) {
 
 export class Character {
   // kind: 'player' | 'guard'. faceMinusZ: the game's player convention (yaw 0 faces -z).
-  constructor(kind, { faceMinusZ = false, tint = null } = {}) {
+  constructor(kind, { faceMinusZ = false } = {}) {
     this.root = new THREE.Group();
     this.model = SkeletonUtils.clone((assets.models[kind] ?? assets.models.guard).scene);   // (a missing look falls back to the plain guard)
     this.model.updateMatrixWorld(true);
@@ -347,10 +343,6 @@ export class Character {
         // In the mesh node's own units (Meshy exports centimetres: node scale 0.01).
         const k = 1 / o.getWorldScale(new THREE.Vector3()).x;
         o.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9 * k, 0), 1.7 * k); // covers poses and falls
-        if (tint) {
-          o.material = o.material.clone();
-          o.material.color.multiply(new THREE.Color(tint));
-        }
       }
     });
     addLods(this.model);

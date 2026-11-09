@@ -10,6 +10,14 @@ const PREFIX = 'sniper-slice.save.';
 const PENDING = 'sniper-slice.pendingLoad';
 export const VERSION = 1;
 export const SLOTS = ['1', '2', '3', 'auto', 'quick'];
+// A slot's save, or null if it's missing, unreadable or from another version. (Also read by
+// run.js before the world exists, for the seed of a save that's about to load.)
+export function readSlot(slot) {
+  try { const d = slot && JSON.parse(localStorage.getItem(PREFIX + slot) || 'null'); return d && d.version === VERSION ? d : null; }
+  catch { return null; }
+}
+// The slot load() left a note for before the reload, if any.
+export function pendingSlot() { try { return sessionStorage.getItem(PENDING); } catch { return null; } }
 const v3 = (v) => v ? [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)] : null;
 const toV = (a) => a ? new THREE.Vector3().fromArray(a) : null;
 
@@ -30,10 +38,7 @@ export class Saves {
   }
 
   // ---- slots ----
-  read(slot) {
-    try { const d = JSON.parse(localStorage.getItem(PREFIX + slot) || 'null'); return d && d.version === VERSION ? d : null; }
-    catch { return null; }
-  }
+  read(slot) { return readSlot(slot); }
   list() { return SLOTS.map(slot => ({ slot, save: this.read(slot) })); }
 
   save(slot) {

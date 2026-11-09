@@ -12,7 +12,7 @@ import { rockMaterial, ROCK_LOOK } from './stone.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 import { loadGLB } from './gltf.js';
-import { normalizeModel } from './materials.js';
+import { normalizeModel, cloneMat } from './materials.js';
 
 // file: in public/models; turn: quarter turns (about y) that lay its length along x with the
 // front toward −x (measured from each mesh; see the comments).
@@ -155,7 +155,7 @@ export function modelParts(k, shade = {}) {
   const parts = {};
   src.traverse(o => {
     if (!o.isMesh) return;
-    const m = o.material = o.material.clone();     // (meshes sharing a material get their own shade)
+    const m = o.material = cloneMat(o.material);   // (meshes sharing a material get their own shade)
     if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
     if (CARDS.has(o.name)) {
       Object.assign(m, { alphaTest: 0.5, transparent: false, depthWrite: true, side: THREE.DoubleSide });
@@ -197,7 +197,7 @@ export function propModel(k, size, { stretch = false, own = false, turn = 0 } = 
   const meshes = [];
   inner.traverse(o => {
     if (!o.isMesh) return;
-    if (own) o.material = o.material.clone();
+    if (own) o.material = cloneMat(o.material);
     if (k === 'rock') o.material = rockProp ??= rockMaterial({ ...ROCK_LOOK, scale: 0.8 });   // (stone.js, like the ground's stones)
     o.castShadow = o.receiveShadow = true;
     meshes.push(o);
@@ -266,30 +266,6 @@ export function dressSite(world) {
   }
 }
 
-// Cut a placed prop off above world height `y`: its triangles reaching higher are dropped (a new
-// index over the same vertices). For the watchtowers and hunting stands: a generated cabin is solid
-// where the picture showed openings, which would hide the guard inside; above its railing the
-// plain posts and roof take over. (The prop must already be placed; it turns only about y.)
-export function clipAbove(model, y) {
-  model.updateMatrixWorld(true);
-  for (const m of model.userData.meshes) {
-    const inv = m.matrixWorld.clone().invert();
-    const cut = new THREE.Vector3(0, y, 0).applyMatrix4(inv).y;    // the height in the mesh's own units
-    const g = m.geometry, pos = g.attributes.position;
-    const idx = g.index ? g.index.array : Array.from({ length: pos.count }, (_, i) => i);
-    const keep = [];
-    for (let t = 0; t < idx.length; t += 3) {
-      if (pos.getY(idx[t]) <= cut && pos.getY(idx[t + 1]) <= cut && pos.getY(idx[t + 2]) <= cut) keep.push(idx[t], idx[t + 1], idx[t + 2]);
-    }
-    const cutGeo = new THREE.BufferGeometry();
-    for (const [name, attr] of Object.entries(g.attributes)) cutGeo.setAttribute(name, attr);
-    cutGeo.setIndex(keep);
-    m.geometry = cutGeo;
-    m.material = m.material.clone();
-    m.material.side = THREE.DoubleSide;           // (the cut shows the inside of the walls)
-  }
-}
-
 // Split a placed prop into pieces that can move apart (a bridge's spans and piers): each
 // triangle goes to the piece `classify(centroid)` names (null: dropped). Returns { name: mesh },
 // each mesh in world coordinates with its own material, not yet added anywhere.
@@ -317,7 +293,7 @@ export function splitProp(model, classify) {
     // own box would be the whole model: a bridge's two piers both centred mid-span).
     piece.boundingBox = new THREE.Box3();
     for (const i of idx) piece.boundingBox.expandByPoint(a.fromBufferAttribute(g.attributes.position, i));
-    const mesh = new THREE.Mesh(piece, mat.clone());
+    const mesh = new THREE.Mesh(piece, cloneMat(mat));
     mesh.castShadow = mesh.receiveShadow = true;
     out[key] = mesh;
   }
@@ -369,7 +345,6 @@ const DRESS = {
   truck: { vehicle: 'truck', block: [6, 2.4, 2.3] },
   car: { vehicle: 'car', block: [3.6, 1.5, 1.6] },
 };
-export const DRESS_KEYS = Object.keys(DRESS).filter(k => !DRESS[k].vehicle);
 
 // Place set dressing: items are [key, x, z, rotY = 0]. Each stands on the ground (heightAt) with
 // its block; one whose block would overlap a building or another block (`avoid`) is left out, so

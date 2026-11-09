@@ -226,14 +226,12 @@ const ROCK = { tint: 0xffffff, scale: 1, moss: 0.35, lichen: 0.7, streaks: 0.5, 
 const ONE = { value: 1 };
 // The game's stones (ground.js's, the rock prop): weathered limestone, mossy tops, lichen.
 export const ROCK_LOOK = { tint: 0xc4b8a6, darkness: 0.06, moss: 0.5, lichen: 0.6, streaks: 0.4, strata: 0.3, ochre: 0.4 };   // (warmer and darker than Athenaion's sunlit marble country)
-let made = 0;
-
 export function rockMaterial(opts = {}) {
   const o = { ...ROCK, ...opts };
   // (matte, little sky in it: like the other ground detail, props.js's modelParts)
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: o.roughness, metalness: 0, envMapIntensity: 0.2 });
   return proceduralHooks(mat, {
-    key: `rock${made++}`,
+    key: 'rock',                                  // (one program: the look is all in the uniforms, each material's own)
     uniforms: mat.userData.uniforms = {
       uStTint: { value: new THREE.Color(o.tint) },
       uStA: { value: new THREE.Vector4(o.scale, o.moss, o.lichen, o.streaks) },

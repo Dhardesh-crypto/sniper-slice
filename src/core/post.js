@@ -51,11 +51,12 @@ export class Post {
     this.gtao.blendIntensity = 0.85;
     this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.4, thickness: 2, scale: 1, samples: 8 });
     this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 1, samples: 6 }); // ~5 ms instead of ~27
-    // Also skip anything flagged noAO (e.g. shader-placed grass) in the AO's normal pass.
-    const hide = this.gtao._overrideVisibility.bind(this.gtao);
+    // Also skip anything flagged noAO (e.g. shader-placed grass) in the AO's normal pass: three's
+    // own hiding of points and lines, plus that, in one walk of the scene (its _restoreVisibility
+    // shows them all again from the same cache).
     this.gtao._overrideVisibility = () => {
-      hide();
-      scene.traverse((o) => { if (o.userData.noAO && o.visible) { o.visible = false; this.gtao._visibilityCache.push(o); } });
+      const cache = this.gtao._visibilityCache;
+      scene.traverse((o) => { if ((o.isPoints || o.isLine || o.isLine2 || o.userData.noAO) && o.visible) { o.visible = false; cache.push(o); } });
     };
     this.composer.addPass(this.gtao);
 

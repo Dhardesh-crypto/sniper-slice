@@ -7,7 +7,7 @@ import { textures, worldUVs } from './textures.js';
 import { vehicleModel } from './vehicle-models.js';
 
 import { dressBlock } from './arch.js';
-import { M, Builder } from './kit.js';
+import { M, Builder, sirenPole } from './kit.js';
 import { building, furniture, timberFrame } from './buildings.js';
 import { propGeometry } from './props.js';
 
@@ -189,16 +189,7 @@ export function buildCompound(scene) {
   // Alarm siren on a pole in the yard. A guard who sees you runs here to sound it; cut the
   // wire at the junction box (hold E) and it stays silent.
   const sx = cx - 1, sz = cz + 7;
-  b.box(0.2, 5.2, 0.2, M.wood, sx, y, sz);
-  const junction = b.box(0.36, 0.46, 0.2, M.metal, sx, y + 1.0, sz + 0.2, { solid: false });
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
-  horn.position.set(sx + 0.25, y + 5.0, sz);
-  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
-  hornBody.position.set(sx - 0.05, y + 5.0, sz);
-  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
-  wire.position.set(sx + 0.12, y + 3.1, sz + 0.12);
-  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
-  const siren = { pos: new THREE.Vector3(sx, y, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, y, sz + 0.9) };
+  const siren = sirenPole(b, sx, y, sz);
 
   // A Panzer IV parked in the yard, gun toward the gate. The model is added by vehicles.js;
   // this invisible box is its body for collision, bullets and the guards' paths.

@@ -5,6 +5,10 @@
 // takes two). Explosives it hits (crates, TNT, satchels) go off too.
 import * as THREE from 'three';
 
+// Every round in flight is the same small shape: one geometry and material for all of them.
+const roundGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.45, 8);
+const roundMat = new THREE.MeshStandardMaterial({ color: 0x3d4234, roughness: 0.6 });
+
 export class Rockets {
   constructor({ scene, world, explosions, hotspots, items, fx }) {
     Object.assign(this, { scene, world, explosions, hotspots, items, fx });
@@ -24,7 +28,7 @@ export class Rockets {
   launch(origin, target, dir, def) {
     const r = def.rocket;
     const vel = (target && Rockets.aim(origin, target, r.speed, r.gravity)) ?? dir.clone().multiplyScalar(r.speed);
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.45, 8), new THREE.MeshStandardMaterial({ color: 0x3d4234, roughness: 0.6 }));
+    const mesh = new THREE.Mesh(roundGeo, roundMat);
     mesh.castShadow = true;
     this.scene.add(mesh);
     this.list.push({ pos: origin.clone(), vel, def, r, t: 0, mesh, smokeT: 0, origin: origin.clone() });

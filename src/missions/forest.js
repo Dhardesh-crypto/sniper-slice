@@ -9,7 +9,7 @@
 // woods, which one of the counter-snipers watches.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
-import { M, Builder } from '../world/kit.js';
+import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
@@ -258,16 +258,7 @@ function site(scene) {
   const tankerEngine = b.box(1.2, 1.25, 1.8, hidden, cx + 4.4, cy + 0.5, cz + 34);
   // The alarm siren on a pole by the hut.
   const [sx, sz] = [cx + 8, cz + 14];
-  b.box(0.2, 5.2, 0.2, M.wood, sx, cy, sz);
-  const junction = b.box(0.36, 0.46, 0.2, M.metal, sx, cy + 1.0, sz + 0.2, { solid: false });
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
-  horn.position.set(sx + 0.25, cy + 5.0, sz);
-  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
-  hornBody.position.set(sx - 0.05, cy + 5.0, sz);
-  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
-  wire.position.set(sx + 0.12, cy + 3.1, sz + 0.12);
-  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
-  const siren = { pos: new THREE.Vector3(sx, cy, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, cy, sz + 0.9) };
+  const siren = sirenPole(b, sx, cy, sz);
 
   // ---- the hay meadow: a hut and bales ----
   const { x: mx, z: mz } = MEADOW, my = CLEAR[3].h;

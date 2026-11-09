@@ -13,7 +13,7 @@
 // places), flak around, and hills outside.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
-import { M, Builder } from '../world/kit.js';
+import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
 import { Soldier } from '../world/soldier.js';
@@ -263,16 +263,7 @@ function site(scene, world) {
 
   // The alarm siren on the apron, by the tower.
   const [sx, sz] = [26, 100];
-  b.box(0.2, 5.2, 0.2, M.wood, sx, Y, sz);
-  const junction = b.box(0.36, 0.46, 0.2, M.metal, sx, Y + 1.0, sz + 0.2, { solid: false });
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.12, 0.55, 14, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8a8d84, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
-  horn.position.set(sx + 0.25, Y + 5.0, sz);
-  const hornBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.35, 12).rotateZ(Math.PI / 2), M.metal);
-  hornBody.position.set(sx - 0.05, Y + 5.0, sz);
-  const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.8, 5), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 }));
-  wire.position.set(sx + 0.12, Y + 3.1, sz + 0.12);
-  for (const m of [horn, hornBody, wire]) { m.castShadow = true; b.group.add(m); }
-  const siren = { pos: new THREE.Vector3(sx, Y, sz), junction: junction.position.clone(), horn: horn.position.clone(), hornMeshes: [horn, hornBody], wire, standAt: new THREE.Vector3(sx, Y, sz + 0.9) };
+  const siren = sirenPole(b, sx, Y, sz);
 
   // The engine run-up: loud near the hangar apron while it lasts.
   const runup = { at: new THREE.Vector3(-70, Y, 100), on: false };

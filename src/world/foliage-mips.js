@@ -7,7 +7,8 @@
 //  - each level's alpha is scaled so the same share of texels passes the alpha test as at full size.
 import * as THREE from 'three';
 
-const toLin = new Float32Array(256);
+// sRGB byte → linear light (materials.js reads textures with it too).
+export const toLin = new Float32Array(256);
 for (let i = 0; i < 256; i++) { const c = i / 255; toLin[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 const LN = 4096, toS = new Uint8Array(LN + 1);
 for (let i = 0; i <= LN; i++) { const l = i / LN; const c = l <= 0.0031308 ? l * 12.92 : 1.055 * Math.pow(l, 1 / 2.4) - 0.055; toS[i] = Math.max(0, Math.min(255, Math.round(c * 255))); }

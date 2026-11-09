@@ -1393,3 +1393,31 @@ The Tripo pine and cypress were the weakest trees: near black in the game (brigh
 - [x] Checked on the GPU (renders read back): a crown 0.5 s apart, 6528 of 65536 pixels changed in a 6.8 m/s wind and none with no wind; the crowns' shadows on the ground alone (trees and grass hidden) 493 pixels and none. 357 tree meshes on Vineyard, 372 on Forest, no shader errors. Frame time in the pane: Vineyard 5.6-6.3 / 7.2-8.5 ms (start / middle) against 5.5-6.3 / 7.1-7.5 without; Forest 3.3-3.5 / 4.2 against 3.4-3.5 / 4.2-4.3: about 0.3 ms at most, in the noise. A one-off hitch the first time trees are drawn (the new shaders compiling).
 - One smoke run stalled on Forest for 9 minutes (headless Chromium at 970% CPU); Forest then ran clean on its own in 40 s with the wind, and frames headless are 3-4 ms with it. The pines session saw the same kind of stall today under load. Not the wind, as far as can be told; worth watching.
 - Not checked: by hand in play, how it reads at long range through the scope.
+
+## 9 November 2026: the Ponytail audit's twenty findings fixed (branch audit-fixes)
+The audit (read-only, six agents, the must and top should findings re-read in the code) is in the
+shared notes: ponytail-audit-2026-11-09.md. Fixed here in six groups by file, so no two hands touch one file.
+- [x] 1 The tank commander's hit boxes leave with the crew (turrets.js).
+- [x] 2 The kill cam: a moving target falls through to a normal bullet; near-miss cracks (arsenal.js).
+- [x] 3 A save that fails part-way reloads clean (main.js).
+- [x] 4 Hit normals on instanced trunks and rocks (world.js).
+- [x] 5 The alarm sends guards where the alarm came from, not to the player (guards.js).
+- [x] 6 A riding crewman isn't given the repair (guards.js).
+- [x] 7 A wounded man on the ground doesn't spot (stealth.js).
+- [x] 8 goTo giving up isn't taken for arriving (guards.js).
+- [x] 9 The vineyard's cover patches stay on the vineyard (vegetation.js, terrain.js).
+- [x] 10 A copied material keeps its shader patches (materials.js, props.js, vehicle-models.js, wreckage.js).
+- [x] 11 The always-lethal 999 survives a pass through a man; a penetration test (arsenal.js, tests/).
+- [x] 12 Side-job papers aren't mission documents (interact.js, sidejobs.js, challenges.js, mission.js).
+- [x] 13 The convoy has its own engine loop; the synth truck fades when the samples arrive (audio.js, bridge.js).
+- [x] 14 Keys pressed in the menu don't fire on resume (main.js).
+- [x] 15 Coast: the gun messages (coast.js).
+- [x] 16 Turned dugout walls block as they look (trenches.js).
+- [x] 17 The HUD writes only what changed, no layout read per frame (hud.js).
+- [x] 18 Settled corpses skip their update (world.js).
+- [x] 19 Far grass and tall-grass patches across the whole play area (vegetation.js).
+- [x] 20 Lean: the siren pole in kit.js; dead code; one rock program; one scene walk for the AO.
+- [x] Also from the smaller list: A* stale entries, the dog's wall test on boxAlong, burn barrels flicker apart, air war / rocket geometry shared, kill-cam shards disposed, multi-material hits read the face's material, markers built once a tick, audio ramps only on change, run.js reads the save through saves.js, one silence() for the end, fail and death screens.
+- [x] Checked: `npm test` 7/7 (3 ballistics, 4 new penetration). `vite build` clean. Smoke test, muted, all nine missions clean (each run alone, Chromium on port 9347). In the game (?mute): blowing up the Vineyard Panzer leaves the commander's boxes out of the raycast targets and scores nothing; a shot at six tree trunks of random yaw gets a normal facing the shooter every time; a key pressed in the menu is gone on resume; Town has none of the vineyard's three cover circles and patches out to 605 m from the centre, the Vineyard keeps them.
+- Not checked by hand: the kill cam on a walking guard, the dugout walls in play, the HUD's look, a broken save reloading, winter wrecks keeping their snow.
+- Left out on purpose: the refused checkpoint autosave (no retry yet), the drawn fallback textures built at load.

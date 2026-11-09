@@ -2,7 +2,7 @@
 // the bolt and reloads, binoculars and tagging, and the simulated bullets in flight.
 import * as THREE from 'three';
 import { integrate, solveZeroAngle } from './ballistics.js';
-import { throughCover } from './penetration.js';
+import { throughCover, weakened } from './penetration.js';
 import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
 import { weaponPicture } from '../ui/weapon-pictures.js';
 import { level } from '../core/difficulty.js';
@@ -87,7 +87,6 @@ export class Arsenal {
     this.rangeReadout = null;
     this.tagCandidate = null;
     this.tagT = 0;
-    this.stats = { shots: 0, hits: 0, kills: 0, headshots: 0, longest: 0 };
     this.onHit = null;
     this.onKill = null;
     this.onKillCam = null;
@@ -124,7 +123,6 @@ export class Arsenal {
     if (this.current === 'heavy' && !loadout.heavy) this.current = 'rifle';
     this.zoomIndex = Math.min(this.zoomIndex, this.def.zoomFovs.length - 1);
     this.loadout = JSON.parse(JSON.stringify(loadout));
-    this.onEquip?.(this.loadout);
   }
 
   // What the next shot is: the weapon, adjusted for the rifle's loaded ammunition.
@@ -428,7 +426,6 @@ export class Arsenal {
     w.mag--;
     if (w.mag === 0 && w.reserve > 0 && !this.mount) this.autoReloadT = Math.max(0.35, def.cycleTime * 0.8);
     this.cooldown = def.cycleTime;
-    this.stats.shots++;
     this.recoilVel += def.recoil * 22 * (this.scoped ? 1 : 0.5);
     this.rollVel += (Math.random() < 0.5 ? -1 : 1) * def.recoil * 9;
     this.shake = this.mount ? 0.2 : this.current === 'rifle' ? 1 : this.current === 'heavy' ? (def.auto ? 0.25 : 0.8) : 0.3;
@@ -445,7 +442,6 @@ export class Arsenal {
     this.audio.weaponShot(def);           // each gun its own report; suppressed if one's fitted
     if (this.current === 'rifle' && !this.mount && w.mag > 0 && !def.semi) { this.boltT = 0; this.audio.bolt(); }   // semi-automatics cycle themselves
     if (def.pellets && w.mag > 0) this.audio.pump();                                                      // and the shotgun's pump
-    this.lastShot = { noiseRadius: def.noiseRadius, position: origin.clone(), time: this.world.time };
     this.onShot?.(origin.clone(), def);
   }
 
@@ -465,6 +461,7 @@ export class Arsenal {
         return { path, hit, time: t + FIXED_STEP * hit.distance / Math.max(1e-6, prev.distanceTo(pos)), vel };
       }
       path.push(...pts);
+      if (pos.y < -100) break;                         // (gone, as tickBullets drops it)
     }
     return { path, hit: null, time: maxTime, vel };
   }
@@ -475,13 +472,23 @@ export class Arsenal {
     if (mode === 'off' || !this.onKillCam) return null;
     const sim = this.simulate(bullet);
     const hit = sim.hit;
+    // The cam's round never flies through the world, so the guards it passes close by hear its
+    // crack now, as they would a normal round's (not the man it's about to kill: he doesn't flinch).
+    const accept = (distance) => {
+      this.lastKillCam = this.world.time;
+      if (hit?.soldier) (bullet.passed ??= new Set()).add(hit.soldier);
+      for (let i = 1; i < sim.path.length; i++) this.nearMisses(bullet, sim.path[i - 1], sim.path[i]);
+      return { bullet, ...sim, distance };
+    };
     // A shot that will blow up a vehicle always gets the cam (unless one just played).
     if (hit?.hotspot?.explodesOnNext(bullet.def.ap)) {
       if (this.world.time - this.lastKillCam < 6) return null;
-      this.lastKillCam = this.world.time;
-      return { bullet, ...sim, distance: bullet.origin.distanceTo(hit.point) };
+      return accept(bullet.origin.distanceTo(hit.point));
     }
     if (!hit?.soldier || !hit.soldier.alive) return null;
+    // The hit is worked out at the trigger pull and applied when the round arrives: a man on the
+    // move would walk out of it by then, so his shot flies as a normal round instead.
+    if ((hit.soldier.speed ?? 0) * sim.time > 0.15) return null;
     const damage = bullet.def.damage[hit.zone] ?? 50;
     if (damage < hit.soldier.hp) return null;
     const distance = bullet.origin.distanceTo(hit.point);
@@ -495,8 +502,7 @@ export class Arsenal {
       play = worthy && roll && since > 6;
     }
     if (!play) return null;
-    this.lastKillCam = this.world.time;
-    return { bullet, ...sim, distance };
+    return accept(distance);
   }
 
   // The flight is integrated in small substeps, but the world is asked once a step, along the
@@ -551,10 +557,7 @@ export class Arsenal {
       this.fx.blood(hit.point, dir, true);
       this.world.decals?.spatter(hit.point, dir);
       this.audio.hitConfirm(true, r.zone === 'head');
-      this.stats.hits++;
       if (r.killed) {
-        this.stats.kills++; if (r.zone === 'head') this.stats.headshots++;
-        this.stats.longest = Math.max(this.stats.longest, distance);
         const evt = { killed: true, zone: r.zone ?? 'torso', distance, point: hit.point.clone(), kills: 1 };
         this.onHit?.(evt); this.onKill?.(evt);
       } else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
@@ -567,12 +570,6 @@ export class Arsenal {
         this.fx.dust(hit.point, hit.normal, distance);
         this.passThrough(bullet, hit, dir);
         return;
-      }
-      this.stats.hits++;
-      if (res.killed) {
-        this.stats.kills++;
-        this.stats.longest = Math.max(this.stats.longest, distance);
-        if (hit.zone === 'head') this.stats.headshots++;
       }
       this.fx.blood(hit.point, dir, true); // exit spray
       this.world.decals?.spatter(hit.point, dir, hit.soldier);   // and on whatever's behind him
@@ -589,7 +586,7 @@ export class Arsenal {
       const live = hit.hotspot.active;
       this.hotspots.hit(hit.hotspot, hit.point, dir, distance, !!bullet.def.ap);
       this.onImpactNoise?.(hit.point.clone());
-      if (live) { this.stats.hits++; this.onHit?.({ hotspot: hit.hotspot, distance, point: hit.point.clone() }); }
+      if (live) this.onHit?.({ hotspot: hit.hotspot, distance, point: hit.point.clone() });
       else this.onHit?.({ miss: true, distance, point: hit.point.clone() });
     } else {
       if (hit.object?.userData.water) this.fx.emit(hit.point, new THREE.Vector3(0, 1, 0), { color: 0xe4ecee, count: 10, speed: 4, size: 0.25 * (1 + distance / 150), life: 0.8, grow: 1.5, gravity: -9 });   // a splash
@@ -607,7 +604,7 @@ export class Arsenal {
     if (hit.object?.userData.water || (bullet.through ?? 0) >= 3) return;
     const pen = throughCover(hit, dir, bullet.vel.length(), !!bullet.def.ap);
     if (!pen) return;
-    const k = pen.keep, def = { ...bullet.def, damage: Object.fromEntries(Object.entries(bullet.def.damage).map(([z, v]) => [z, v === 999 ? (k > 0.6 ? v : 120 * k) : v * k * k])) };
+    const k = pen.keep, def = { ...bullet.def, damage: weakened(bullet.def.damage, k * k, k > 0.6 ? 999 : 120 * k) };
     this.world.decals?.bullet({ point: pen.exit.clone().addScaledVector(dir, -0.02), normal: dir.clone(), object: hit.object });
     this.fx.emit(pen.exit, dir, { color: 0xb8a882, count: 4, speed: 2, size: 0.12, life: 0.5, grow: 2 });   // splinters and dust out the back
     this.bullets.push({
@@ -622,7 +619,7 @@ export class Arsenal {
   passThrough(bullet, hit, dir) {
     const speed = bullet.vel.length() * (bullet.def.ap ? 0.8 : 0.7);
     if (speed < 230 || (bullet.through ?? 0) >= 3) return;
-    const def = { ...bullet.def, damage: Object.fromEntries(Object.entries(bullet.def.damage).map(([k, v]) => [k, v * 0.8])) };
+    const def = { ...bullet.def, damage: weakened(bullet.def.damage, 0.8) };
     const pos = hit.point.clone().addScaledVector(dir, 0.05);
     this.bullets.push({
       def, pos, vel: dir.clone().multiplyScalar(speed), origin: bullet.origin, dir: dir.clone(), time: bullet.time,

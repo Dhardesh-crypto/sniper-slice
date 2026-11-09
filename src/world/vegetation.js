@@ -2,7 +2,7 @@
 // including tall-grass patches that will hide a crouched or prone player.
 import * as THREE from 'three';
 import { foliageTexture } from './foliage-mips.js';
-import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF, keepClear as mapKeepClear, activeMap } from './terrain.js';
+import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF, PLAY_HALF, keepClear, activeMap } from './terrain.js';
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
@@ -11,7 +11,6 @@ import { addTreeWind, treeHeight } from './tree-wind.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
-const keepClear = (x, z, margin = 0) => mapKeepClear(x, z, margin);
 // A map can thin the grass (a forest floor is mostly needles): 0…1, read when the grass is built.
 let grassDensity = null;
 
@@ -350,7 +349,7 @@ export function buildGrass(scene) {
 
   // Short grass everywhere that isn't yard, road, lane or cliff.
   for (let i = 0; i < 70000; i++) {
-    const x = (rng() * 2 - 1) * 360, z = (rng() * 2 - 1) * 360;
+    const x = (rng() * 2 - 1) * PLAY_HALF, z = (rng() * 2 - 1) * PLAY_HALF;
     if (keepClear(x, z)) continue;
     if (normalAt(x, z, nrm).y < 0.85) continue;
     if (fbm(x * 0.02, z * 0.02, 2) < 0.38) continue;
@@ -366,14 +365,14 @@ export function buildGrass(scene) {
   const rngP = makeRng(4242);
   let attempts = 0;
   while (patches.length < 46 && attempts++ < 2000) {
-    const x = (rngP() * 2 - 1) * 340, z = (rngP() * 2 - 1) * 340;
+    const x = (rngP() * 2 - 1) * (PLAY_HALF - 30), z = (rngP() * 2 - 1) * (PLAY_HALF - 30);
     if (keepClear(x, z, 8) && Math.hypot(x - COMPOUND.x, z - COMPOUND.z) < 58) continue;
     if (keepClear(x, z, 4)) continue;
     if (normalAt(x, z, nrm).y < 0.88) continue;
     patches.push({ x, z, r: 6 + rngP() * 9 });
   }
-  // Guarantee cover on the way in (the vineyard's: on the way to the compound from the start hill).
-  patches.push(...(activeMap().coverPatches ?? [{ x: -150, z: 95, r: 12 }, { x: -95, z: 40, r: 10 }, { x: -40, z: 30, r: 9 }]));
+  // Guaranteed cover on the way in, where the map asks for it.
+  patches.push(...(activeMap().coverPatches ?? []));
   for (const pt of patches) {
     const n = Math.floor(pt.r * pt.r * 3.2);
     for (let i = 0; i < n; i++) {
@@ -404,8 +403,6 @@ export function buildGrass(scene) {
 export function inTallGrass(patches, x, z) {
   return patches.some(p => (p.x - x) ** 2 + (p.z - z) ** 2 < p.r * p.r);
 }
-
-export { inPlayArea };
 
 // Dense grass close to the camera: one instanced field in an 80 m window that wraps
 // around the player (each tuft keeps a fixed world spot while it is in the window, so

@@ -248,7 +248,7 @@ export class KillCam {
   }
 
   clearShards() {
-    for (const s of this.shards) { this.scene.remove(s); s.geometry.dispose(); }
+    for (const s of this.shards) { this.scene.remove(s); s.geometry.dispose(); s.material.dispose(); }   // (a spray's shards share one material: disposing it again is harmless)
     this.shards = [];
   }
 
