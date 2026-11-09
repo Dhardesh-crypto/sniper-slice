@@ -320,3 +320,12 @@ body.training #skip-training { display: inline-block; }
 #hint ul.checks li { color: var(--dim); }
 #hint ul.checks li.ok { color: #9fd98a; }
 #hint p.note { margin-top: 8px; color: #ffcf6a; font-size: 12px; }
+
+/* Ways in (mission/approaches.js), in the Mission tab. */
+#approaches h3 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin: 14px 0 6px; }
+#approaches .ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+#approaches .way { text-align: left; padding: 8px 10px; border: 1px solid rgba(242,237,225,0.14); background: rgba(255,255,255,0.03); color: var(--ink); font: inherit; }
+#approaches .way.on { border-color: #ffcf6a; background: rgba(255,207,106,0.12); }
+#approaches .way b { display: block; font-size: 13px; }
+#approaches .way small { color: var(--dim); font-size: 11px; }
+#approaches .way:disabled:not(.on) { opacity: 0.45; }

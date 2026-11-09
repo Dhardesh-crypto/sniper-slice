@@ -94,7 +94,8 @@ const PLAY = `(async () => {
   }
   frames.sort((a, b) => a - b);
   const q = (f) => +frames[Math.floor(f * (frames.length - 1))].toFixed(1);
-  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm };
+  const ways = [...document.querySelectorAll('#approaches .way b')].map(b => b.textContent.replace('From the ', ''));
+  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm, ways };
 })()`;
 
 const report = [];
@@ -115,7 +116,7 @@ for (const id of MISSIONS) {
   if (err || errors.length || bad.length) failed = true;
   report.push({ id, ...(res ?? {}), error: err, errors: [...new Set(errors)].slice(0, 5), requests: [...new Set(bad)].slice(0, 5) });
   const r = report[report.length - 1];
-  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `load ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'}`}`);
+  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `load ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'} · ways in: ${r.ways?.length ?? '?'} (${r.ways?.slice(1).join(', ')})`}`);
   for (const e of r.errors) console.log('   error:', e);
   for (const b of r.requests) console.log('   request:', b);
 }

@@ -25,6 +25,7 @@ export class Mission {
     const ex = new THREE.Vector3(exAt.x, 0, exAt.z);
     ex.y = world.groundAt(ex.x, ex.z);
     this.extraction = ex;
+    this.pickups = [{ at: ex, name: 'EXTRACTION' }];   // (more with setPickups: mission/approaches.js)
     this.smokeT = 0;
     this.objectives = (def.objectives ?? [
       { id: 'officer', text: 'Eliminate Oberst Krause' },
@@ -96,14 +97,18 @@ export class Mission {
       this.smokeT -= dt;
       if (this.smokeT <= 0) {
         this.smokeT = 0.35;
-        this.fx.emit(this.extraction.clone().setY(this.extraction.y + 0.5), new THREE.Vector3(0, 1, 0), { color: 0x7fbf6a, count: 2, speed: 2.5, size: 3, life: 7, grow: 2.5, gravity: -0.3 });
+        for (const pk of this.pickups) this.fx.emit(pk.at.clone().setY(pk.at.y + 0.5), new THREE.Vector3(0, 1, 0), { color: 0x7fbf6a, count: 2, speed: 2.5, size: 3, life: 7, grow: 2.5, gravity: -0.3 });
       }
-      if (Math.hypot(this.player.pos.x - this.extraction.x, this.player.pos.z - this.extraction.z) < EXTRACT_RADIUS && !this.player.dead) {
+      if (!this.player.dead && this.pickups.some(pk => Math.hypot(this.player.pos.x - pk.at.x, this.player.pos.z - pk.at.z) < EXTRACT_RADIUS)) {
         ex.done = true;
         this.finish();
       }
     }
   }
+
+  // The pick-up points: any of them ends the mission once it's open (the start, and the other
+  // ways in: mission/approaches.js). [{ at, name }]; the first is the mission's own.
+  setPickups(list) { this.pickups = list.map((p, i) => ({ at: p.at.clone(), name: i ? `PICK-UP · ${p.side.toUpperCase()}` : 'EXTRACTION' })); this.extraction = this.pickups[0].at; }
 
   radioOption() {
     if (!this.radio || !this.obj('radio') || this.obj('radio').done || this.player.climb) return null;
@@ -172,7 +177,7 @@ export class Mission {
     if (this.obj('tank') && !this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
     if (this.obj('papers') && this.officer && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
     for (const m of this.def.markers?.(this) ?? []) out.push(m);
-    if (!this.obj('extract').hidden) out.push({ pos: this.extraction, kind: 'extract', label: 'EXTRACTION', height: 3 });
+    if (!this.obj('extract').hidden) for (const pk of this.pickups) out.push({ pos: pk.at, kind: 'extract', label: pk.name, height: 3 });
     return out;
   }
 }

@@ -77,7 +77,7 @@ export class PadNav {
     if (was(PAD.A) && el) {
       if (el.tagName === 'SELECT') { this.step(el, 1); return; }
       // The loadout redraws itself on a click: find the same button in the new one.
-      const same = ['id', 'data-weapon', 'data-part', 'data-slot-tab', 'data-mission'].map(k => el.getAttribute(k) && `[${k}="${el.getAttribute(k)}"]`).find(Boolean);
+      const same = ['id', 'data-weapon', 'data-part', 'data-slot-tab', 'data-mission', 'data-way'].map(k => el.getAttribute(k) && `[${k}="${el.getAttribute(k)}"]`).find(Boolean);
       el.click();
       if (!el.isConnected && same) this.focus(root.querySelector(same));
       return;

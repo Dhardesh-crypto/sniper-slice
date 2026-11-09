@@ -78,6 +78,7 @@ import { installAtmosphere } from './world/atmosphere.js';
 import { PadNav } from './ui/padnav.js';
 import { Tutorial } from './mission/tutorial.js';
 import { initGlyphs, fill } from './ui/glyphs.js';
+import { findApproaches, faceTarget } from './mission/approaches.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -573,7 +574,9 @@ input.onLockChange = (locked) => {
     play.textContent = 'Resume';
     delete play.dataset.pad; delete play.dataset.kb;   // (no longer "press to play": ui/glyphs.js leaves it be)
     document.querySelector('#menu .sub').textContent = `Paused · ${M.subtitle.split(' · ')[0]}`;
-    tutorial.begin();   // the first mission's training, the first time (mission/tutorial.js)
+    takeStart();        // the way in chosen in the Mission tab
+    renderApproaches();
+    if (chosenStart() === 'start') tutorial.begin();   // the first mission's training, the first time (mission/tutorial.js): on the start hill only
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
   menuPaused = !locked && !mapView.open && !over && !benchOpen;
@@ -620,6 +623,27 @@ function padLook(realDt, zoomScale) {
   const k = settings.padSensitivity * zoomScale * realDt / 0.0022;   // player.look's units: mouse counts
   player.look(curve(s.x) * PAD_TURN * k, curve(s.y) * PAD_PITCH * k, 1, settings.padInvertY);
 }
+// Several ways in and out (mission/approaches.js): the start chosen in the Mission tab, taken
+// when the mission begins (not for a loaded game), and every one of them a pick-up at the end.
+const approaches = findApproaches(world);
+const START_KEY = `sniper-slice.start.${missionId}`;
+const chosenStart = () => { try { return sessionStorage.getItem(START_KEY) || 'start'; } catch { return 'start'; } };
+mission.setPickups(approaches);
+function takeStart() {
+  const a = approaches.find(x => x.id === chosenStart());
+  if (loadedSlot || !a || a.id === 'start') return;
+  player.pos.copy(a.at); player.prevPos.copy(a.at); player.vel.set(0, 0, 0);
+  player.yaw = player.moveYaw = faceTarget(a.at);
+}
+function renderApproaches() {
+  const el = document.getElementById('approaches');
+  if (!el) return;
+  const now = chosenStart();
+  el.innerHTML = `<h3>Way in</h3><div class="ways">${approaches.map(a => `<button class="way${a.id === now ? ' on' : ''}" data-way="${a.id}" ${started ? 'disabled' : ''}><b>${a.name}</b><small>${a.id === 'start' ? 'as briefed' : `${Math.round(a.at.distanceTo(approaches[0].at))} m from the usual start`}</small></button>`).join('')}</div>
+    <p class="set-note">${started ? 'Chosen for this mission.' : 'Pick before you set out.'} Once the job is done, any of these is a pick-up: green smoke marks them.</p>`;
+  for (const b of el.querySelectorAll('[data-way]')) b.addEventListener('click', () => { try { sessionStorage.setItem(START_KEY, b.dataset.way); } catch { /* storage blocked */ } renderApproaches(); });
+}
+renderApproaches();
 const tutorial = new Tutorial({ input, player, arsenal, items, stealth, world, profile, settings, missionId, mapView });
 document.getElementById('skip-training').addEventListener('click', () => { tutorial.finish(true); document.getElementById('play').click(); });
 document.getElementById('replay-training').addEventListener('click', (e) => {
