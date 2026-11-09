@@ -1,7 +1,8 @@
 # Renders the vegetation textures from modelled detail (run: blender -b -P tools/blender/textures.py -- <out dir>).
-#   fir_spray / beech_spray / olive_spray: two branch sprays per texture (top and bottom half),
-#     each a twig with its needles or leaves, seen from above: colour (with alpha) and normals
-#   bark_fir / bark_beech / bark_olive: seamless bark, colour and normals
+#   fir_spray / beech_spray / olive_spray / pine_spray / cypress_spray: two branch sprays per texture
+#     (top and bottom half), each a twig with its needles or leaves, seen from above: colour (with
+#     alpha) and normals
+#   bark_fir / bark_beech / bark_olive / bark_pine / bark_cypress: seamless bark, colour and normals
 import bpy, math, os, random, sys
 from mathutils import Vector
 sys.path.append(os.path.dirname(__file__))
@@ -184,6 +185,106 @@ def olive_spray():
     return m
 
 
+# ---- umbrella (stone) pine: long paired needles in round tufts at the ends of bare twigs ----
+
+def pine_tuft(m, cell, c, radius, rng, z):
+    """A pompom of needles seen from above: 70-odd long needles fanning out from one point, the
+    upper ones (drawn last, higher) brighter, as the sun catches the top of a tuft."""
+    dark, mid, light = srgb(0x2c4a22), srgb(0x4a6e2e), srgb(0x86a64c)
+    n = 100
+    for k in range(n):
+        a = rng.uniform(0, math.tau)
+        d = Vector((math.cos(a), math.sin(a), 0))
+        l = radius * rng.uniform(0.55, 1.0)
+        lift = k / n                       # later needles lie over the earlier ones
+        col = mix(mix(dark, mid, rng.random()), light, lift ** 1.6 * rng.uniform(0.4, 1))
+        tip = c + d * l
+        if not cell.inside(tip): l *= 0.6
+        if not cell.inside(c + d * l): continue
+        # A slight curve: needles bow a little sideways along their length.
+        bend = rot(d, rng.uniform(-0.18, 0.18))
+        mid_p = c + d * l * 0.5
+        w = 0.0032
+        nn = Vector((-d.y, d.x, 0))
+        zz = Vector((0, 0, z + lift * 0.01))
+        m.poly([c - nn * w / 2 + zz, mid_p - nn * w * 0.45 + zz, mid_p + nn * w * 0.45 + zz, c + nn * w / 2 + zz], col)
+        m.poly([mid_p - nn * w * 0.45 + zz, mid_p + bend * l * 0.5 - nn * w * 0.12 + zz,
+                mid_p + bend * l * 0.5 + nn * w * 0.12 + zz, mid_p + nn * w * 0.45 + zz], col)
+
+
+def pine_twig(m, cell, start, ang, length, rng, depth):
+    bark = srgb(0x5e4433)
+    pts, dirs = stem(m, start, ang, length, 0.014 if depth == 2 else 0.009 if depth else 0.006, 0.004, bark, rng, bend=0.7, cell=cell)
+    tufts = []
+    # Side twigs fork off both ways and end in their own tufts; every twig ends in one. Seen from
+    # above, a stone pine's spray is mostly needles: the tufts overlap into one clumpy pad.
+    if depth:
+        t, side = 0.3 if depth == 2 else 0.4, rng.choice((-1, 1))
+        while t < 0.85:
+            i = int(t * (len(pts) - 1))
+            tufts += pine_twig(m, cell, pts[i], math.atan2(dirs[i].y, dirs[i].x) + side * math.radians(rng.uniform(28, 48)),
+                               length * rng.uniform(0.35, 0.48) * (1.1 - t), rng, depth - 1)
+            side = -side
+            t += rng.uniform(0.09, 0.13) if depth == 2 else rng.uniform(0.2, 0.28)
+    tufts.append((pts[-1], (0.19 if depth == 2 else 0.16 if depth else 0.14) * rng.uniform(0.9, 1.15)))
+    return tufts
+
+
+def pine_spray():
+    m = Mesh()
+    for k, (lo, hi) in enumerate(((0.0, 0.5), (0.5, 1.0))):
+        rng = random.Random(41 + k)
+        cell = Cell(lo, hi)
+        tufts = pine_twig(m, cell, (0.03, (lo + hi) / 2, 0), rng.uniform(-0.05, 0.05), 0.8, rng, 2)
+        # The tufts last, over all the twigs (a twig shows only where the needles part).
+        for c, r in tufts: pine_tuft(m, cell, c, r, rng, 0.01)
+    return m
+
+
+# ---- Italian cypress: flat-ish sprays of tiny scale leaves, forking over and over ----
+
+def cypress_shoot(m, cell, start, ang, length, rng, depth, w0):
+    """A cypress shoot: a cord of scale leaves (a knobbly strip) that forks into finer shoots,
+    leaving very little gap: the crown reads as a dense, dark, slightly bluish mass."""
+    greens = [srgb(0x22381d), srgb(0x2e4724), srgb(0x3b5a2c), srgb(0x4d6d36)]
+    young = srgb(0x6a8a44)
+    steps = max(4, int(length / 0.01))
+    p, a = Vector(start), ang
+    curve = (rng.random() - 0.5) * 0.5
+    pts, dirs = [], []
+    for i in range(steps + 1):
+        pts.append(p.copy()); d = Vector((math.cos(a), math.sin(a), 0)); dirs.append(d)
+        p = p + d * (length / steps); a += curve / steps
+    for i in range(steps):
+        if not (cell.inside(pts[i]) and cell.inside(pts[i + 1])): break
+        t = i / steps
+        # Each segment a little diamond (one scale-leaf pair), wider in its middle: the cord's knobbles.
+        w = w0 * (1 - 0.55 * t) * rng.uniform(0.85, 1.15)
+        n0 = Vector((-dirs[i].y, dirs[i].x, 0))
+        mid_p = (pts[i] + pts[i + 1]) / 2
+        c = mix(rng.choice(greens), young, max(0, t - 0.75) * 2.5 * rng.random())
+        zz = Vector((0, 0, 0.002 * depth + rng.uniform(0, 0.002)))
+        m.poly([pts[i] + zz, mid_p - n0 * w + zz, pts[i + 1] + zz, mid_p + n0 * w + zz], c)
+    if depth > 0:
+        t, side = 0.12, 1
+        n = len(pts)
+        while t < 0.9:
+            i = int(t * (n - 1))
+            sl = length * (0.5 if depth >= 2 else 0.42) * (1 - t) ** 0.5 * rng.uniform(0.8, 1.1)
+            if sl > 0.03:
+                cypress_shoot(m, cell, pts[i], math.atan2(dirs[i].y, dirs[i].x) + side * math.radians(rng.uniform(32, 48)), sl, rng, depth - 1, w0 * 0.72)
+            side = -side
+            t += rng.uniform(0.05, 0.075) if depth >= 2 else rng.uniform(0.08, 0.12)
+
+
+def cypress_spray():
+    m = Mesh()
+    for k, (lo, hi) in enumerate(((0.0, 0.5), (0.5, 1.0))):
+        rng = random.Random(51 + k)
+        cypress_shoot(m, Cell(lo, hi), (0.02, (lo + hi) / 2, 0), rng.uniform(-0.04, 0.04), 0.95, rng, 3, 0.02)
+    return m
+
+
 def render_spray(name, mesh):
     alb = albedo_material(name + '_alb', vertex_color, ao=0.55, ao_dist=0.02)
     nrm = normal_material(name + '_nrm')
@@ -219,6 +320,11 @@ BARK = {
     'fir': dict(su=3.0, sv=0.5, cell=3.0, crack=0.05, noise=5, colors=(0x2e2b27, 0x4f4b45, 0x6a665e), depth=0.8, lichen=0x7c8466),
     'beech': dict(su=1.6, sv=0.4, cell=4.0, crack=0.006, noise=2.5, colors=(0x4f4e49, 0x75736c, 0x8e8b83), depth=0.2, lichen=0x7f8a6a),
     'olive': dict(su=4.5, sv=0.45, cell=2.2, crack=0.14, noise=4, colors=(0x2a2520, 0x5a5247, 0x8b8070), depth=1.4, lichen=0x9a9a80),
+    # Stone pine: thick plates, long up the trunk, orange-brown in their fresh faces, split by deep
+    # dark fissures (few lichens: it grows in dry light).
+    'pine': dict(su=3.0, sv=0.6, cell=1.8, crack=0.1, noise=4.5, colors=(0x2e2119, 0x5f4433, 0x8e6a50), depth=1.3, lichen=0x7d7a66),
+    # Cypress: grey-brown, in thin fibrous strips running up the trunk (cells many round, few up).
+    'cypress': dict(su=7.0, sv=0.35, cell=3.2, crack=0.07, noise=6, colors=(0x2f2721, 0x5c4d40, 0x8a7a68), depth=0.7, lichen=0x7f8466),
 }
 
 
@@ -283,7 +389,8 @@ def render_bark(kind):
 
 if __name__ == '__main__':
     only = os.environ.get('ONLY', '').split(',') if os.environ.get('ONLY') else None
-    for name, fn in (('fir_spray', fir_spray), ('beech_spray', beech_spray), ('olive_spray', olive_spray)):
+    for name, fn in (('fir_spray', fir_spray), ('beech_spray', beech_spray), ('olive_spray', olive_spray),
+                     ('pine_spray', pine_spray), ('cypress_spray', cypress_spray)):
         if only and name not in only: continue
         reset(); render_spray(name, fn())
     for kind in BARK:

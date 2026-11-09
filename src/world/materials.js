@@ -43,7 +43,7 @@ const BY_KEY = {
     'pak40', 'kitchen', 'fiat', 'handcar', 'waterCrane', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg', 'assaultBoat', 'waterTower',
     'wreckPanzer', 'wreckTiger', 'wreckTruck', 'wreckCar', 'wreckHalftrack', 'wreckPlane', 'safe', 'locker', 'filingCabinet', 'stove', 'radioSet'],
   animal: ['cow', 'horse', 'goat', 'deer', 'dog'],
-  foliage: ['treeFir', 'treeBeech', 'treeOlive', 'vineRow', 'cypress', 'pine', 'cypressLod', 'pineLod', 'haystack', 'felledTree', 'logs'],
+  foliage: ['treeFir', 'treeBeech', 'treeOlive', 'treePine', 'treeCypress', 'vineRow', 'haystack', 'felledTree', 'logs'],
   kit: ['groundDetail', 'archKit', 'interiorKit', 'ruinKit'],
 };
 const KIND_OF = new Map(Object.entries(BY_KEY).flatMap(([k, keys]) => keys.map(key => [key, k])));

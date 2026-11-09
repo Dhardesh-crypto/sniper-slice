@@ -224,9 +224,12 @@ def game_material(name, color_png, normal_png, cutout=True, roughness=0.9):
     return mat
 
 
-def export_glb(path, objects):
+def export_glb(path, objects, attributes=False):
+    """attributes: also export the meshes' own attributes whose names start with '_' (glTF keeps
+    them as custom vertex data; three.js reads `_snow` as geometry.attributes._snow)."""
     bpy.ops.object.select_all(action='DESELECT')
     for o in objects: o.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True,
-                              export_image_format='WEBP', export_image_quality=88, export_yup=True)
+                              export_image_format='WEBP', export_image_quality=88, export_yup=True,
+                              export_attributes=attributes)

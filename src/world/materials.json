@@ -1,11 +1,9 @@
 {
-  "_note": "Brightness fixes per asset (colour multipliers), from tools/look-audit.js on 8 Nov 2026: each lifts an average albedo that measured under 0.04 to just inside the range. Black wool, burnt steel and cast iron are meant to be dark, so they go only a little over; the trees and the drums were the ones that read as holes in the game.",
+  "_note": "Brightness fixes per asset (colour multipliers), from tools/look-audit.js on 8 Nov 2026: each lifts an average albedo that measured under 0.04 to just inside the range. Black wool, burnt steel and cast iron are meant to be dark, so they go only a little over; the drums were the ones that read as holes in the game (the Tripo pine ×2.6 and cypress ×2.4 went with them: both trees are grown in Blender now, tools/blender/trees.py).",
   "guardTanker": 1.35,
   "delisle": 1.2,
   "wreckTruck": 1.5,
   "wreckTiger": 1.6,
   "waterCrane": 1.5,
-  "drums": 1.9,
-  "cypress": 2.4,
-  "pine": 2.6
+  "drums": 1.9
 }
