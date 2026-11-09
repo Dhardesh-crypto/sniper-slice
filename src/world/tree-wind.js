@@ -14,9 +14,14 @@
 import * as THREE from 'three';
 import { windUniforms } from './vegetation.js';
 
-// (an 11 m cypress in the game's usual 3 m/s: about 0.3 m at the top, rocking; the leaves a few cm)
-const SWAY = 0.009;     // share of the tree's height it leans at the top, per m/s of wind
-const FLUTTER = 0.03;   // m the leaves toss per m/s of wind
+// An 11 m cypress in the game's usual 3 m/s: leaning about 0.2 m downwind at the top and swinging
+// about 0.2 m either side of that, back and forth with the wind every 3 s or so, a little across
+// it too; the leaves rustle a couple of centimetres, sideways only. (A first version bobbed the
+// leaves up and down at about 1 Hz and that was most of what you saw: the trees "vibrated".)
+const LEAN = 0.006;     // share of the tree's height it leans downwind at the top, per m/s of wind
+const SWING = 0.006;    // share of its height it swings to and fro along the wind, per m/s
+const CROSS = 0.0025;   // and across the wind
+const RUSTLE = 0.008;   // m the leaves move sideways per m/s of wind
 
 // The motion, in the space after the instance's own transform (metres, the world's axes).
 const MOTION = (leaves) => /* glsl */`
@@ -27,16 +32,22 @@ const MOTION = (leaves) => /* glsl */`
     k *= k;
     float ws = length(uWind);
     vec2 dir = ws > 0.01 ? uWind / ws : vec2(1.0, 0.0);
-    float ph = uTime * 0.9 + root.x * 0.071 + root.z * 0.053;
-    float gust = 0.65 + 0.35 * sin(uTime * 0.37 + root.x * 0.011 + root.z * 0.013);
-    float rock = 0.55 + 0.3 * sin(ph) + 0.15 * sin(ph * 2.3 + 1.7);
-    vec2 off = dir * ws * ${SWAY.toFixed(4)} * uTreeH * scale * k * rock * gust;
+    vec2 across = vec2(-dir.y, dir.x);
+    // Each tree on its own rhythm (from where it stands; a bigger tree a little slower), every
+    // tree on the same gusts as they pass over the map.
+    float slow = 1.0 / sqrt(max(0.5, uTreeH * scale / 8.0));
+    float ph = uTime * 2.0 * slow + root.x * 0.071 + root.z * 0.053;
+    float gust = 0.6 + 0.4 * sin(uTime * 0.31 - root.x * 0.012 - root.z * 0.009);
+    float h = uTreeH * scale * k * ws;
+    vec2 off = dir * h * (${LEAN.toFixed(4)} * gust + ${SWING.toFixed(4)} * gust * sin(ph))
+             + across * h * ${CROSS.toFixed(4)} * sin(ph * 0.73 + 1.3);
     ${leaves ? `
+    // The leaves: a small sideways rustle, slower than before, its timing varying gently across
+    // the crown (a third of a turn per metre: a card moves nearly as one piece, with no seams
+    // where a grid would tear it). No up and down.
     vec3 wp = mvPosition.xyz;
-    float f = sin(uTime * 4.7 + wp.x * 0.61 + wp.z * 0.47 + wp.y * 0.39) + 0.5 * sin(uTime * 7.3 + wp.y * 0.83 + wp.x * 0.29);
-    float lk = clamp(k * 3.0, 0.0, 1.0) * ws * ${FLUTTER.toFixed(4)} * (0.6 + 0.6 * gust);
-    off += dir * f * lk;
-    mvPosition.y += 0.5 * f * lk;` : ''}
+    float r = sin(uTime * 2.6 + wp.x * 0.35 + wp.y * 0.27 + wp.z * 0.31);
+    off += (dir * 0.6 + across) * r * clamp(k * 3.0, 0.0, 1.0) * ws * ${RUSTLE.toFixed(4)} * gust;` : ''}
     mvPosition.xz += off;
   }`;
 

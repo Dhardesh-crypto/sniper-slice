@@ -267,7 +267,7 @@ export function buildTrees(scene) {
         // a crown seen against the sky left dark rectangles round its edges.
         if (type.noAO) crown.userData.noAO = far.userData.noAO = true;
         const trunk = instanced([built.trunk.geometry, built.trunk.material]);
-        addTreeWind(trunk, tall, false); addTreeWind(crown, tall, true); addTreeWind(far, tall, true);   // (in the wind: tree-wind.js)
+        addTreeWind(trunk, tall, false); addTreeWind(crown, tall, true); addTreeWind(far, tall, false);   // (in the wind: tree-wind.js; the far cards sway but don't rustle: too small to see, and they shimmered)
         c.near.push(trunk, crown);
         c.far.push(far);
       }
