@@ -525,7 +525,7 @@ const playVoice = (name) => {
   try {
     storyVoice?.pause();
     storyVoice = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
-    storyVoice.volume = Math.min(1, settings.volume * 1.1);
+    storyVoice.volume = audio.muted ? 0 : Math.min(1, settings.volume * 1.1);   // (?mute: silent)
     storyVoice.play().catch(() => {});
   } catch { /* no audio: the words are on the card */ }
 };

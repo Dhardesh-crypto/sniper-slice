@@ -15,7 +15,8 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const args = process.argv.slice(2);
-const url = args[0]?.startsWith('http') ? args.shift() : 'http://localhost:5179';
+const base = args[0]?.startsWith('http') ? args.shift() : 'http://localhost:5179';
+const url = base + (base.includes('?') ? '&' : '?') + 'mute';   // (silent twice over: ?mute in the game, --mute-audio in Chromium)
 const MISSIONS = args.length ? args : ['vineyard', 'town', 'harbour', 'forest', 'flak', 'railway', 'bridge', 'airfield', 'radar'];
 const PORT = 9333;
 
@@ -29,7 +30,13 @@ function chromium() {
 }
 
 const browser = spawn(chromium(), [`--remote-debugging-port=${PORT}`, '--window-size=1280,720', 
-  '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
+  '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
+// However this run ends (finished, an error, stopped with Ctrl-C or killed by a tool), its
+// Chromium goes with it: left running, a game in it carries on (alarm and all).
+const stop = () => { try { browser.kill('SIGKILL'); } catch { /* already gone */ } };
+process.on('exit', stop);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { stop(); process.exit(130); });
+process.on('uncaughtException', (e) => { console.error(e); stop(); process.exit(1); });
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function connect() {
@@ -95,7 +102,7 @@ const PLAY = `(async () => {
   frames.sort((a, b) => a - b);
   const q = (f) => +frames[Math.floor(f * (frames.length - 1))].toFixed(1);
   const ways = [...document.querySelectorAll('#approaches .way b')].map(b => b.textContent.replace('From the ', ''));
-  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm, ways };
+  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm, ways, silent: !g.audio?.master || g.audio.master.gain.value === 0 };
 })()`;
 
 const report = [];
@@ -111,12 +118,12 @@ for (const id of MISSIONS) {
   try { res = await evaluate(PLAY, 180000); } catch (e) { err = e.message; }
   const errors = events.filter(e => (e.method === 'Runtime.exceptionThrown') || (e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error') || (e.method === 'Log.entryAdded' && e.params.entry.level === 'error' && e.params.entry.source !== 'network'))
     .map(e => e.params.exceptionDetails?.exception?.description?.split('\n')[0] ?? e.params.args?.map(a => a.value ?? a.description).join(' ') ?? e.params.entry?.text);
-  const bad = events.filter(e => e.method === 'Network.responseReceived' && e.params.response.status >= 400).map(e => `${e.params.response.status} ${e.params.response.url.replace(url, '')}`)
+  const bad = events.filter(e => e.method === 'Network.responseReceived' && e.params.response.status >= 400).map(e => `${e.params.response.status} ${e.params.response.url.replace(base, '')}`)
     .concat(events.filter(e => e.method === 'Network.loadingFailed' && !e.params.canceled).map(e => `failed ${e.params.errorText}`));
   if (err || errors.length || bad.length) failed = true;
   report.push({ id, ...(res ?? {}), error: err, errors: [...new Set(errors)].slice(0, 5), requests: [...new Set(bad)].slice(0, 5) });
   const r = report[report.length - 1];
-  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `load ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'} · ways in: ${r.ways?.length ?? '?'} (${r.ways?.slice(1).join(', ')})`}`);
+  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `load ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'} · ways in: ${r.ways?.length ?? '?'} (${r.ways?.slice(1).join(', ')}) · ${r.silent ? 'silent' : 'SOUND ON'}`}`);
   for (const e of r.errors) console.log('   error:', e);
   for (const b of r.requests) console.log('   request:', b);
 }

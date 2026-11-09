@@ -69,6 +69,10 @@ export class Audio {
     this.musicVolume = 0.5;
   }
 
+  // Silent when the page was opened with ?mute (automated runs: tools/smoke.mjs and the test
+  // pane), whatever the volume setting says, so a test never sounds the alarm out loud.
+  get muted() { return typeof location !== 'undefined' && new URLSearchParams(location.search).has('mute'); }
+
   // Must be called from a user gesture. (An OfflineAudioContext can be passed in to render
   // sounds for checking; then there's no ambience.)
   start(offline = null) {
@@ -76,7 +80,7 @@ export class Audio {
     const ctx = offline ?? new AudioContext();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.volume;
+    this.master.gain.value = this.muted ? 0 : this.volume;
     this.master.connect(ctx.destination);
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -180,7 +184,7 @@ export class Audio {
 
   setVolume(v) {
     this.volume = v;
-    if (this.master) this.master.gain.value = v;
+    if (this.master) this.master.gain.value = this.muted ? 0 : v;
   }
 
   // ---- music ----
