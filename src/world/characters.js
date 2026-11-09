@@ -13,7 +13,10 @@ const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tan
   trenchgun: 'trenchgun', mg42: 'mg42', panzerschreck: 'panzerschreck', panzerfaust: 'panzerfaust', piat: 'piat',
   guardCamo: 'guard_camo', guardSergeant: 'guard_sergeant', officerColonel: 'officer_colonel', officerLieutenant: 'officer_lieutenant',
   // Dressed for their post: Luftwaffe ground crew, Kriegsmarine sailors, Pioniere, a tank crewman.
-  guardLuftwaffe: 'guard_luftwaffe', guardSailor: 'guard_sailor', guardPionier: 'guard_pionier', guardTanker: 'guard_tanker' };
+  guardLuftwaffe: 'guard_luftwaffe', guardSailor: 'guard_sailor', guardPionier: 'guard_pionier', guardTanker: 'guard_tanker',
+  // Tripo models rigged onto our skeleton in Blender (tools/blender/tripo_rig.py).
+  // Alpine trooper, military policeman, paratrooper, Italian soldier, grenadier in a greatcoat, sniper.
+  guardAlpine: 'guard_alpine', guardMP: 'guard_mp', guardPara: 'guard_para', guardItalian: 'guard_italian', guardWinter: 'guard_winter', guardSniper: 'guard_sniper' };
 const CLIP_FILES = {
   walk: 'anim_walk', sprint: 'anim_sprint', crouch: 'anim_crouch', crawl: 'anim_crawl',
   deathFwd: 'anim_death_fwd', deathBack: 'anim_death_back',

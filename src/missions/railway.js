@@ -274,11 +274,11 @@ function site(scene, world) {
   add(bx - 1, bz - 0.4, Math.PI, { y: Y + 3.2, name: 'Signalman', look: 'guardSergeant' });
   add(wx + 3.6, wz, -Math.PI / 2, { y: Y + 9, name: 'Tower lookout', stance: 'alert', look: 'guardCamo' });
   add(-190, 6, -Math.PI / 2, { name: 'Yard patrol' });
-  add(30, 19.5, Math.PI / 2, { name: 'Yard patrol', look: 'guardCamo' });
+  add(30, 19.5, Math.PI / 2, { name: 'Yard patrol', look: 'guardWinter' });
   add(-140, 24, Math.PI / 2, { name: 'Shed guard' });
   add(60, 18, 0, { name: 'Goods shed guard', stance: 'alert' });
   add(-200, ROAD_Z - 3, Math.PI / 2, { name: 'Checkpoint', stance: 'alert' });
-  add(-200, ROAD_Z + 3, Math.PI / 2, { name: 'Checkpoint', look: 'guardSergeant' });
+  add(-200, ROAD_Z + 3, Math.PI / 2, { name: 'Checkpoint', look: 'guardMP' });
   add(100, -20, -Math.PI / 2, { name: 'Crossing patrol' });
 
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);

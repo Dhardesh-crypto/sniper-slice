@@ -24,7 +24,9 @@ for (const file of readdirSync(SRC).filter(f => f.endsWith('.glb') && (!only.len
     await doc.transform(prune());
     await io.write(out, doc);
   } else {
-    execFileSync('npx', ['gltf-transform', 'optimize', src, out, '--compress', 'false', '--simplify', 'false',
+    // (--flatten false: a rigged character keeps its Armature node. Flattened, the armature's 0.01
+    // scale moved onto the hips and the skin came out 100 times too big: tools/blender/tripo_rig.py.)
+    execFileSync('npx', ['gltf-transform', 'optimize', src, out, '--compress', 'false', '--simplify', 'false', '--flatten', 'false',
       '--texture-compress', 'webp', '--texture-size', '1024'], { stdio: 'inherit' });
   }
   console.log('prepared', out);

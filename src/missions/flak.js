@@ -203,11 +203,11 @@ function site(scene, world) {
     if (g.i % 2 === 0) add(g.x - 2.5, g.z + 1.5, Math.PI * 0.8, { name: 'Gun crew', look: 'guardLuftwaffe' });
   }
   add(AMMO.x + 3, AMMO.z + 5, 0, { name: 'Ammunition guard', stance: 'alert' });
-  add(-80, -10, 0, { name: 'Battery sentry', look: 'guardCamo' });
+  add(-80, -10, 0, { name: 'Battery sentry', look: 'guardPara' });   // (Luftwaffe paratroops guard the battery)
   add(...FIRE[0], 0, { name: 'Trench sentry' });
-  add(...FIRE[6], 0, { name: 'East trench sentry', look: 'guardCamo' });
+  add(...FIRE[6], 0, { name: 'East trench sentry', look: 'guardPara' });
   add(...COMM[0][0], 0, { name: 'Runner' });
-  add(-200, 140, Math.PI / 2, { name: 'Wire patrol', look: 'guardCamo' });
+  add(-200, 140, Math.PI / 2, { name: 'Wire patrol', look: 'guardWinter' });
   for (const g of dug.slice(0, 3)) add(g.entrance.x, g.entrance.z, Math.PI, { y: g.floor, name: 'Trench guard', stance: 'alert' });
   add(dug[3].inside.x, dug[3].inside.z, 0, { y: dug[3].floor, name: 'Off-duty gunner' });
   add(command.inside.x + 1, command.inside.z, Math.PI / 2, { y: command.floor, name: 'Signaller' });

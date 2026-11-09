@@ -283,7 +283,7 @@ function site(scene, world) {
   add(tx, tz - 6.5, Math.PI, { name: 'Tower guard', stance: 'alert', look: 'guardSergeant' });
   add(tx + 2, tz + 1, 0, { y: up, name: 'Flight controller', look: 'guardLuftwaffe' });
   add(-130, 92, -Math.PI / 2, { name: 'Apron patrol', look: 'guardLuftwaffe' });
-  add(-250, 90, -Math.PI / 2, { name: 'Pen patrol', look: 'guardCamo' });
+  add(-250, 90, -Math.PI / 2, { name: 'Pen patrol', look: 'guardPara' });
   add(130, 90, -Math.PI / 2, { name: 'East pen patrol' });
   add(-92, 118, Math.PI, { name: 'Mechanic', look: 'guardLuftwaffe' });
   add(-62, 124, Math.PI / 2, { name: 'Mechanic', look: 'guardLuftwaffe' });

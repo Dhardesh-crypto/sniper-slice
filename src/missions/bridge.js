@@ -318,14 +318,14 @@ function site(scene, world) {
   add(-52, -5, -Math.PI / 2, { name: 'Checkpoint', stance: 'alert', look: 'guardSergeant' });
   add(-52, 5, -Math.PI / 2, { name: 'Checkpoint' });
   add(52, -5, Math.PI / 2, { name: 'Checkpoint', stance: 'alert' });
-  add(52, 5, Math.PI / 2, { name: 'Checkpoint', look: 'guardCamo' });
+  add(52, 5, Math.PI / 2, { name: 'Checkpoint', look: 'guardAlpine' });   // (mountain troops: it's the Apennines)
   add(nx - 1.2, nz + 0.8, Math.PI / 2, { name: 'MG crew', stance: 'alert', look: 'guardSergeant' });
   add(nx + 0.6, nz - 1, Math.PI / 2, { name: 'MG crew' });
   add(tx, tz - 0.3, Math.PI * 0.75, { y: top, name: 'Tower guard', stance: 'alert', look: 'guardCamo' });
   add(-170, 50, Math.PI / 2, { name: 'Camp patrol', look: 'guardPionier' });
   add(px - 3, pz + 3, Math.PI, { name: 'Pontoon guard', stance: 'alert', look: 'guardPionier' });
   add(cx - 1, cz - 7.5, 0, { name: 'Hut guard', stance: 'alert', look: 'guardSergeant' });
-  add(gx(-60) - 12, -60, 0, { name: 'Bank patrol', look: 'guardCamo' });
+  add(gx(-60) - 12, -60, 0, { name: 'Bank patrol', look: 'guardAlpine' });
   add(60, 2, -Math.PI / 2, { name: 'East patrol' });
 
   // A roadman's house above the east bank, shelled when the front reached the river.

@@ -267,7 +267,7 @@ export function buildCompound(scene) {
   add(towerTops[1].x - cx, towerTops[1].z - cz, Math.PI * 0.25, { y: towerTops[1].y, name: 'Tower guard', stance: 'alert', look: 'guardCamo' });
   add(20, 6, 0.4, { name: 'Yard guard' });
   add(10, 0.5, Math.PI * 0.1, { officer: true, name: 'Officer', y: y + 0.5 });
-  add(-15, -6, 2.6, { name: 'Barn guard', look: 'guardCamo' });
+  add(-15, -6, 2.6, { name: 'Barn guard', look: 'guardItalian' });   // (Tuscany, 1944: an Italian Republican soldier)
   // More of them: a sergeant walking the north-west yard, a lieutenant keeping near the Oberst,
   // and a sentry in a camouflage smock along the south side.
   add(-20, 10, 0, { name: 'Sergeant', stance: 'alert', look: 'guardSergeant' });

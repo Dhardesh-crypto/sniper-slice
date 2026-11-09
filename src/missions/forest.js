@@ -295,7 +295,7 @@ function site(scene) {
     ladders.push(ladder(b, { x: s.x, z: s.z + 1.4, y, top, face: 's' }));
     s.top = new THREE.Vector3(s.x, top, s.z);
     towerTops.push(s.top);
-    add(s.x, s.z - 0.3, face(s.x, s.z, ...s.look), { y: top, name: 'Counter-sniper', stance: 'alert', look: 'guardCamo' });
+    add(s.x, s.z - 0.3, face(s.x, s.z, ...s.look), { y: top, name: 'Counter-sniper', stance: 'alert', look: 'guardSniper' });   // (the counter-sniper unit: veils, binoculars)
   }
 
   // ---- the unit ----

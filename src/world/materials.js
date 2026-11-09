@@ -36,7 +36,7 @@ export const KINDS = {
 
 // Which kind each loaded asset is (by the key the loaders use; skins are 'skin_*').
 const BY_KEY = {
-  character: ['player', 'guard', 'guardCamo', 'guardSergeant', 'officerColonel', 'officerLieutenant', 'guardLuftwaffe', 'guardSailor', 'guardPionier', 'guardTanker'],
+  character: ['player', 'guard', 'guardCamo', 'guardSergeant', 'officerColonel', 'officerLieutenant', 'guardLuftwaffe', 'guardSailor', 'guardPionier', 'guardTanker', 'guardAlpine', 'guardMP', 'guardPara', 'guardItalian', 'guardWinter', 'guardSniper'],
   weapon: ['rifle', 'enfield', 'g43', 'p38', 'luger', 'm1carbine', 'delisle', 'trenchgun', 'mg42', 'panzerschreck', 'panzerfaust', 'piat'],
   vehicle: ['tank', 'opel', 'kubel', 'plane', 'locomotive', 'railgun', 'boxcar', 'boxcarGrey', 'coach', 'flakWagon', 'ship', 'crane', 'flak', 'flak88',
     'p47', 'b25', 'eboat', 'fuelTank', 'generator', 'siren', 'tiger', 'halftrack', 'bf110', 'ju88', 'radar', 'bowser', 'searchlight', 'freya', 'motorcycle',

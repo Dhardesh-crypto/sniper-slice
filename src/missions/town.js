@@ -426,7 +426,7 @@ function site(scene) {
   add(-7.5, 25.5, 0, { name: 'Clerk', look: 'officerLieutenant' });
   add(-14, -10, 0, { name: 'Piazza patrol', stance: 'alert' });
   add(-50, -41, Math.PI / 2, { name: 'North patrol' });
-  add(-50, 40, Math.PI / 2, { name: 'South patrol', look: 'guardCamo' });
+  add(-50, 40, Math.PI / 2, { name: 'South patrol', look: 'guardItalian' });
   add(-48, -30, 0, { name: 'West patrol', look: 'guardSergeant' });
   add(-70, -2.5, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
   add(-70, 2.5, -Math.PI / 2, { name: 'Gate guard', stance: 'alert' });
@@ -499,7 +499,7 @@ function countryside(b, scene, soldiers, ladders, doors) {
   add(FARM.x + 2, FARM.z - 6, Math.PI, { name: 'Truck driver', look: 'guardPionier' });
   add(FARM.x + 15, FARM.z + 3, -Math.PI / 2, { name: 'Gestapo sergeant', look: 'guardSergeant' });   // in the kitchen, over his lists
   add(FARM.x - 8, FARM.z - 22, 0, { name: 'Lane patrol' });
-  add(FARM.x - 6, FARM.z - 24, 0, { name: 'Lane patrol', look: 'guardCamo' });
+  add(FARM.x - 6, FARM.z - 24, 0, { name: 'Lane patrol', look: 'guardItalian' });   // (an Italian Republican militiaman)
 
   // The crossroads checkpoint: a barrier (raised), a sentry box, sandbags, the field telephone on a pole.
   const cy = g(CROSS.x, CROSS.z);
@@ -516,7 +516,7 @@ function countryside(b, scene, soldiers, ladders, doors) {
   out.phoneLine = line;
   out.phoneAt = new THREE.Vector3(phone.pole.x, cy, phone.pole.z + 0.9);
   add(CROSS.x + 6, CROSS.z - 3, -Math.PI / 2, { name: 'Checkpoint guard', stance: 'alert' });
-  add(CROSS.x + 6, CROSS.z + 3, -Math.PI / 2, { name: 'Checkpoint guard', stance: 'alert', look: 'guardSergeant' });
+  add(CROSS.x + 6, CROSS.z + 3, -Math.PI / 2, { name: 'Checkpoint guard', stance: 'alert', look: 'guardMP' });   // (field police at the crossroads)
   add(CROSS.x - 2, CROSS.z - 11, 0, { name: 'Telephonist', look: 'guardPionier' });
   add(CROSS.x + 6, CROSS.z - 10, Math.PI / 2, { name: 'Checkpoint patrol' });
 
