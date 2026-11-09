@@ -7,6 +7,7 @@ import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
 import { treeParts } from './props.js';
+import { addTreeWind, treeHeight } from './tree-wind.js';
 
 export const windUniforms = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(2, 0) } };
 
@@ -239,6 +240,8 @@ export function buildTrees(scene) {
     }
     // A tree built in Blender: the whole tree near by, its far cards beyond (see cullTreeChunks).
     const built = type.blender && treeParts(type.blender, type.shade);
+    // How tall this kind of tree is in its own units: the wind bends it by the share of that (tree-wind.js).
+    const tall = built ? treeHeight(built.trunk.geometry, built.crown.geometry) : treeHeight(type.trunk, type.crown.core, type.crown.leaves);
     for (const [k, list] of byChunk) {
       const instanced = ([geo, mat]) => {
         const im = new THREE.InstancedMesh(geo, mat, list.length);
@@ -253,6 +256,7 @@ export function buildTrees(scene) {
         : [[type.trunk, type.trunkMat], [type.crown.core, type.coreMat], [type.crown.leaves, type.leafMat]];
       const meshes = parts.map(instanced);
       trunks.push(meshes[0]);
+      if (!built) { addTreeWind(meshes[0], tall, false); addTreeWind(meshes[1], tall, false); addTreeWind(meshes[2], tall, true); }   // (trunk and core sway, the cards flutter too)
       const [cx, cz] = k.split(',').map(Number);
       if (!chunks.has(k)) chunks.set(k, { x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK, meshes: [], near: [], far: [] });
       const c = chunks.get(k);
@@ -263,7 +267,9 @@ export function buildTrees(scene) {
         // that knows nothing of alpha: each card counted as a solid quad, and the big cards of
         // a crown seen against the sky left dark rectangles round its edges.
         if (type.noAO) crown.userData.noAO = far.userData.noAO = true;
-        c.near.push(instanced([built.trunk.geometry, built.trunk.material]), crown);
+        const trunk = instanced([built.trunk.geometry, built.trunk.material]);
+        addTreeWind(trunk, tall, false); addTreeWind(crown, tall, true); addTreeWind(far, tall, true);   // (in the wind: tree-wind.js)
+        c.near.push(trunk, crown);
         c.far.push(far);
       }
     }
