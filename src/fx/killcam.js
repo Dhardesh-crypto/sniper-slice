@@ -4,7 +4,7 @@
 // then watch the fall. The hit itself is applied at the moment of impact.
 // A shot into a vehicle's engine plays the same ride, then pulls back to watch it blow.
 import * as THREE from 'three';
-import { buildXray, partsAlong, setXrayView, XRAY_LAYER } from '../world/anatomy.js';
+import { buildXray, clearXray, partsAlong, setXrayView, XRAY_LAYER } from '../world/anatomy.js';
 
 const LABEL = { heart: 'HEART', lungs: 'LUNG', liver: 'LIVER', kidney: 'KIDNEY', brain: 'BRAIN', stomach: 'STOMACH', intestines: 'GUT', skull: 'SKULL', spine: 'SPINE' };
 const APPROACH = 1.6;    // metres before impact where the camera starts swinging round
@@ -87,6 +87,7 @@ export class KillCam {
 
     if (this.soldier) {
       buildXray(this.soldier);
+      this.upload(this.soldier);
       const exit = this.entry.clone().addScaledVector(this.dir, THROUGH);
       this.parts = partsAlong(this.soldier, this.entry.clone().addScaledVector(this.dir, -0.05), exit)
         .filter((p, i, all) => all.findIndex(q => q.part === p.part) === i);
@@ -270,11 +271,20 @@ export class KillCam {
       post.draw();
       return;
     }
+    this.drawXray(renderer, post, cam, this.entry);
+  }
+
+  drawXray(renderer, post, cam, lookAt) {
     this.xrayLight.visible = true;
     this.xrayLight.position.copy(cam.position).add(new THREE.Vector3(0.5, 1.5, 0.5));
-    this.xrayLight.target.position.copy(this.entry);
+    this.xrayLight.target.position.copy(lookAt);
     this.xrayLight.target.updateMatrixWorld();
-    renderer.render(this.scene, cam);           // world, without the target's flesh
+    // The world, without the target's flesh, through the same post chain as every other frame.
+    // (Drawn straight to the screen, as it was, every material in view needed a second program,
+    // tone-mapped for the screen: 17 of them compiled in the first X-ray frame of one kill cam,
+    // a 0.2 s freeze at the moment of impact. This way there is no second set, and the X-ray's
+    // world keeps the grade and the ambient shading.)
+    post.draw();
     renderer.autoClear = false;
     renderer.render(this.tintScene, this.tintCam);
     renderer.clearDepth();
@@ -283,5 +293,45 @@ export class KillCam {
     cam.layers.set(0);
     renderer.autoClear = true;
     this.xrayLight.visible = false;
+  }
+
+  // Behind the menu (main.js warmUp): one man's X-ray built and the three X-ray passes drawn once,
+  // so their programs (bones, organs, the ghost body, lit by the X-ray's own light; the tint) and
+  // the bullet's are compiled before the first kill cam needs them. His X-ray is thrown away
+  // again: it's built fresh, with the modelled anatomy once that has loaded, for the real target.
+  // His X-ray's geometry and materials sent to the GPU now, at the cut to the bullet (a stall
+  // there doesn't show), not on the first X-ray frame at the moment of impact, where it was a
+  // quarter of a second's freeze every time. Drawn into one pixel of the screen, which the frame
+  // that follows paints over.
+  upload(soldier) {
+    const r = this.renderer, cam = this.camera;
+    if (!r) return;
+    setXrayView(soldier, true);
+    this.xrayLight.visible = true;
+    const auto = r.autoClear, culled = [];
+    soldier.root.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
+    r.autoClear = false;
+    r.setScissorTest(true); r.setScissor(0, 0, 1, 1);
+    cam.layers.set(XRAY_LAYER);
+    r.render(this.scene, cam);
+    cam.layers.set(0);
+    r.setScissorTest(false);
+    r.autoClear = auto;
+    for (const o of culled) o.frustumCulled = true;
+    this.xrayLight.visible = false;
+    setXrayView(soldier, false);
+  }
+
+  warm(renderer, post) {
+    this.renderer = renderer;
+    const s = this.world.soldiers.find(x => x.alive && !x.range);
+    if (!s) return;
+    buildXray(s);
+    setXrayView(s, true);
+    this.bullet.visible = this.trail.visible = true;
+    this.drawXray(renderer, post, this.camera, s.root.position);
+    this.bullet.visible = this.trail.visible = false;
+    setXrayView(s, false);
+    clearXray(s);
   }
 }

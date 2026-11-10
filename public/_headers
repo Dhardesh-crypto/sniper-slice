@@ -1,0 +1,12 @@
+# Netlify: what browsers may keep. Without this every visit asked about some 250 files again.
+# Code and styles from the build carry a hash in their names: keep them for good.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+# Models, sounds and textures keep their names but are asked for with a version (?v=N, set in
+# src/core/version.js and raised whenever one is replaced): a year, safely.
+/models/*
+  Cache-Control: public, max-age=31536000
+/sounds/*
+  Cache-Control: public, max-age=31536000
+/textures/*
+  Cache-Control: public, max-age=31536000

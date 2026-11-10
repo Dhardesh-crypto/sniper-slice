@@ -12,7 +12,7 @@ import { Audio, SOUND_CHECK } from './core/audio.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { Hud } from './ui/hud.js';
 import { Post } from './core/post.js';
-import { loadAssets, assets } from './world/characters.js';
+import { loadAssets, assets, loadModel, weaponModelKey } from './world/characters.js';
 import { loadProps, dressSite } from './world/props.js';
 import { usePhotoTextures } from './world/textures.js';
 import { skinBuildings } from './world/skins.js';
@@ -72,14 +72,16 @@ import { Interactions } from './world/interact.js';
 import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missions/campaign.js';
 import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
-import { HEAVY_AMMO } from './weapons/defs.js';
+import { HEAVY_AMMO, CATALOG } from './weapons/defs.js';
+import { horizonReady } from './world/horizon.js';
 import { LoadoutUI } from './ui/loadout.js';
 import { installAtmosphere } from './world/atmosphere.js';
 import { PadNav } from './ui/padnav.js';
 import { Tutorial } from './mission/tutorial.js';
-import { initGlyphs, fill } from './ui/glyphs.js';
+import { initGlyphs, fill, refreshStatic } from './ui/glyphs.js';
 import { findApproaches, faceTarget } from './mission/approaches.js';
 import { Flamers } from './world/flamer.js';
+import { asset } from './core/version.js';
 
 const FIXED_DT = 1 / 60;
 
@@ -100,12 +102,13 @@ const settings = loadSettings();
 const camera = new THREE.PerspectiveCamera(settings.fov, innerWidth / innerHeight, 0.05, 3000);
 camera.rotation.order = 'YXZ';
 
-// Characters and the rifle come from GLB files: load them before building the world.
+// What's loaded before you can play is what this mission needs to start, no more: its own
+// characters, the weapons you carry, its props and trees. The rest comes just in time
+// (loadLater, below): the X-ray anatomy and the planes in idle moments after Play, a weapon's
+// model when you find it or open the workbench, most sounds a moment after the first click.
 const playBtn = document.getElementById('play');
-playBtn.disabled = true;
-await loadAssets((f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
-playBtn.textContent = 'Click to play';
-playBtn.disabled = false;
+playBtn.disabled = true;                          // (enabled when the loop starts, at the end of this file)
+playBtn.textContent = 'Loading…';
 
 // The mission being played: its module brings the map, the site, the objectives and the intel.
 const MISSION_MODULES = {
@@ -121,11 +124,24 @@ const MISSION_MODULES = {
 };
 const missionId = MISSION_MODULES[currentMissionId()] ? currentMissionId() : 'vineyard';
 const M = (await MISSION_MODULES[missionId]()).default;
-// The mission's modelled props (and the safe every mission has), before its site is built.
-playBtn.disabled = true;
-await loadProps([...(M.map?.forest ? ['treeFir', 'treeBeech'] : ['treeOlive']), 'groundDetail', 'archKit', 'interiorKit', 'anatomy', 'safe', 'siren', 'crates', 'treeCypress', 'treePine', 'wreckTruck', 'wreckCar', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', 'motorcycle', 'p47', 'b25', ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])], (f) => { playBtn.textContent = `Loading ${Math.round(f * 100)}%`; });
-playBtn.textContent = 'Click to play';
-playBtn.disabled = false;
+{
+  // Characters: you, the plain guard (reinforcements, patrols, any look that's missing), the
+  // default officer, a tank's commander, and the looks this mission dresses its men in (`looks`).
+  const carried = new Profile().loadout;          // (what you start with: its models now, the others when wanted)
+  const models = ['player', 'guard', 'officerColonel', 'guardTanker', ...(M.looks ?? []),
+    'rifle', ...['rifle', 'pistol', 'heavy'].map(slot => carried[slot] && weaponModelKey(CATALOG[carried[slot]]?.model)).filter(Boolean),
+    ...((M.props ?? []).includes('mgNest') ? ['mg42'] : []),    // (the gun in a nest)
+    'tank', 'opel', 'kubel', 'plane'];
+  // Trees: the kinds this map plants (a forest map lists its own counts; the others have olives, cypresses, pines).
+  const planted = M.map?.forest ? Object.entries(M.map.forest.counts ?? {}).filter(([, n]) => n > 0).map(([k]) => k) : ['olive', 'cypress', 'pine'];
+  const trees = planted.map(k => ({ fir: 'treeFir', beech: 'treeBeech', olive: 'treeOlive', cypress: 'treeCypress', pine: 'treePine' })[k]).filter(Boolean);
+  const props = [...trees, 'groundDetail', 'archKit', 'interiorKit', 'safe', 'siren', 'crates', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', 'motorcycle',
+    ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])];
+  // One bar for both: the models are most of the bytes either way.
+  const part = [0, 0], show = () => { playBtn.textContent = `Loading ${Math.round((part[0] * 0.5 + part[1] * 0.5) * 100)}%`; };
+  await Promise.all([loadAssets((f) => { part[0] = f; show(); }, models), loadProps(props, (f) => { part[1] = f; show(); })]);
+  playBtn.textContent = 'Building the map…';
+}
 M.map.id ??= missionId;                          // (its far country: textures/horizon_<id>.webp)
 const conditions = pickConditions(M.map, runSeed, settings.season); // this run's weather: as briefed, or overcast, rain, mist; and maybe winter
 useMap(M.map);
@@ -140,10 +156,11 @@ input.settings = settings;   // (the pad's vibration setting)
 const audio = new Audio();
 audio.volume = settings.volume;
 audio.musicVolume = settings.music;
+audio.plan = { weapons: ['rifle', 'pistol', 'heavy'].map(slot => new Profile().loadout[slot]).filter(Boolean), sea: M.map.waterLevel != null };   // (which samples the first wave fetches: core/audio.js loadSamples)
 const world = new World(scene, renderer, M.site);
 dressSite(world);
 await usePhotoTextures(scene, M.map.wallStyle);                   // the photographs over the drawn textures
-skinBuildings(scene, missionId);                                  // the landmarks' own weathered outsides (world/skins.js)
+const skinsReady = skinBuildings(scene, missionId);               // the landmarks' own weathered outsides (world/skins.js)
 const player = new Player(world, input, audio);
 player.settings = settings;   // (the combat difficulty: core/difficulty.js)
 const avatar = new Avatar(scene);
@@ -528,7 +545,7 @@ let briefed = !story;
 const playVoice = (name) => {
   try {
     storyVoice?.pause();
-    storyVoice = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+    storyVoice = new Audio(asset(`sounds/${name}.mp3`));
     storyVoice.volume = audio.muted ? 0 : Math.min(1, settings.volume * 1.1);   // (?mute: silent)
     storyVoice.play().catch(() => {});
   } catch { /* no audio: the words are on the card */ }
@@ -559,7 +576,7 @@ function showDispatch(then) {
   window.addEventListener('keydown', key);
 }
 document.getElementById('play').addEventListener('click', () => {
-  if (!briefed) { briefed = true; audio.start(); showDispatch(() => document.getElementById('play').click()); return; }
+  if (!briefed) { briefed = true; audio.start(); audio.fetchMusic(M.map.music ?? missionId); showDispatch(() => document.getElementById('play').click()); return; }
   audio.start();
   audio.startMusic(M.map.music ?? missionId);
   input.lock();
@@ -582,6 +599,7 @@ input.onLockChange = (locked) => {
     document.querySelector('#menu .sub').textContent = `Paused · ${M.subtitle.split(' · ')[0]}`;
     takeStart();        // the way in chosen in the Mission tab
     renderApproaches();
+    loadLater();        // what the mission didn't need to start (the end of this file)
     if (chosenStart() === 'start') tutorial.begin();   // the first mission's training, the first time (mission/tutorial.js): on the start hill only
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
@@ -762,8 +780,15 @@ function scaleResolution(realDt) {
   if (scaler.t < 1.5) return;
   const avg = scaler.sum / scaler.n, pr = post.pixelRatio;
   scaler.t = scaler.sum = scaler.n = 0;
-  if (avg > 1 / 52 && pr > post.minPixelRatio) { post.setPixelRatio(Math.max(post.minPixelRatio, pr - 0.25)); scaler.calm = 0; }
-  else if (avg < 1 / 72 && pr < post.maxPixelRatio && ++scaler.calm >= 2) { post.setPixelRatio(Math.min(post.maxPixelRatio, pr + 0.25)); scaler.calm = 0; }
+  // A step reallocates every render target (a long frame of its own), so: only after two slow
+  // windows in a row (3 s), or four fast ones to go back up, and never within 10 s of the last
+  // step. Before, one slow second stepped down and it could go up and down every few seconds.
+  scaler.cool = Math.max(0, (scaler.cool ?? 0) - 1.5);
+  scaler.slow = avg > 1 / 52 ? (scaler.slow ?? 0) + 1 : 0;
+  scaler.calm = avg < 1 / 72 ? scaler.calm + 1 : 0;
+  if (scaler.cool > 0) return;
+  if (scaler.slow >= 2 && pr > post.minPixelRatio) { post.setPixelRatio(Math.max(post.minPixelRatio, pr - 0.25)); scaler.slow = scaler.calm = 0; scaler.cool = 10; }
+  else if (scaler.calm >= 4 && pr < post.maxPixelRatio) { post.setPixelRatio(Math.min(post.maxPixelRatio, pr + 0.25)); scaler.slow = scaler.calm = 0; scaler.cool = 10; }
 }
 
 function frame(time) {
@@ -917,13 +942,60 @@ if (loadedSlot) {
   document.querySelector('#menu .sub').textContent = `Loaded: ${SLOT_NAMES[loadedSlot]}`;
   hud.message('GAME LOADED', '');
 }
-// Upload every texture and compile every shader now, behind the menu, so nothing stalls the
-// first time it comes into view.
-scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v); });
-await renderer.compileAsync(scene, camera);
-// Winter: snow on everything that faces the sky (and again once the far country and late models are in).
-if (activeMap().winter) { applyWinter(scene); for (const ms of [3000, 10000]) setTimeout(() => applyWinter(scene), ms); }
+// ---- warming up, behind the menu, so nothing stalls the first time it comes into view ----
+// Everything that draws is in the scene first: the skins and the far country (they used to
+// arrive after this and upload their textures in play), and winter's snow on all of it.
+playBtn.textContent = 'Warming up…';
+await Promise.race([Promise.all([skinsReady, horizonReady]), new Promise(r => setTimeout(r, 12000))]);   // (a slow line doesn't hold the game for ever)
+if (activeMap().winter) applyWinter(scene);
+const uploadTextures = (root) => root.traverse((o) => { for (const m of [].concat(o.material ?? [])) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v); });
+async function warmUp() {
+  uploadTextures(scene);
+  // Shaders: compiled for the target the game really draws into (the post chain's half-float
+  // buffer: no tone mapping, linear). Compiled for the screen, as this did before, every one of
+  // them was compiled a second time when first seen: the stall on first looking round.
+  renderer.setRenderTarget(post.composer.renderTarget1);
+  await renderer.compileAsync(scene, camera);
+  renderer.setRenderTarget(null);
+  // Then the real thing, drawn once in each direction: what compileAsync doesn't reach (the
+  // shadow pass, the ambient occlusion's and the post chain's own programs, anything culled).
+  const q = camera.quaternion.clone(), p = camera.position.clone();
+  camera.position.copy(player.pos).add(new THREE.Vector3(0, 1.6, 0));
+  fx.warm?.(camera.position);                       // (one of each kind of particle, shown for these frames)
+  for (let i = 0; i < 6; i++) {
+    camera.rotation.set(i === 5 ? -0.5 : 0, i * Math.PI * 2 / 5, 0);
+    camera.updateMatrixWorld();
+    world.cullTrees(camera.position, 1);
+    renderer.shadowMap.needsUpdate = true;
+    post.draw();
+    await new Promise(r => setTimeout(r, 0));       // (let the page breathe: the menu stays responsive)
+  }
+  killCam.warm(renderer, post);                         // the X-ray's own materials and passes (fx/killcam.js)
+  camera.quaternion.copy(q); camera.position.copy(p); camera.updateMatrixWorld();
+}
+await warmUp();
 renderer.setAnimationLoop(frame);
+playBtn.dataset.kb = started ? 'Resume' : 'Click to play';   // (and its pad wording: ui/glyphs.js)
+refreshStatic();
+playBtn.disabled = false;
+
+// ---- just in time: what the mission doesn't need to start ----
+// After the first Play, in idle moments, one at a time: the X-ray anatomy (the kill cam draws
+// stand-in shapes until it's in), the burnt-out truck and car (for the first vehicle you blow up),
+// the planes (the first wave is 45 s or more away). Each one's textures go to the GPU as it lands,
+// not when it's first drawn.
+let laterStarted = false;
+async function loadLater() {
+  if (laterStarted) return;
+  laterStarted = true;
+  const idle = () => new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 300)));
+  for (const k of ['anatomy', 'wreckTruck', 'wreckCar', 'p47', 'b25']) {
+    await idle();
+    await loadProps([k]);
+    if (assets.models[k]) uploadTextures(assets.models[k].scene);
+  }
+  if (activeMap().winter) applyWinter(scene);       // (snow on what's just come in)
+}
 
 // Debug handle for automated play-testing from the console.
 window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, driving,

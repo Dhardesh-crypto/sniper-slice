@@ -24,6 +24,7 @@ import { modelParts } from './props.js';
 import { proceduralHooks } from './procedural.js';
 import { rockMaterial } from './stone.js';
 import { activeMap, heightAt, craterList, CRATER_EDGE } from './terrain.js';
+import { asset } from '../core/version.js';
 
 const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
 const PLASTER_TILE = 3.5, STONE_TILE = 1.5;   // metres per repeat of the photographs
@@ -288,8 +289,8 @@ let kit = null, moundMat = null;
 // A scanned ground in full colour with its own normal map (public/textures/CREDITS.md). `normalScale`
 // is stronger than the terrain's: from a metre or two its stones are most of what you see.
 function scanned(file, opts) {
-  const L = new THREE.TextureLoader(), at = `${import.meta.env.BASE_URL}textures/${file}`;
-  const map = L.load(`${at}.jpg`), normalMap = L.load(`${at}_n.jpg`);
+  const L = new THREE.TextureLoader(), at = `textures/${file}`;
+  const map = L.load(asset(`${at}.jpg`)), normalMap = L.load(asset(`${at}_n.jpg`));
   map.colorSpace = THREE.SRGBColorSpace;
   for (const t of [map, normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
   return new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.5, 1.5), roughness: 1, envMapIntensity: 0.15, vertexColors: true, ...opts });

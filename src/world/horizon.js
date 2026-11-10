@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { activeMap } from './terrain.js';
 import { fbm } from './noise.js';
+import { asset } from '../core/version.js';
 
 const LAT = [-3, 16];          // degrees: the panorama's band (horizon.py's LAT_MIN, LAT_MAX)
 const R = 2600;                // inside the camera's far plane (3000)
@@ -118,13 +119,16 @@ function panorama(tex, k) {
   return m;
 }
 
+// Resolves when the far country's panorama is in (or isn't coming): main.js waits for it before
+// warming up, so its shader and texture aren't first met in play.
+export let horizonReady = Promise.resolve();
 export function buildHorizon(scene, id = null) {
   const group = new THREE.Group();
-  if (id) (async () => {
+  if (id) horizonReady = (async () => {
     try {
-      const k = (await (await fetch(`${import.meta.env.BASE_URL}textures/horizons.json`)).json())[id];
+      const k = (await (await fetch(asset(`textures/horizons.json`))).json())[id];
       if (!k) return;                    // no panorama for this mission: the ridgelines stay
-      const tex = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/horizon_${id}.webp`);
+      const tex = await new THREE.TextureLoader().loadAsync(asset(`textures/horizon_${id}.webp`));
       group.clear();                     // the drawn ridgelines give way
       group.add(panorama(tex, k));
     } catch { /* missing: the ridgelines stay */ }

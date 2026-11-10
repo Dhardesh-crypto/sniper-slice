@@ -3,7 +3,7 @@
 // rides on his back and his arms swing free; he brings it round when he stops, aims or fires, and
 // the arms hold it on a separate layer. Faces -z at yaw 0, like the camera.
 import * as THREE from 'three';
-import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK, assets } from '../world/characters.js';
+import { Character, pistolModelFor, fitMuzzle, fitBayonet, solveArmIK, assets, loadModel, weaponModelKey } from '../world/characters.js';
 import { CATALOG } from '../weapons/defs.js';
 
 // Natural ground speed (m/s) of each clip at timeScale 1, to keep feet from sliding.
@@ -121,6 +121,10 @@ export class Avatar {
     this.char.rifle.userData.kind = null;     // refit on the next holdLongGun
     this.holdLongGun(arsenal.current);
     const want = loadout.pistol;
+    // A pistol whose model isn't in yet (not carried at the start: found, or picked at a bench):
+    // the Welrod stands in until it is, then this runs again.
+    const pkey = want !== 'welrod' && weaponModelKey(CATALOG[want].model);
+    if (pkey && !assets.models[pkey]) loadModel(pkey).then(() => { this.pistolKind = null; this.setWeapons(loadout, arsenal); });
     if (this.pistolKind !== want) {
       const visible = this.pistol.visible;
       this.pistol.removeFromParent();
@@ -136,6 +140,11 @@ export class Avatar {
   holdLongGun(weapon) {
     const kind = weapon === 'heavy' && this.heavyKind ? this.heavyKind : this.rifleKind;
     if (!kind || this.char.rifle.userData.kind === kind) return;
+    // Its model not in yet (a weapon just found, or picked at a bench): the Springfield stands in
+    // (rifleModel's fallback) and the right one is fitted the moment it lands.
+    const key = weaponModelKey(kind);
+    if (key && !assets.models[key]) loadModel(key).then(() => { this.char.rifle.userData.kind = null; this.holdLongGun(this.longGun ?? weapon); });
+    this.longGun = weapon;
     this.char.setRifle(kind);
     if (kind === this.rifleKind) { fitMuzzle(this.char.rifle, this.rifleDevice, 1); fitBayonet(this.char.rifle, this.rifleBayonet, 1); }
     if (this.concealParts) this.char.rifle.traverse(o => { if (o.isMesh && !this.fadeMats.includes(o.material)) { o.material = o.material.clone(); this.fadeMats.push(o.material); } });

@@ -421,5 +421,6 @@ const briefing = `
   <p class="brief">The field is flat and open; the fence is cut on the north side and the east side. When the mechanics run an engine
     up on the apron, nobody near the hangars hears a shot.</p>`;
 
-export default { id: 'airfield', props: ['ruinKit', 'bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
+export default { id: 'airfield', looks: ['guardCamo', 'guardLuftwaffe', 'guardPara', 'guardSergeant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'bf110', 'ju88', 'wreckPlane', 'radar', 'hangar', 'bowser', 'searchlight', 'flak', 'drums', 'generator', 'motorcycle', 'tent', 'kitchen', 'halftrack', 'sentryBox', 'mgNest', 'sandbags', 'supplies', 'pak40', 'wire', 'pole', 'signpost', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg'],
   subtitle: 'Operation Night Owl · Lombardy, 1944', map, site, def, intel, briefing };

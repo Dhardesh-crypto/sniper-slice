@@ -2,7 +2,7 @@
 // they do. Used as the menu's Loadout tab (editable before the mission starts, read-only once
 // it has: find a workbench) and as the workbench screen during the mission.
 import { CATALOG, PARTS, SLOT_NAMES, buildWeapon } from '../weapons/defs.js';
-import { weaponPicture } from './weapon-pictures.js';
+import { weaponPicture, loadWeaponModels } from './weapon-pictures.js';
 
 // Stats as 0..1 bars (the reach of the slowest round to the fastest, and so on).
 function stats(def) {
@@ -27,6 +27,7 @@ export class LoadoutUI {
 
   render(el, { editable, note = '' }) {
     this.el = el; this.editable = editable; this.note = note;
+    loadWeaponModels().then((came) => { if (came && this.el?.isConnected) this.rerender(); });   // (the pictures of weapons not carried: drawn again once their models are in)
     const prof = this.profile, lo = prof.loadout;
     // The heavy slot can be empty: show the first heavy weapon (as a silhouette until you have one).
     const id = lo[this.slot] ?? prof.weaponsFor(this.slot)[0].id, def = buildWeapon(id, prof.fitOf(id));

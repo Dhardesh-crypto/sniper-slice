@@ -6,6 +6,7 @@
 import { loadGLB } from './gltf.js';
 import { built } from './buildings.js';
 import { normalizeModel } from './materials.js';
+import { asset } from '../core/version.js';
 
 // The buildings that have one, by mission and the building's centre (x_z): public/models/skin_<that>.glb.
 export const SKINNED = new Set([
@@ -20,15 +21,19 @@ export const SKINNED = new Set([
 ]);
 
 // Every walk-in building of the mission that has a skin gets it (call once the world is built).
+// Returns a promise for when they're all in the scene (main.js waits for it before warming up
+// the shaders and textures: a skin arriving mid-play uploaded its big texture as you looked at it).
 export function skinBuildings(scene, mission) {
+  const jobs = [];
   for (const b of built) {
     const key = `${mission}/${Math.round(b.x)}_${Math.round(b.z)}`;
-    if (SKINNED.has(key)) addSkin(scene, `skin_${key.replace('/', '_')}`, b.x, b.y, b.z);
+    if (SKINNED.has(key)) jobs.push(addSkin(scene, `skin_${key.replace('/', '_')}`, b.x, b.y, b.z));
   }
+  return Promise.all(jobs);
 }
 
 export function addSkin(scene, file, x, y, z) {
-  loadGLB(`${import.meta.env.BASE_URL}models/${file}.glb`).then(({ scene: skin }) => {
+  return loadGLB(asset(`models/${file}.glb`)).then(({ scene: skin }) => {
     normalizeModel(skin, file, 'skin');           // (matte, its brightness fix, the sky's share: materials.js)
     skin.position.set(x, y, z);
     skin.traverse(o => {

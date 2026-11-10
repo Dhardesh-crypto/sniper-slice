@@ -74,6 +74,7 @@ function dressing() {
 }
 
 export default {
+  looks: ['guardCamo', 'guardItalian', 'guardSergeant', 'officerLieutenant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` in world/compound.js (tools/smoke.mjs reports one that's missing)
   id: 'vineyard',
   props: ['ruinKit', 'generator', 'vineRow', 'rock', 'wreckPanzer', 'wreckHalftrack', 'sentryBox', 'sandbags', 'motorcycle', 'halftrack', 'mgNest', 'haystack', 'cart', 'barrels', 'well', 'kitchen', 'supplies', 'pak40', 'pole', 'signpost', 'horseCart'],
   subtitle: 'Operation Vineyard · Tuscany, 1944',

@@ -13,6 +13,7 @@ import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { assets } from './characters.js';
 import { loadGLB } from './gltf.js';
 import { normalizeModel, cloneMat } from './materials.js';
+import { asset } from '../core/version.js';
 
 // file: in public/models; turn: quarter turns (about y) that lay its length along x with the
 // front toward −x (measured from each mesh; see the comments).
@@ -102,7 +103,7 @@ export const PROPS = {
 export async function loadProps(keys, onProgress = () => {}) {
   let done = 0;
   await Promise.all([...new Set(keys)].filter(k => PROPS[k] && !assets.models[k]).map(async (k) => {
-    try { assets.models[k] = await loadGLB(`${import.meta.env.BASE_URL}models/${PROPS[k].file}.glb`); normalizeModel(assets.models[k].scene, k); }   // (materials.js)
+    try { assets.models[k] = await loadGLB(asset(`models/${PROPS[k].file}.glb`)); normalizeModel(assets.models[k].scene, k); }   // (materials.js)
     catch (e) { console.warn(`prop ${k} missing`, e); }
     onProgress(++done / keys.length);
   }));

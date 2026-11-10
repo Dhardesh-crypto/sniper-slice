@@ -61,7 +61,10 @@ export class Searchlights {
 
   out(L) {
     L.on = false;
-    L.spot.visible = L.beam.visible = false;
+    // The light is dimmed to nothing, not hidden: hiding it changes how many lights the scene
+    // has, and three.js then compiles every lit material again (a freeze of up to seconds).
+    L.spot.intensity = 0;
+    L.beam.visible = false;
     L.lamp.material.color.setHex(0x221d18);
     this.hud.message('SEARCHLIGHT SHOT OUT', '');
   }

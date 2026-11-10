@@ -107,6 +107,7 @@ export class GuardAI {
   // ---------------------------------------------------------------- per tick
   tick(dt) {
     this.time += dt;
+    this.searches = 0;          // (route searches this tick: goTo)
     const p = this.player;
     for (const s of this.guards()) {
       const a = s.aware, b = s.brain;
@@ -947,10 +948,18 @@ export class GuardAI {
     // Where there was just no way, don't search the whole map again every step (a few seconds).
     if (!b.path && b.noWay && b.noWay.distanceTo(target) < 2 && this.world.time - b.noWayT < 3) { this.stop(s); return true; }
     if (!b.path || ((moved || b.stuck) && b.repathT <= 0)) {
+      // At most two route searches a tick between all the guards: an alarm raises them all at
+      // once, and twenty searches in one tick was a spike that then came round every second
+      // (they all planned again together). A man who has to wait stands (or keeps to the route
+      // he has) for a tick or two.
+      if (this.searches >= 2) { if (!b.path) { this.stop(s); return false; } }
+      else {
+      this.searches++;
       b.path = this.nav.path(pos, target);
       b.pathTarget = target.clone();
-      b.wpi = 0; b.repathT = 1;
+      b.wpi = 0; b.repathT = 0.8 + Math.random() * 0.6;   // (and not all at the same moment the next time)
       if (!b.path) { b.noWay = target.clone(); b.noWayT = this.world.time; this.stop(s); b.lookT = b.lookT || 0.01; return true; } // no way there: treat it as reached
+      }
     }
     const wp = b.path[b.wpi];
     const dx = wp.x - pos.x, dz = wp.z - pos.z, dist = Math.hypot(dx, dz);

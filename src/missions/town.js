@@ -690,4 +690,5 @@ const briefing = `
   <p class="brief">A farm lane runs down off the ridge, through the farmyard, to the crossroads. The road comes up to the west gate. There are gaps in the old walls to the north, east and south.
     Guards who spot you run for the siren on the piazza; a truck of reinforcements comes up the hill road.</p>`;
 
-export default { id: 'town', props: ['ruinKit', 'fountain', 'vineRow', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };
+export default { id: 'town', looks: ['guardCamo', 'guardFlamer', 'guardItalian', 'guardMP', 'guardPionier', 'guardSergeant', 'officerLieutenant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'fountain', 'vineRow', 'mgNest', 'well', 'cart', 'barrels', 'motorcycle', 'halftrack', 'kitchen', 'supplies', 'sentryBox', 'sandbags', 'pak40', 'haystack', 'wire', 'pole', 'signpost', 'marketStall', 'cafeSet', 'fiat', 'horseCart', 'rock'], subtitle: 'Operation Bell Tower · Umbria, 1944', map, site, def, intel, briefing };

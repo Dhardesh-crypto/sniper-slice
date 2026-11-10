@@ -4,6 +4,7 @@
 // have loaded, or if they can't, the synthesised versions play instead.
 // Deliberately no bell-like tones: clicks, thumps and filtered noise. The one pitched sound
 // is the whistle, a lip whistle: a smooth, sustained gliding tone, nothing struck or ringing.
+import { asset } from './version.js';
 
 // Which sample each weapon fires, and how loud it plays (they're levelled by ear-ish: mean
 // loudness, then rifles over pistols, suppressed well under both).
@@ -109,13 +110,29 @@ export class Audio {
     this.sample(name, { gain });
   }
 
+  // In two waves, so the first click doesn't fetch and decode 141 files at once: first what the
+  // opening seconds can need (the shots, reloads and bolt of the weapons you carry, `plan.weapons`;
+  // the suppressed shots; bullets passing and landing; brass), then the rest a few at a time,
+  // the likeliest first (blasts, the guards' shouts). A sound not in yet falls back to the
+  // synthesised one (sample() returns false), as a missing file always did. The sea and the gulls
+  // only where there is water (`plan.sea`).
   async loadSamples() {
-    await Promise.all(SAMPLES.map(async (name) => {
+    const get = async (name) => {
       try {
-        const res = await fetch(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+        const res = await fetch(asset(`sounds/${name}.mp3`));
         this.samples[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
       } catch { /* missing or undecodable: the synthesised sound stays */ }
-    }));
+    };
+    const { weapons = Object.keys(SHOTS), sea = true } = this.plan ?? {};
+    const first = new Set(['bolt', 'bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', ...CASINGS,
+      ...Object.values(SUPPRESSED).map(([n]) => n), ...weapons.flatMap(id => [SHOTS[id]?.[0], RELOADS[id]])].filter(n => n && SAMPLES.includes(n)));
+    await Promise.all([...first].map(get));
+    const soon = (n) => (/^(explosion|vo_|th_scan|th_guard|dog_|tank_|army_|mg42)/.test(n) ? 0 : 1);
+    const rest = SAMPLES.filter(n => !first.has(n) && (sea || !/^(sea_|gull_)/.test(n))).sort((a, b) => soon(a) - soon(b));
+    for (let i = 0; i < rest.length; i += 4) {
+      await Promise.all(rest.slice(i, i + 4).map(get));
+      await new Promise(r => setTimeout(r, 40));
+    }
     if (this.sirenLevel > 0) { const l = this.sirenLevel; this.sirenLevel = 0; this.setSiren(l); }   // a siren already sounding takes the recording
   }
 
@@ -194,6 +211,13 @@ export class Audio {
   // in step, and the alarm fades in over the calm one while the siren sounds. The kill cam
   // ducks the lot.
   // The music sits well under the effects so footsteps and the guards' voices stay clear.
+  // The first click (the dispatch card goes up): the mission's two tracks start downloading, so
+  // they're here when the second click starts them, instead of arriving over the first frames.
+  fetchMusic(track) {
+    this.musicBytes ??= {};
+    for (const name of [track, `alarm_${track}`]) this.musicBytes[name] ??= fetch(asset(`sounds/music_${name}.mp3`)).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  }
+
   async startMusic(track) {
     if (!this.ctx || this.music) return;
     const ctx = this.ctx;
@@ -203,8 +227,8 @@ export class Audio {
     this.music = { bus, duck, layers: {}, alarm: false, ducked: false };
     const load = async (name) => {
       try {
-        const res = await fetch(`${import.meta.env.BASE_URL}sounds/music_${name}.mp3`);
-        return await ctx.decodeAudioData(await res.arrayBuffer());
+        const bytes = await (this.musicBytes?.[name] ?? fetch(asset(`sounds/music_${name}.mp3`)).then(r => (r.ok ? r.arrayBuffer() : null)));
+        return bytes ? await ctx.decodeAudioData(bytes) : null;
       } catch { return null; }   // missing or undecodable: no music, the game plays on
     };
     const [calm, alarm] = await Promise.all([load(track), load(`alarm_${track}`).then((b) => b ?? load('alarm'))]);

@@ -356,5 +356,6 @@ const briefing = `
   <p class="brief">The cliffs can't be climbed: go up the gully at the west end of the cove, or the iron ladder below the lighthouse,
     where a lookout stands on the gallery. Down on the beach, the surf covers your shots.</p>`;
 
-export default { id: 'radar', props: ['ruinKit', 'freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost', 'rowboat', 'rock'],
+export default { id: 'radar', looks: ['guardCamo', 'guardSergeant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'freya', 'radar', 'casemate', 'lighthouse', 'hedgehog', 'tobruk', 'flak', 'searchlight', 'generator', 'motorcycle', 'supplies', 'sandbags', 'wire', 'kitchen', 'tent', 'pak40', 'mgNest', 'fishingBoat', 'pole', 'signpost', 'rowboat', 'rock'],
   subtitle: 'Operation Sea Wall · Ligurian coast, 1944', map, site, def, intel, briefing };

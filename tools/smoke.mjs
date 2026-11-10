@@ -80,11 +80,14 @@ async function openBrowser() {
 // What one mission's run does, inside the page.
 const PLAY = `(async () => {
   const t0 = performance.now();
-  while (!(window.game && game.assets?.clips?.idle && document.getElementById('play') && !/loading/i.test(document.getElementById('play').textContent))) {
+  while (!(window.game && document.getElementById('play') && !document.getElementById('play').disabled)) {   // (Play is enabled when the game is really ready)
     if (performance.now() - t0 > 90000) throw new Error('never finished loading');
     await new Promise(r => setTimeout(r, 300));
   }
   const g = game, load = Math.round(performance.now() - t0);
+  // What was fetched before Play could be pressed, and any look a mission's looks list forgot.
+  const fetched = performance.getEntriesByType('resource').filter(e => ['/models/', '/textures/', '/sounds/'].some(d => e.name.includes(d)));
+  const beforePlayMB = +(fetched.reduce((a, e) => a + (e.decodedBodySize || 0), 0) / 1048576).toFixed(1);
   g.input.setDevice('pad');
   document.getElementById('play').click();
   await new Promise(r => setTimeout(r, 300));
@@ -109,7 +112,7 @@ const PLAY = `(async () => {
   frames.sort((a, b) => a - b);
   const q = (f) => +frames[Math.floor(f * (frames.length - 1))].toFixed(1);
   const ways = [...document.querySelectorAll('#approaches .way b')].map(b => b.textContent.replace('From the ', ''));
-  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm, ways, silent: !g.audio?.master || g.audio.master.gain.value === 0 };
+  return { load, frames: frames.length, median: q(0.5), p95: q(0.95), worst: q(1), soldiers: g.world.soldiers.length, alarm: !!g.stealth.alarm, ways, beforePlayMB, files: fetched.length, missed: [...g.assets.missed], silent: !g.audio?.master || g.audio.master.gain.value === 0 };
 })()`;
 
 const report = [];
@@ -128,11 +131,12 @@ for (const id of MISSIONS) {
     .map(e => e.params.exceptionDetails?.exception?.description?.split('\n')[0] ?? e.params.args?.map(a => a.value ?? a.description).join(' ') ?? e.params.entry?.text);
   const bad = events.filter(e => e.method === 'Network.responseReceived' && e.params.response.status >= 400).map(e => `${e.params.response.status} ${e.params.response.url.replace(base, '')}`)
     .concat(events.filter(e => e.method === 'Network.loadingFailed' && !e.params.canceled).map(e => `failed ${e.params.errorText}`));
-  if (err || errors.length || bad.length) failed = true;
+  if (err || errors.length || bad.length || res?.missed?.length) failed = true;
   report.push({ id, ...(res ?? {}), error: err, errors: [...new Set(errors)].slice(0, 5), requests: [...new Set(bad)].slice(0, 5) });
   const r = report[report.length - 1];
-  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `load ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'} · ways in: ${r.ways?.length ?? '?'} (${r.ways?.slice(1).join(', ')}) · ${r.silent ? 'silent' : 'SOUND ON'}`}`);
+  console.log(`${id.padEnd(9)} ${err ? 'FAILED: ' + err : `${r.beforePlayMB} MB in ${r.files} files before Play, ready in ${(r.load / 1000).toFixed(1)} s · frame median ${r.median} ms, 95% ${r.p95}, worst ${r.worst} · ${r.soldiers} soldiers · alarm ${r.alarm ? 'up' : 'no'} · ways in: ${r.ways?.length ?? '?'} (${r.ways?.slice(1).join(', ')}) · ${r.silent ? 'silent' : 'SOUND ON'}`}`);
   for (const e of r.errors) console.log('   error:', e);
+  if (r.missed?.length) console.log('   looks not loaded for this mission (add to its `looks`):', r.missed.join(', '));
   for (const b of r.requests) console.log('   request:', b);
 }
 try { ws?.close(); } catch { /* gone */ }

@@ -46,6 +46,12 @@ export class Particles {
     this.next = 0;
   }
 
+  // Behind the menu (main.js warmUp): one puff of each kind in front of the camera for the warm-up
+  // frames, so the sprite program is compiled before the first shot's dust. They fade in a moment.
+  warm(at) {
+    for (const glow of [false, true]) this.emit(at.clone().add(new THREE.Vector3(0, 0, -3)), new THREE.Vector3(0, 1, 0), { color: 0x777777, count: 1, speed: 0.1, size: 0.05, life: 0.2, glow });
+  }
+
   // glow: additive (fire, flashes, sparks), otherwise ordinary see-through puffs.
   // heat: brightness multiplier for glowing ones (above 1 the bloom picks it up).
   emit(point, normal, { color, count, speed, size, life, grow = 2, gravity = -1, glow = false, heat = 1 }) {

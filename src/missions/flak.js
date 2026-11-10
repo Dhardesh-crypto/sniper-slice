@@ -316,5 +316,6 @@ const briefing = `
   <p class="brief">Below the guns a trench line runs along the slope, with two belts of barbed wire in front: cut a way through
     (wire cutters make it quick and quiet: look in their stores), or find the old drain under it the partisans talk about.</p>`;
 
-export default { id: 'flak', props: ['ruinKit', 'flak88', 'flak', 'searchlight', 'mgNest', 'wire', 'sandbags', 'supplies', 'drums', 'tent', 'kitchen', 'generator', 'truck', 'halftrack', 'motorcycle', 'rock'],
+export default { id: 'flak', looks: ['guardLuftwaffe', 'guardPara', 'guardSergeant', 'guardWinter', 'officerLieutenant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'flak88', 'flak', 'searchlight', 'mgNest', 'wire', 'sandbags', 'supplies', 'drums', 'tent', 'kitchen', 'generator', 'truck', 'halftrack', 'motorcycle', 'rock'],
   subtitle: 'Operation Flak Line · Apennine foothills, 1944', map, site, def, intel, briefing };

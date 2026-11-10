@@ -5,6 +5,7 @@
 // Also `worldUVs`, which re-maps box/roof UVs so textures tile at a fixed real-world size.
 import * as THREE from 'three';
 import { makeRng } from './noise.js';
+import { asset } from '../core/version.js';
 
 const SIZE = 512;
 
@@ -232,7 +233,7 @@ const photoOf = (key, style) => {
 };
 export async function usePhotoTextures(scene, style = null) {
   const T = textures(), loader = new THREE.ImageLoader(), sources = new Set();
-  const load = (f) => loader.loadAsync(`${import.meta.env.BASE_URL}textures/${f}.jpg`).catch(() => null);
+  const load = (f) => loader.loadAsync(asset(`textures/${f}.jpg`)).catch(() => null);
   await Promise.all(Object.keys(T).map(async (key) => {
     // The map's own walls first (its region's stone, plaster, concrete: tools/skins/style-textures.py).
     const file = photoOf(key, style), img = file && await load(file);

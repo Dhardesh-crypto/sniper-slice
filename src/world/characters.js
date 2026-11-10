@@ -6,6 +6,7 @@ import { loadGLB } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { addLods, lodReady } from './lod.js';
 import { normalizeModel } from './materials.js';
+import { asset } from '../core/version.js';
 
 const MODELS = { player: 'player_idle', guard: 'guard_idle', rifle: 'rifle', tank: 'tank', opel: 'opel_blitz', kubel: 'kubelwagen', plane: 'plane',
   enfield: 'enfield', g43: 'g43', p38: 'p38', luger: 'luger', m1carbine: 'm1carbine', delisle: 'delisle',
@@ -52,25 +53,35 @@ const GRIP_FROM_BUTT = 0.29;     // fraction of the length from the butt plate t
 // Which way the barrel points, carried in both hands (model space: left, up, forward).
 const CARRY_DIRS = { port: [0.7, 0.35, 0.62], low: [0.5, -0.2, 0.8], prone: [0.04, 0.02, 1], high: [0.3, 1, 0.22], up: [0.08, 1, 0.02] };
 
-export const assets = { models: {}, clips: {} };
+export const assets = { models: {}, clips: {}, missed: new Set() };   // missed: looks asked for before they were loaded (a bug in a mission's `looks` list: tools/smoke.mjs reports it)
+const url = (f) => asset(`models/${f}.glb`);
 
-export async function loadAssets(onProgress = () => {}) {
-  const url = (f) => `${import.meta.env.BASE_URL}models/${f}.glb`;
+// One of the MODELS, loaded once (a second call gets the same promise). Used at boot for what the
+// mission needs and later for what turns up: a weapon found in a crate, the workbench's pictures.
+const pending = new Map();
+export function loadModel(key) {
+  if (assets.models[key]) return Promise.resolve(assets.models[key]);
+  if (!MODELS[key]) return Promise.resolve(null);
+  if (!pending.has(key)) pending.set(key, loadGLB(url(MODELS[key])).then((gltf) => {
+    normalizeModel(gltf.scene, key);                 // (the one material step: materials.js)
+    return (assets.models[key] = gltf);
+  }).catch((e) => { console.warn(`model ${MODELS[key]} missing`, e); return null; }));
+  return pending.get(key);
+}
+// The model file a weapon kind is drawn from (a rifle or heavy weapon by its RIFLES entry, a pistol by name).
+export const weaponModelKey = (kind) => RIFLES[kind]?.key ?? (MODELS[kind] ? kind : null);
+export const WEAPON_MODELS = ['rifle', 'enfield', 'g43', 'm1carbine', 'delisle', 'p38', 'luger', 'trenchgun', 'mg42', 'panzerschreck', 'panzerfaust', 'piat'];
+
+// Boot: the models this mission needs to start (`want`: keys of MODELS; main.js works the list
+// out from the mission's looks, the loadout and its vehicles) and every clip (0.7 MB in all, and
+// any character may need any of them). Everything else is fetched when it is needed (loadModel).
+export async function loadAssets(onProgress = () => {}, want = Object.keys(MODELS)) {
   const jobs = [
-    ...Object.entries(MODELS).map(([k, f]) => [k, f, 'model']),
-    ...Object.entries(CLIP_FILES).map(([k, f]) => [k, f, 'clip']),
+    ...[...new Set(want)].filter(k => MODELS[k]).map(k => () => loadModel(k)),
+    ...Object.entries(CLIP_FILES).map(([key, file]) => () => loadGLB(url(file)).then((gltf) => { assets.clips[key] = gltf.animations[0]; }).catch((e) => console.warn(`clip ${file} missing`, e))),
   ];
   let done = 0;
-  await Promise.all(jobs.map(async ([key, file, kind]) => {
-    try {
-      const gltf = await loadGLB(url(file));
-      if (kind === 'model') { normalizeModel(gltf.scene, key); assets.models[key] = gltf; }   // (the one material step: materials.js)
-      else assets.clips[key] = gltf.animations[0];
-    } catch (e) {
-      console.warn(`model ${file} missing`, e);
-    }
-    onProgress(++done / jobs.length);
-  }));
+  await Promise.all(jobs.map(job => job().then(() => onProgress(++done / jobs.length))));
   await lodReady;
   assets.clips.idle = assets.models.guard?.animations[0] ?? assets.models.player?.animations[0];
   buildDerivedClips();
@@ -329,6 +340,7 @@ export class Character {
   // kind: 'player' | 'guard'. faceMinusZ: the game's player convention (yaw 0 faces -z).
   constructor(kind, { faceMinusZ = false } = {}) {
     this.root = new THREE.Group();
+    if (!assets.models[kind]) assets.missed.add(kind);
     this.model = SkeletonUtils.clone((assets.models[kind] ?? assets.models.guard).scene);   // (a missing look falls back to the plain guard)
     this.model.updateMatrixWorld(true);
     if (faceMinusZ) this.model.rotation.y = Math.PI;

@@ -577,4 +577,5 @@ const briefing = `
   <p class="brief">If the train gets away with the gun, the mission is lost. A moving train is loud: it covers your shots.
     The ground round the junction is open; a lookout stands on the water tower.</p>`;
 
-export default { id: 'railway', props: ['ruinKit', 'locomotive', 'wreckTiger', 'wreckHalftrack', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost', 'waterCrane', 'handcar', 'rock'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };
+export default { id: 'railway', looks: ['guardCamo', 'guardMP', 'guardSergeant', 'guardWinter', 'officerLieutenant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'locomotive', 'wreckTiger', 'wreckHalftrack', 'railgun', 'boxcar', 'boxcarGrey', 'flakWagon', 'coach', 'waterTower', 'motorcycle', 'kitchen', 'supplies', 'barrels', 'sentryBox', 'sandbags', 'tiger', 'halftrack', 'pak40', 'wire', 'pole', 'signpost', 'waterCrane', 'handcar', 'rock'], subtitle: 'Operation Iron Road · Po valley, 1944', map, site, def, intel, briefing };

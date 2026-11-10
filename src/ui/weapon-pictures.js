@@ -3,7 +3,7 @@
 // Rendered once each on a small offscreen canvas and kept as image URLs.
 import * as THREE from 'three';
 import { CATALOG } from '../weapons/defs.js';
-import { rifleModel, pistolModelFor, fitMuzzle } from '../world/characters.js';
+import { rifleModel, pistolModelFor, fitMuzzle, assets, loadModel, weaponModelKey, WEAPON_MODELS } from '../world/characters.js';
 import { pistolModel } from '../player/avatar.js';
 
 const W = 480, H = 150;
@@ -52,6 +52,16 @@ export function weaponPicture(id, device = null) {
   renderer.render(scene, camera);
   const url = renderer.domElement.toDataURL('image/png');
   scene.remove(gun);
-  cache.set(k, url);
+  // (Drawn from a stand-in while its own model is still on its way: not kept, so the real one replaces it.)
+  const key = id === 'welrod' ? null : weaponModelKey(def.model);
+  if (!key || assets.models[key]) cache.set(k, url);
   return url;
+}
+
+// Every weapon's model, fetched when the loadout or the workbench is first shown (a mission
+// starts with only the ones you carry). Resolves at once when they're all in; `true` if any came.
+let all = null;
+export function loadWeaponModels() {
+  if (WEAPON_MODELS.every(k => assets.models[k])) return Promise.resolve(false);
+  return (all ??= Promise.all(WEAPON_MODELS.map(loadModel)).then(() => true));
 }

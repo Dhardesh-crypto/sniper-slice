@@ -5,6 +5,7 @@ import { textures, worldUVs } from './textures.js';
 import { roofTiles } from './roof-tiles.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hasArch, houseLook, dressWindow, dressBalcony, dressBlock, dressGable, dressHip, dressStreetFloor, dressShrine, dressLaundry } from './arch.js';
+import { asset } from '../core/version.js';
 
 const T = textures();
 // `tile` = metres per texture repeat (see worldUVs).
@@ -31,7 +32,7 @@ roofTiles(M.roof);   // (coppi drawn in the shader; the photo only keeps the UVs
 
 // Terracotta floor tiles (tools/blender/interior.py renders them), for the walk-in houses' ground floors.
 export const COTTO = (() => {
-  const load = (f, srgb) => { const t = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/${f}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const load = (f, srgb) => { const t = new THREE.TextureLoader().load(asset(`textures/${f}.jpg`)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
   return Object.assign(new THREE.MeshStandardMaterial({ map: load('cotto', true), normalMap: load('cotto_n'), roughness: 0.7 }), { userData: { tile: 2 } });
 })();
 

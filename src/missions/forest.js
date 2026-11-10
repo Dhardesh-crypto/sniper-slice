@@ -423,4 +423,5 @@ const briefing = `
     the road, the clearings and the firebreak are open ground, and one of the stands watches the firebreak.
     If the siren at the camp sounds, a truck of reinforcements comes up the road.</p>`;
 
-export default { id: 'forest', props: ['ruinKit', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };
+export default { id: 'forest', looks: ['guardCamo', 'guardFlamer', 'guardSergeant', 'guardSniper', 'officerLieutenant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'drums', 'logs', 'sawBench', 'tent', 'kitchen', 'supplies', 'motorcycle', 'sandbags', 'halftrack', 'haystack', 'cart', 'well', 'pole', 'signpost', 'felledTree', 'horseCart', 'rock'], subtitle: 'Operation Black Pine · Apennines, 1944', map, site, def, intel, briefing };

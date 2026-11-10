@@ -499,4 +499,5 @@ const briefing = `
   <p class="brief">The road comes in at the west gate. The south fence has been cut in two places. You can't swim with your kit:
     the water stops you at the quay. A truck of reinforcements comes down the coast road if the siren sounds.</p>`;
 
-export default { id: 'harbour', props: ['ruinKit', 'ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost', 'rowboat', 'cargoPallet', 'fiat'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
+export default { id: 'harbour', looks: ['guardCamo', 'guardSailor', 'guardSergeant'],   // the characters this mission dresses its men in: loaded for it alone (main.js); keep in step with every `look:` above (tools/smoke.mjs reports one that's missing)
+  props: ['ruinKit', 'ship', 'crane', 'flak', 'eboat', 'fuelTank', 'crates', 'fishingBoat', 'hedgehog', 'sentryBox', 'sandbags', 'motorcycle', 'kitchen', 'supplies', 'drums', 'barrels', 'tobruk', 'searchlight', 'mgNest', 'pole', 'signpost', 'rowboat', 'cargoPallet', 'fiat'], subtitle: 'Operation Low Tide · Liguria, 1944', map, site, def, intel, briefing };
