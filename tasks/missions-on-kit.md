@@ -19,10 +19,11 @@ Each mission's check (`forest.mjs` in the session scratchpad, not in the repo): 
 Also changed on the way: guards' routes and starting points keep out of ponds and deep water (`nav.js`, `approaches.js`); `riverBed` banks widen with the depth of the cut; a biome's woods can be thinned (`biome: { kind, density }`).
 
 Not done or not checked:
-- Nothing was played by hand: no wall crouched behind, no mill climbed, no river waded in the game itself.
+- Played by script in the game (not by hand): the Vineyard mill entered, climbed and left; a wall hides a crouched man and stops you; the pond's edge stops you; the Town river and the Forest stream waded, guards route across. Not by a person on a keyboard.
 - The maps are still the same size and square; no mission is long or L-shaped yet, and none has zones.
-- The guards' route map does not know hedges (Railway): a guard on a search may walk into one.
 - Guards are not posted on the new perches and don't use them; the new places are yours alone.
 - Places beyond each mission's guard map (`navHalf`) can't be reached by guards at all: the Forest lake, the Airfield mill, the Flak scar. That limit was there before.
-- Evening falls on Vineyard only.
+- Evening falls on Vineyard, Town, Harbour, Flak, Bridge, Radar and Railway (a clear-day run only); not on Forest (rain and mist) or Airfield (already evening).
 - The walk test ignores trees, hedges and walls; the white bands in Airfield pictures are that mission's own ground mist.
+
+Afterwards (same day): guards' routes go round hedges and the fly-over hides the garrison (26e99f7); evening on six more missions, said in the briefing; the mission list and the debrief show each mission's hidden cache, found or not.

@@ -347,6 +347,7 @@ function intel(it, world, extras) {
 }
 
 const def = {
+  evening: { at: 480 },            // evening falls 8 minutes in on a clear-day run (the long evening on the headland): main.js nightfall
   target: 'Major Stoltz',
   targetArea: { x: -35, z: 21 },
   extraction: START,

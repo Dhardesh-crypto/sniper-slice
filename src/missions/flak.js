@@ -305,6 +305,7 @@ function intel(it, world, { pickups, arsenal, mission, scene, player, audio, hud
 }
 
 const def = {
+  evening: { at: 420 },            // evening falls 7 minutes in on a clear-day run (a short autumn day): main.js nightfall
   target: 'Hauptmann Weidner',
   targetArea: { x: POST.x, z: POST.z },
   extraction: START,

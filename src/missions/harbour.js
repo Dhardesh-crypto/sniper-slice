@@ -472,6 +472,7 @@ function intel(it, world, { pickups, arsenal, mission, hotspots }) {
 }
 
 const def = {
+  evening: { at: 360 },            // evening falls 6 minutes in on a clear-day run (the sun is already low on the water): main.js nightfall
   target: 'Korvettenkapitän Lenz',
   targetArea: { x: 0, z: 20 },
   extraction: START,

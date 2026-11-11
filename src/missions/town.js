@@ -682,6 +682,7 @@ function intel(it, world, { pickups, arsenal, mission, hotspots }) {
 
 const spotters = (m) => m.world.soldiers.filter(s => s.name === 'Bell spotter');
 const def = {
+  evening: { at: 420 },            // evening falls 7 minutes in on a clear-day run (the golden hour ends): main.js nightfall
   target: 'Sturmbannführer Weiss',
   targetArea: { x: F.x, z: F.z + 20 },
   extraction: START,

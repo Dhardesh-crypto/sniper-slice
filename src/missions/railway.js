@@ -574,6 +574,7 @@ function runTrain(m, dt) {
 }
 
 const def = {
+  evening: { at: 360 },            // evening falls 6 minutes in on a clear-day run (the overcast day darkens while the train stands): main.js nightfall
   target: 'Major Krüger',
   targetArea: { x: 0, z: -8 },
   extraction: START,

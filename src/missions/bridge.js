@@ -620,6 +620,7 @@ function runColumn(m, dt) {
 }
 
 const def = {
+  evening: { at: 400 },            // evening falls 6 minutes in on a clear-day run (the gorge goes into shadow before the column comes): main.js nightfall
   target: 'Oberleutnant Hahn',
   targetArea: { x: CAMP.x, z: CAMP.z - 10 },
   extraction: START,

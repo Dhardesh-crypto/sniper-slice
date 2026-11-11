@@ -73,6 +73,7 @@ import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missio
 import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
 import { plantProps } from './world/biomes.js';
+import { PERKS, perkOf } from './core/perks.js';
 import { duskOf } from './world/conditions.js';
 import { Flyover, flyoverCaptions } from './ui/flyover.js';
 import { HEAVY_AMMO, CATALOG } from './weapons/defs.js';
@@ -150,6 +151,8 @@ const conditions = pickConditions(M.map, runSeed, settings.season); // this run'
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
 if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+// (a mission whose evening falls while you're in it says so: nightfall, below)
+if (M.def?.evening && conditions.kind === 'briefed') document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p><b>The light:</b> evening falls about ${Math.round(M.def.evening.at / 60)} minutes in. By day they see you from further off, but you see everything: look the place over. At dusk they see a quarter less far, and the searchlights and torches are lit: that is the time for the shot, if you keep out of the beams.</p>`);
 document.getElementById('briefing').insertAdjacentHTML('afterbegin', storyLine(missionId));   // (the story so far: missions/story.js)
 if (conditions.winter) document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p>Snow on the ground: tracks show (the guards' show you their rounds; a guard who finds yours follows them), and a dark uniform shows up against it${conditions.snowing ? '; the falling snow hides you a little' : ''}. The guards gather round their fires.</p>`);
 
@@ -242,7 +245,7 @@ const applyLoadout = (lo) => { arsenal.equip(lo); avatar.setWeapons(lo, arsenal)
 applyLoadout(profile.loadout);
 const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
 pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
-pickups.onPerk = () => { mission.stats.perk = true; };   // (the mission's hidden find: core/perks.js)
+pickups.onPerk = () => { mission.stats.perk = true; renderCampaign(); };   // (the mission's hidden find: core/perks.js)
 // Heavy weapons: you can take ammunition for the ones you have; a found one goes into the slot.
 arsenal.heavyOwned = (id) => profile.ownsWeapon(id);
 pickups.onHeavy = (id) => { profile.setWeapon('heavy', id); applyLoadout(profile.loadout); };
@@ -296,8 +299,10 @@ function renderCampaign() {
     const done = profile.completed(m.id), open = profile.unlocked(CAMPAIGN, m.id), current = m.id === missionId;
     const status = current ? 'playing' : !open ? 'locked' : done ? 'done ✓' : 'ready';
     const intel = profile.intel(m.id).length;
+    // (the mission's hidden cache, core/perks.js: what it taught you once found; that there is one, before)
+    const pk = perkOf(m.id), learnt = pk && (profile.hasPerk(pk) ? ` · learnt: ${PERKS[pk].name.toLowerCase()}` : open ? ' · a hidden cache not found yet' : '');
     return `<button class="camp${current ? ' current' : ''}${open && !current ? ' playable' : ''}${!open ? ' locked' : ''}" data-mission="${m.id}" ${open && !current ? '' : 'disabled'}>
-      <span class="n">${i + 1}</span><span><b>${m.name}</b><small>${m.place}${intel ? ` · ${intel} document${intel === 1 ? '' : 's'} found` : ''}</small></span><span class="st">${status}</span></button>`;
+      <span class="n">${i + 1}</span><span><b>${m.name}</b><small>${m.place}${intel ? ` · ${intel} document${intel === 1 ? '' : 's'} found` : ''}${learnt || ''}</small></span><span class="st">${status}</span></button>`;
   }).join('');
   el.querySelectorAll('.camp.playable').forEach(b => b.addEventListener('click', () => {
     const m = missionById(b.dataset.mission);
