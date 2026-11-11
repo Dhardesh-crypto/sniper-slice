@@ -315,29 +315,18 @@ const def = {
   extractText: 'THE SEA WALL IS BLIND AND SILENT · GET BACK DOWN TO THE COVE',
   papersText: "STOLTZ'S PAPERS TAKEN",
   objectives: [
-    { id: 'radar', text: 'Wreck both radars, the Freya and the Würzburg' },
-    { id: 'guns', text: 'Destroy the three coastal guns (AP rounds, or a satchel at a magazine door)' },
+    { id: 'radar', text: 'Wreck both radars, the Freya and the Würzburg', destroy: { kind: 'radar' }, message: 'BOTH RADARS WRECKED',
+      marker: RADARS.map(r => ({ at: { x: r.x, y: heightAt(r.x, r.z) + 13, z: r.z }, label: 'RADAR' })) },
+    { id: 'guns', text: 'Destroy the three coastal guns (AP rounds, or a satchel at a magazine door)', destroy: { kind: 'gun' }, message: 'ALL THREE GUNS DESTROYED', progress: 'COASTAL GUN DESTROYED · {left} LEFT' },
     { id: 'safe', text: 'Take the codebooks from the command bunker safe' },
     { id: 'officer', text: 'Eliminate Major Stoltz, the battery commander', optional: true },
-    { id: 'flak', text: 'Destroy the flak gun by the radars', optional: true },
+    { id: 'flak', text: 'Destroy the flak gun by the radars', optional: true, destroy: { kind: 'flak20' }, message: 'THE FLAK GUN IS DESTROYED' },
     { id: 'papers', text: "Take Stoltz's papers", optional: true },
     { id: 'extract', text: 'Get back down to the cove', hidden: true },
   ],
   tick(m) {
     const hs = m.world.hotspots, site = m.world.site;
-    const radarsLeft = hs.filter(h => h.kind === 'radar' && !h.exploded).length;
-    if (radarsLeft === 0) m.complete('radar', 'BOTH RADARS WRECKED');
-    const gunsLeft = hs.filter(h => h.kind === 'gun' && !h.exploded).length;
-    if (gunsLeft === 0) m.complete('guns', 'ALL THREE GUNS DESTROYED');
-    else if (site.gunsLeft !== undefined && gunsLeft < site.gunsLeft) m.hud.message(`COASTAL GUN DESTROYED · ${gunsLeft} LEFT`, '');
-    site.gunsLeft = gunsLeft;
-    if (hs.some(h => h.kind === 'flak20' && h.exploded)) m.complete('flak', 'THE FLAK GUN IS DESTROYED');
     for (const r of site.radars) if (r.model && !r.down && hs.find(h => h.meshes[0] === r.cabin)?.exploded) { r.down = true; r.model.rotation.z = 0.45; r.model.position.y -= 0.8; }
-  },
-  markers(m) {
-    const out = [];
-    if (!m.obj('radar').done) for (const r of RADARS) out.push({ pos: new THREE.Vector3(r.x, heightAt(r.x, r.z) + 13, r.z), kind: 'tank', label: 'RADAR', height: 1 });
-    return out;
   },
 };
 

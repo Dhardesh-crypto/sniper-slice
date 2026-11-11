@@ -436,11 +436,14 @@ const def = {
   extractText: 'THE SHIP IS GOING DOWN AND THE DEPOT IS BURNING · GET BACK TO THE HILL',
   papersText: "LENZ'S PAPERS TAKEN",
   objectives: [
-    { id: 'ship', text: 'Sink the supply ship (a satchel on its engine-room skylight, or two anti-tank hits)' },
-    { id: 'depot', text: 'Blow up the fuel depot' },
+    { id: 'ship', text: 'Sink the supply ship (a satchel on its engine-room skylight, or two anti-tank hits)',     // (finished by the sinking itself, in tick)
+      marker: { at: { x: SHIP.x - 29, y: SHIP.deck + 1, z: SHIP.z }, label: 'SUPPLY SHIP', height: 1.5 } },
+    { id: 'depot', text: 'Blow up the fuel depot', message: 'THE FUEL DEPOT IS BURNING',
+      when: (m) => m.world.site.fuelTanks.every(t => m.world.hotspots.find(h => h.meshes[0] === t)?.exploded),
+      marker: { at: { x: 140, y: Q + 9, z: 19 }, label: 'FUEL DEPOT' } },
     { id: 'officer', text: 'Eliminate Korvettenkapitän Lenz', optional: true },
     { id: 'safe', text: "Take the convoy schedule from the harbourmaster's safe", optional: true },
-    { id: 'flak', text: 'Destroy the flak gun on the mole', optional: true },
+    { id: 'flak', text: 'Destroy the flak gun on the mole', optional: true, destroy: { title: 'FLAK GUN' }, message: 'FLAK GUN DESTROYED' },
     { id: 'papers', text: "Take Lenz's papers", optional: true },
     { id: 'extract', text: 'Get back to the hill you came from', hidden: true },
   ],
@@ -471,15 +474,6 @@ const def = {
       else if (pp.x > 80 && pp.x < 220 && Math.abs(pp.z + 233) < 20) pp.set(pp.x, Q, pp.z < -233 ? -236 : -230);
       else if (Math.abs(pp.x - 225) < 20 && pp.z > -250) pp.set(pp.x < 225 ? 221.5 : 228.5, Q, Math.max(-236, pp.z));
     }
-    if (!m.obj('depot').done && w.site.fuelTanks.every(t => w.hotspots.find(h => h.meshes[0] === t)?.exploded)) m.complete('depot', 'THE FUEL DEPOT IS BURNING');
-    if (!m.obj('flak').done && w.hotspots.some(h => h.title === 'FLAK GUN' && h.exploded)) m.complete('flak', 'FLAK GUN DESTROYED');
-  },
-  markers(m) {
-    const out = [];
-    const w = m.world;
-    if (!m.obj('ship').done) out.push({ pos: new THREE.Vector3(SHIP.x - 29, SHIP.deck + 1, SHIP.z), kind: 'tank', label: 'SUPPLY SHIP', height: 1.5 });
-    if (!m.obj('depot').done) out.push({ pos: new THREE.Vector3(140, Q + 9, 19), kind: 'tank', label: 'FUEL DEPOT', height: 1 });
-    return out;
   },
 };
 

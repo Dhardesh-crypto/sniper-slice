@@ -647,27 +647,16 @@ const def = {
   objectives: [
     { id: 'officer', text: 'Eliminate Sturmbannführer Weiss' },
     { id: 'safe', text: 'Take the arrest lists from the safe in the Gestapo office', optional: true },
-    { id: 'spotters', text: 'Silence the observation post in the bell tower', optional: true },
+    { id: 'spotters', text: 'Silence the observation post in the bell tower', optional: true, when: (m) => spotters(m).every(s => !s.alive), message: 'THE BELL TOWER IS SILENT',
+      marker: { at: (m) => m.world.site.towerTop, kind: 'radio', label: 'OBSERVATION POST', height: 1.5 } },
     { id: 'papers', text: "Take Weiss's papers", optional: true },
-    { id: 'car', text: 'Destroy the Gestapo staff car', optional: true },
-    { id: 'truck', text: "Wreck the arrest squad's truck at the Contis' farm", optional: true },
-    { id: 'phone', text: 'Cut the field telephone at the crossroads (no call for reinforcements)', optional: true },
+    { id: 'car', text: 'Destroy the Gestapo staff car', optional: true, destroy: { title: 'STAFF CAR ENGINE' }, message: 'STAFF CAR DESTROYED' },
+    { id: 'truck', text: "Wreck the arrest squad's truck at the Contis' farm", optional: true, destroy: { title: 'ARREST TRUCK ENGINE', broken: true }, message: 'THE ARREST TRUCK WILL NOT RUN',
+      marker: { at: (m) => m.world.site.valley.truckAt, kind: 'radio', label: 'ARREST TRUCK', height: 3 } },
+    { id: 'phone', text: 'Cut the field telephone at the crossroads (no call for reinforcements)', optional: true, when: (m) => !!m.world.site.valley?.phoneCut, message: 'THE TELEPHONE LINE IS CUT · NO REINFORCEMENTS',
+      marker: { at: (m) => m.world.site.valley.phoneAt, kind: 'radio', label: 'FIELD TELEPHONE', height: 2.5 } },
     { id: 'extract', text: 'Get back to the ridge you came from', hidden: true },
   ],
-  tick(m) {
-    const v = m.world.site.valley;
-    if (!m.obj('truck').done && m.world.hotspots.some(h => h.title === 'ARREST TRUCK ENGINE' && (h.exploded || h.broken))) m.complete('truck', 'THE ARREST TRUCK WILL NOT RUN');
-    if (!m.obj('phone').done && v?.phoneCut) m.complete('phone', 'THE TELEPHONE LINE IS CUT · NO REINFORCEMENTS');
-    if (!m.obj('spotters').done && spotters(m).every(s => !s.alive)) m.complete('spotters', 'THE BELL TOWER IS SILENT');
-    if (!m.obj('car').done && m.world.hotspots.some(h => h.title === 'STAFF CAR ENGINE' && h.exploded)) m.complete('car', 'STAFF CAR DESTROYED');
-  },
-  markers(m) {
-    const v = m.world.site.valley, out = [];
-    if (!m.obj('spotters').done) out.push({ pos: m.world.site.towerTop, kind: 'radio', label: 'OBSERVATION POST', height: 1.5 });
-    if (!m.obj('truck').done) out.push({ pos: v.truckAt, kind: 'radio', label: 'ARREST TRUCK', height: 3 });
-    if (!m.obj('phone').done) out.push({ pos: v.phoneAt, kind: 'radio', label: 'FIELD TELEPHONE', height: 2.5 });
-    return out;
-  },
 };
 
 const briefing = `

@@ -531,7 +531,7 @@ const def = {
   papersText: "KRÜGER'S PAPERS TAKEN",
   objectives: [
     { id: 'train', text: 'Stop the gun train (the home-signal lever in the signal box, or wreck the locomotive)' },
-    { id: 'gun', text: 'Destroy the railway gun (a satchel on its breech, AP or anti-tank hits, or its ammunition wagon)' },
+    { id: 'gun', text: 'Destroy the railway gun (a satchel on its breech, AP or anti-tank hits, or its ammunition wagon)', destroy: { kind: 'railgun' }, message: 'THE RAILWAY GUN IS DESTROYED' },
     { id: 'safe', text: "Take the timetables from the stationmaster's safe", optional: true },
     { id: 'officer', text: 'Eliminate Major Krüger, the transport officer', optional: true },
     { id: 'papers', text: "Take Krüger's papers", optional: true },
@@ -539,7 +539,6 @@ const def = {
   ],
   tick(m, dt) {
     runTrain(m, dt);
-    if (!m.obj('gun').done && m.world.hotspots.some(h => h.kind === 'railgun' && h.exploded)) m.complete('gun', 'THE RAILWAY GUN IS DESTROYED');
   },
   markers(m) {
     const t = m.world.site.train, out = [];

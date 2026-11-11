@@ -1465,3 +1465,15 @@ Measured after (Vineyard, the same pane and method):
 - Smoke test, all nine missions, silent: clean, no look missed; 21.6-27.1 MB before Play including textures (Vineyard 23.7; it was 31.7). Headless "ready" times (55-76 s) are the software renderer drawing the warm-up frames, not a real screen's.
 - Not checked: by hand; a slow connection (timings are from localhost); an old or integrated GPU's warm-up time; that Netlify serves the new headers (after a deploy).
 Not in this pass: KTX2 textures (a new encoder and loader), re-encoding the music smaller (a quality call for the user), code-splitting the kill cam and air war (the code is 1.6 MB against 29 MB of models).
+
+## 11 November 2026: richer missions, step 1 (objectives as data) and the rig checklist
+
+Plan: richer missions spread over more varied land (approved 11 Nov). Structure first, then Forest rebuilt as the pilot, then the other eight, two a round.
+
+- [x] Rig checklist (after @maxt3chno's 11 fixes, `tasks/lessons.md`): `solveArmIK` eases its reach over the last 5% of a limb instead of a hard stop (2 mm of reach near straight was 3.2° of knee, now 0.8°), and leaves a limb the clip holds straight alone; `tripo_rig.py --sheet` adds a three-quarter view; `--arms DEG` rigs a model made with wider arms (to a T-pose) and brings it down to the rest pose; imported bones are cut to their real length before bone heat. That last one was the cause of the strip of boot trailing behind the heel: the shin's bone was metres long. Skeleton symmetry measured: legs exact, shoulders 12 mm apart in height, left alone.
+- [x] `src/mission/objectives.js`: objectives say what counts as done (`kill`, `destroy`, `flag`, `reach`, `observe`, `read`, `when`, `anyOf` with the way remembered), when they open (`needs`), when you hear of them (`revealedBy`), and where they are (`marker`). `Mission.set(flag)`, flags and the way saved. Nine unit tests (`tests/objectives.test.js`).
+- [x] Eight missions' simple objectives and markers moved out of their `tick` into data, messages unchanged. Set pieces (train, column, ship, radar tilt, engine run-up) stay in `tick`. Vineyard uses the built-in list.
+- [ ] Zones: an alarm, a route grid and starts per zone; locked starts. Built with the Forest rebuild, where there is something to prove it on.
+- [ ] Terrain kit and biomes (proposed as its own session).
+- [ ] Forest rebuilt as the pilot; then Vineyard, Bridge, Harbour, Radar, Railway, Airfield, Flak, Town.
+- [ ] Not yet re-rigged with the bone fix: the sniper (his trailing strip) and the greatcoat men. Each is a model change: prepare-models, raise `ASSET_VERSION`.

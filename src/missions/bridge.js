@@ -589,7 +589,7 @@ const def = {
   objectives: [
     { id: 'bridge', text: 'Blow the bridge before the column crosses (a satchel or TNT at the foot of each pier)' },
     { id: 'officer', text: 'Eliminate Oberleutnant Hahn, the engineer who could repair it' },
-    { id: 'pontoons', text: "Destroy the bridging truck at the engineers' camp", optional: true },
+    { id: 'pontoons', text: "Destroy the bridging truck at the engineers' camp", optional: true, destroy: { title: 'BRIDGING TRUCK ENGINE' }, message: 'THE BRIDGING EQUIPMENT IS DESTROYED' },
     { id: 'column', text: 'Drop a vehicle of the column into the gorge', optional: true },
     { id: 'safe', text: "Take the river survey from Hahn's safe", optional: true },
     { id: 'papers', text: "Take Hahn's papers", optional: true },
@@ -598,7 +598,6 @@ const def = {
   tick(m, dt) {
     runBridge(m, dt);
     runColumn(m, dt);
-    if (!m.obj('pontoons').done && m.world.hotspots.some(h => h.title === 'BRIDGING TRUCK ENGINE' && h.exploded)) m.complete('pontoons', 'THE BRIDGING EQUIPMENT IS DESTROYED');
   },
   markers(m) {
     const out = [];

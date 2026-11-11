@@ -374,35 +374,23 @@ const def = {
   extractText: 'THE NIGHT FIGHTERS ARE FINISHED · GET BACK TO THE HILL',
   papersText: "KESSLER'S PAPERS TAKEN",
   objectives: [
-    { id: 'planes', text: 'Destroy the four night fighters (three in the pens, one in a hangar)' },
-    { id: 'radar', text: 'Wreck the Würzburg radar on the rise north of the runway' },
+    { id: 'planes', text: 'Destroy the four night fighters (three in the pens, one in a hangar)', destroy: { kind: 'plane' }, message: 'ALL FOUR NIGHT FIGHTERS DESTROYED', progress: 'NIGHT FIGHTER DESTROYED · {left} LEFT' },
+    { id: 'radar', text: 'Wreck the Würzburg radar on the rise north of the runway', destroy: { kind: 'radar' }, message: 'THE RADAR IS WRECKED',
+      marker: { at: { x: RADAR.x, y: heightAt(RADAR.x, RADAR.z) + 13, z: RADAR.z }, label: 'RADAR' } },
     { id: 'safe', text: 'Take the flight plans from the control tower safe' },
     { id: 'officer', text: 'Eliminate Major Kessler, the Gruppe commander', optional: true },
-    { id: 'flak', text: 'Destroy the three flak guns', optional: true },
+    { id: 'flak', text: 'Destroy the three flak guns', optional: true, destroy: { kind: 'flak20' }, message: 'ALL THREE FLAK GUNS DESTROYED' },
     { id: 'papers', text: "Take Kessler's papers", optional: true },
     { id: 'extract', text: 'Get back to the hill you came from', hidden: true },
   ],
   tick(m, dt) {
     const w = m.world, site = w.site, hs = w.hotspots;
-    if (hs.filter(h => h.kind === 'flak20').every(h => h.exploded)) m.complete('flak', 'ALL THREE FLAK GUNS DESTROYED');
-    const planesLeft = hs.filter(h => h.kind === 'plane' && !h.exploded).length;
-    if (!m.obj('planes').done) {
-      if (planesLeft === 0) m.complete('planes', 'ALL FOUR NIGHT FIGHTERS DESTROYED');
-      else if (site.lastLeft !== undefined && planesLeft < site.lastLeft) m.hud.message(`NIGHT FIGHTER DESTROYED · ${planesLeft} LEFT`, '');
-      site.lastLeft = planesLeft;
-    }
     const radar = hs.find(h => h.kind === 'radar');
-    if (radar?.exploded && !m.obj('radar').done) m.complete('radar', 'THE RADAR IS WRECKED');
     if (radar?.exploded && site.radar && !site.radarDown) { site.radarDown = true; site.radar.rotation.z = 0.5; site.radar.position.y -= 1.2; }
     // The engine run-up: on for a while every so often (it's on the ground crew's roster).
     const t = m.time % RUNUP_EVERY, on = t > RUNUP_EVERY - RUNUP_FOR && hs.some(h => h.kind === 'plane' && !h.exploded);
     if (on !== site.runup.on) { site.runup.on = on; const d = m.player.pos.distanceTo(site.runup.at); if (on && d < 600) m.audio.sample('plane_start', { at: d / 343, gain: Math.max(0.1, 1.1 - d / 450), wet: 0.3 }); if (on && d < 250) m.hud.message('AN ENGINE IS RUNNING UP ON THE APRON', ''); }
     m.audio.setEngine(on ? Math.max(0, 1 - m.player.pos.distanceTo(site.runup.at) / 300) * 1.2 : 0);
-  },
-  markers(m) {
-    const out = [];
-    if (!m.obj('radar').done) out.push({ pos: new THREE.Vector3(RADAR.x, heightAt(RADAR.x, RADAR.z) + 13, RADAR.z), kind: 'tank', label: 'RADAR', height: 1 });
-    return out;
   },
 };
 

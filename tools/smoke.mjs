@@ -127,6 +127,7 @@ for (const id of MISSIONS) {
   await sleep(1500);
   let res, err = null;
   try { res = await evaluate(PLAY, 180000); } catch (e) { err = e.message; }
+  if (!err && !res) err = 'the page gave no result (it reloaded or closed under the test)';   // (once read as a clean run)
   const errors = events.filter(e => (e.method === 'Runtime.exceptionThrown') || (e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error') || (e.method === 'Log.entryAdded' && e.params.entry.level === 'error' && e.params.entry.source !== 'network'))
     .map(e => e.params.exceptionDetails?.exception?.description?.split('\n')[0] ?? e.params.args?.map(a => a.value ?? a.description).join(' ') ?? e.params.entry?.text);
   const bad = events.filter(e => e.method === 'Network.responseReceived' && e.params.response.status >= 400).map(e => `${e.params.response.status} ${e.params.response.url.replace(base, '')}`)

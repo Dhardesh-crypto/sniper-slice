@@ -281,21 +281,13 @@ const def = {
   extractText: 'THE RIDGE IS SILENT · GET BACK DOWN TO THE VALLEY',
   papersText: "WEIDNER'S PAPERS TAKEN",
   objectives: [
-    { id: 'guns', text: 'Destroy the four 8.8 cm guns (AP rounds at a breech, or a charge)' },
+    { id: 'guns', text: 'Destroy the four 8.8 cm guns (AP rounds at a breech, or a charge)', destroy: { kind: 'flak' }, message: 'ALL FOUR GUNS DESTROYED', progress: '8.8 CM GUN DESTROYED · {left} LEFT' },
     { id: 'safe', text: 'Take the fire plan from the command dugout safe' },
     { id: 'officer', text: 'Eliminate Hauptmann Weidner, the battery commander', optional: true },
-    { id: 'ammo', text: 'Blow up the ammunition bunker', optional: true },
+    { id: 'ammo', text: 'Blow up the ammunition bunker', optional: true, destroy: { kind: 'ammo' }, message: 'THE AMMUNITION BUNKER IS GONE' },
     { id: 'papers', text: "Take Weidner's papers", optional: true },
     { id: 'extract', text: 'Get back down to the valley', hidden: true },
   ],
-  tick(m) {
-    const hs = m.world.hotspots, site = m.world.site;
-    const left = hs.filter(h => h.kind === 'flak' && !h.exploded).length;
-    if (left === 0) m.complete('guns', 'ALL FOUR GUNS DESTROYED');
-    else if (site.gunsLeft !== undefined && left < site.gunsLeft) m.hud.message(`8.8 CM GUN DESTROYED · ${left} LEFT`, '');
-    site.gunsLeft = left;
-    if (hs.some(h => h.kind === 'ammo' && h.exploded)) m.complete('ammo', 'THE AMMUNITION BUNKER IS GONE');
-  },
   markers(m) {
     const out = [];
     if (!m.obj('guns').done) for (const g of m.world.site.guns) if (!m.world.hotspots.find(h => h.meshes[0] === g.breech)?.exploded) out.push({ pos: new THREE.Vector3(g.x, g.y + 5, g.z), kind: 'tank', label: '88', height: 1 });

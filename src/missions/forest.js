@@ -390,22 +390,14 @@ const def = {
   papersText: "VOGEL'S PAPERS TAKEN",
   objectives: [
     { id: 'officer', text: 'Eliminate Hauptmann Vogel, the counter-sniper commander (at the hunting lodge)' },
-    { id: 'dump', text: 'Destroy the fuel dump at the logging camp' },
-    { id: 'stands', text: 'Kill the three counter-snipers on the hunting stands', optional: true },
+    { id: 'dump', text: 'Destroy the fuel dump at the logging camp', message: 'THE FUEL DUMP IS BURNING',
+      when: (m) => m.world.site.dumps.every(d => m.world.hotspots.find(h => h.meshes[0] === d)?.exploded),
+      marker: { at: { x: CAMP.x - 18, y: CLEAR[1].h + 2, z: CAMP.z + 26 }, label: 'FUEL DUMP' } },
+    { id: 'stands', text: 'Kill the three counter-snipers on the hunting stands', optional: true, kill: 'Counter-sniper', message: 'THE STANDS ARE EMPTY' },
     { id: 'safe', text: "Take the target list from Vogel's safe", optional: true },
     { id: 'papers', text: "Take Vogel's papers", optional: true },
     { id: 'extract', text: 'Get back to where you started', hidden: true },
   ],
-  tick(m) {
-    const w = m.world;
-    if (!m.obj('dump').done && w.site.dumps.every(d => w.hotspots.find(h => h.meshes[0] === d)?.exploded)) m.complete('dump', 'THE FUEL DUMP IS BURNING');
-    if (!m.obj('stands').done && w.soldiers.filter(s => s.name === 'Counter-sniper').every(s => !s.alive)) m.complete('stands', 'THE STANDS ARE EMPTY');
-  },
-  markers(m) {
-    const out = [];
-    if (!m.obj('dump').done) out.push({ pos: new THREE.Vector3(CAMP.x - 18, CLEAR[1].h + 2, CAMP.z + 26), kind: 'tank', label: 'FUEL DUMP', height: 1 });
-    return out;
-  },
 };
 
 const briefing = `
