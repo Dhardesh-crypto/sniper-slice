@@ -236,6 +236,8 @@ export class Mission {
     if (this.radio && this.obj('radio') && !this.obj('radio').done) out.push({ pos: this.radio.pos, kind: 'radio', label: 'RADIO', height: 3.2 });
     if (this.obj('tank') && !this.obj('tank').done && this.tank) out.push({ pos: this.tank.root.position, kind: 'tank', label: 'PANZER', height: 3.4 });
     if (this.obj('papers') && this.officer && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
+    // The telephone poles of the garrison's places (mission/zones.js), until their line is cut.
+    for (const z of this.ai.zones?.list ?? []) if (z.phoneAt && !z.cut) out.push({ pos: z.phoneAt, kind: 'radio', label: `TELEPHONE · ${z.name.toUpperCase()}`, height: 4.6 });
     for (const k of objectiveMarkers(this)) out.push({ ...k, pos: new THREE.Vector3(k.pos.x, k.pos.y, k.pos.z) });
     for (const m of this.def.markers?.(this) ?? []) out.push(m);
     if (!this.obj('extract').hidden) for (const pk of this.pickups) if (!pk.closed) out.push({ pos: pk.at, kind: 'extract', label: pk.name, height: 3 });
