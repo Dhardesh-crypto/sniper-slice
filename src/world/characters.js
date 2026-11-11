@@ -699,6 +699,7 @@ function turnBone(bone, from, to) {
 }
 
 const _UP = new THREE.Vector3(0, 1, 0);
+const SOFT = 0.05;   // the share of a limb's length over which its reach eases off
 export function solveArmIK(upper, lower, hand, target, pole) {
   if (!upper || !lower || !hand) return;
   const { s, e, h } = _ik;
@@ -707,7 +708,16 @@ export function solveArmIK(upper, lower, hand, target, pole) {
   hand.getWorldPosition(h);
   const a = s.distanceTo(e), b = e.distanceTo(h);
   const toT = target.clone().sub(s);
-  const d = THREE.MathUtils.clamp(toT.length(), Math.abs(a - b) + 1e-3, a + b - 1e-3);
+  // A soft limit near full stretch: a target at 95% of the limb's length or further is reached
+  // less and less (never quite the whole length), instead of the limb snapping straight. Close to
+  // straight, a centimetre of reach is many degrees of knee or elbow, and a hard stop there made
+  // the joint pop from frame to frame (a foot finding its ground on a slope, a step down).
+  const full = a + b, soft = full * SOFT, len = toT.length();
+  // (Only where the limb is asked to stretch further than the clip already has it: a leg the clip
+  //  holds straight stays straight, or a standing man's feet would hang 2 cm off the ground.)
+  const eased = len <= full - soft ? len : full - soft * Math.exp(-(len - (full - soft)) / soft);
+  const reach = Math.max(eased, Math.min(len, s.distanceTo(h)));
+  const d = THREE.MathUtils.clamp(reach, Math.abs(a - b) + 1e-3, full - 1e-3);
   const dir = toT.normalize();
   // Elbow on the circle where the two bones meet, on the pole side.
   const x = (a * a - b * b + d * d) / (2 * d);

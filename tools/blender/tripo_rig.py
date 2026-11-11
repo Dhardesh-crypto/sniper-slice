@@ -3,18 +3,21 @@
 # game plays on it, at a third of the cost of a rigged Meshy character. (The method from a post by
 # Kensei: Tripo's mesh comes in hundreds of loose pieces, split along its seams with duplicate
 # vertices; merged, it is one mesh again and can be rigged in Blender.)
-#   blender -b -P tools/blender/tripo_rig.py -- <tripo.glb> <out.glb> [--turn DEG] [--sheet DIR]
+#   blender -b -P tools/blender/tripo_rig.py -- <tripo.glb> <out.glb> [--turn DEG] [--sheet DIR] [--arms DEG]
 # Steps:
 #   1. Our guard (models-src/guard_idle.glb) gives the skeleton (in its rest A-pose) and its skin
 #      weights, which Meshy tuned for these bones.
 #   2. The Tripo model: every part joined, duplicate vertices merged (the loose pieces closed into
 #      one mesh), turned to face the way ours do (-y in Blender), scaled to the guard's height and
-#      stood where he stands. The reference picture asks for the same A-pose (arms ~30° out).
+#      stood where he stands. The reference picture asks for the same A-pose (arms ~30° out), or,
+#      for a coat, a cape or a pack, for arms held wider (up to a T-pose: 90), given as --arms DEG:
+#      the skeleton's arms are raised to match while the weights are made, so the arm's weights
+#      don't bleed onto the coat's side, and the mesh is then brought down to the rest pose.
 #   3. Weights copied from the guard's body to the nearest point of the new one (a soldier's body
 #      is a soldier's body: the coat and boots take the weights of what's under them), at most four
 #      bones a vertex, normalized.
 #   4. Parented to the skeleton and written as a GLB like the others (mesh + armature, no clips),
-#      for tools/prepare-models.mjs. --sheet renders the result front and side, posed in a stride,
+#      for tools/prepare-models.mjs. --sheet renders the result front, side and three-quarter, posed in a stride,
 #      to check the weights.
 import bpy, bmesh, math, os, sys
 from mathutils import Vector, Matrix
@@ -27,6 +30,7 @@ def opt(name, default=None):
     return default
 TURN = float(opt('--turn', 0))
 SHEET = opt('--sheet')
+ARMS = opt('--arms')
 SRC, OUT = argv[0], argv[1]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -106,6 +110,40 @@ body.location += Vector(((glo.x + ghi.x) / 2 - (lo.x + hi.x) / 2, (glo.y + ghi.y
 bpy.ops.object.transform_apply(location=True)
 print('HEIGHT', round(bbox(body)[1].z - bbox(body)[0].z, 3), 'guard', round(ghi.z - glo.z, 3))
 
+# --arms DEG: the model was made with its arms DEG from hanging straight down (the guard rests at
+# about 33). The skeleton's arms are turned up to that about each shoulder, in the plane he faces,
+# and that pose made the rest pose for as long as the weights take; afterwards (below) the arms
+# come back down, taking the mesh with them, and the old rest pose is the rest pose again.
+def raise_arms(sign):
+    bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); bpy.context.view_layer.objects.active = arm
+    M = arm.matrix_world
+    for side in ('Left', 'Right'):
+        pb = arm.pose.bones[side + 'Arm']
+        s = M @ pb.head; h = M @ arm.pose.bones[side + 'Hand'].head
+        now = math.atan2(abs(h.x - s.x), -(h.z - s.z))
+        turn = (math.radians(float(ARMS)) - now) if sign > 0 else -RAISED[side]
+        if sign > 0: RAISED[side] = turn
+        # (about the front-to-back axis through the shoulder: the left arm, at +x, goes up with a
+        #  negative turn about +y, the right with a positive one)
+        R = Matrix.Translation(s) @ Matrix.Rotation(turn * (-1 if h.x > s.x else 1), 4, 'Y') @ Matrix.Translation(-s)
+        pb.matrix = M.inverted() @ R @ M @ pb.matrix
+        upd()
+# The bones as imported are metres long (glTF has no bone lengths), and bone heat weighs by the whole
+# bone: the shin's bone ran on behind the heel and stretched a strip of boot out with every stride,
+# and with the arm held out level the shoulder's ran through the whole arm and took the sleeve.
+# Each bone is cut to end at its nearest child (same direction and roll, so nothing changes in
+# the file written: glTF keeps only where a bone starts).
+bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode='EDIT')
+for eb in arm.data.edit_bones:
+    eb.length = min([(c.head - eb.head).length for c in eb.children if (c.head - eb.head).length > 1e-4] or [eb.length * 0.01])
+bpy.ops.object.mode_set(mode='OBJECT')
+RAISED = {}
+if ARMS:
+    raise_arms(1)
+    bpy.ops.object.mode_set(mode='POSE'); bpy.ops.pose.armature_apply(); bpy.ops.object.mode_set(mode='OBJECT')
+    print('ARMS raised to', ARMS, {k: round(math.degrees(v), 1) for k, v in RAISED.items()})
+
 # ---- 3. weights. First Blender's own (bone heat: each bone weighs what it can "see" nearby, so the
 # side of a coat goes with the chest, not with the arm hanging next to it), which needs the mesh in
 # one closed piece, hence the merge. Where heat fails (vertices left without weight), the guard's
@@ -154,6 +192,13 @@ if RIGID:
         for g in list(v.groups): body.vertex_groups[g.group].remove([v.index])
         body.vertex_groups[gi].add([v.index], 1.0, 'REPLACE')
     print('RIGID back', len(back), 'vertices on Spine02')
+if ARMS:      # back down to the guard's rest pose, the mesh carried along by its new weights
+    raise_arms(-1)
+    am = body.modifiers.new('down', 'ARMATURE'); am.object = arm
+    bpy.ops.object.select_all(action='DESELECT'); body.select_set(True); bpy.context.view_layer.objects.active = body
+    bpy.ops.object.modifier_apply(modifier=am.name)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode='POSE'); bpy.ops.pose.armature_apply(); bpy.ops.object.mode_set(mode='OBJECT')
 unweighted = sum(1 for v in body.data.vertices if not any(g.weight > 0 for g in v.groups))
 print('UNWEIGHTED', unweighted)
 
@@ -190,7 +235,9 @@ if SHEET:
         upd()
     for i, s in enumerate((False, True)):
         stride(s)
-        for view, loc, r in (('front', (0, -5, 0.9), (math.pi / 2, 0, 0)), ('side', (-5, 0, 0.9), (math.pi / 2, 0, -math.pi / 2))):
+        # (three-quarter too: front and side can both look right over an arm that is crooked)
+        for view, loc, r in (('front', (0, -5, 0.9), (math.pi / 2, 0, 0)), ('side', (-5, 0, 0.9), (math.pi / 2, 0, -math.pi / 2)),
+                             ('quarter', (-3.54, -3.54, 0.9), (math.pi / 2, 0, -math.pi / 4))):
             cam.location = loc; cam.rotation_euler = r
             sc.render.filepath = f'{SHEET}/{os.path.basename(OUT)[:-4]}_{view}_{i}.png'
             bpy.ops.render.render(write_still=True)
