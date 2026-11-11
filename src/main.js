@@ -668,8 +668,11 @@ function startFlyover(then) {
   const a = approaches.find(x => x.id === chosenStart()) ?? approaches[0], c = activeMap().focus;
   const hide = (v) => { for (const id of ['hud', 'markers']) document.getElementById(id).style.visibility = v; };
   hide('hidden');
+  // (the garrison isn't shown from the air: where they stand is for you to find out)
+  const shown = world.soldiers.filter(s => s.root.visible);
+  for (const s of shown) s.root.visible = false;
   flyover.begin({ from: a.at, to: c, captions: flyoverCaptions({ title: mission.title, side: a.side, target: mission.officer?.name }),
-    onEnd: () => { hide(''); input.consume(); then?.(); } });
+    onEnd: () => { hide(''); for (const s of shown) s.root.visible = true; input.consume(); then?.(); } });
 }
 // Evening falls during a mission that says so (its def's `evening: { at: seconds }`), on a run
 // that began in its briefed daylight: the day is for looking (they see you from further off, but

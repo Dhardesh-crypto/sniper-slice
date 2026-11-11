@@ -273,6 +273,9 @@ export class NavGrid extends Grid {
         if (w.level != null && world.groundAt(x, z) < w.level - Math.max(0.3, (w.wade ?? 0.3) - 0.15)) this.blocked[j * this.n + i] = 1;
       }
     }
+    // Hedges (a map's `hedges`: world/ground.js): as solid to a guard as to you, so his route goes
+    // round by a gap, not into the leaves.
+    for (const h of world.hedgePosts ?? []) this.blockBox({ min: { x: h.x - 0.7, z: h.z - 0.7 }, max: { x: h.x + 0.7, z: h.z + 0.7 } }, 0.3);
     // Ground the map opens whatever is under it (a bridge deck over the river).
     const navOpen = activeMap().navOpen;
     if (navOpen) for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {

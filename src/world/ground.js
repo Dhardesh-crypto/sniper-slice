@@ -67,7 +67,7 @@ export function buildGround(scene, { boxes = [], water = null }) {
   }
   const blocked = (x, z, r) => (grid.get(cell(x, z)) ?? []).some(b => x > b.min.x - r && x < b.max.x + r && z > b.min.z - r && z < b.max.z + r);
 
-  const rng = makeRng(2024), chunks = new Map(), solids = [], trees = [];
+  const rng = makeRng(2024), chunks = new Map(), solids = [], trees = [], hedgePosts = [];
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), tilt = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3();
   const mix = Object.entries(counts).filter(([kind]) => kind !== 'hedge');
@@ -123,12 +123,13 @@ export function buildGround(scene, { boxes = [], water = null }) {
         const k = `${Math.floor(c.x / CHUNK)},${Math.floor(c.z / CHUNK)}`;
         if (!byChunk.has(k)) byChunk.set(k, []);
         byChunk.get(k).push(m.clone());
-        for (const o of [-1.3, 0, 1.3]) { trees.push({ x: c.x + c.dx * o, z: c.z + c.dz * o, r: K.solid }); addBrush(c.x + c.dx * o, c.z + c.dz * o, 1.9); }   // (hidden crouched close against it, either side)
+        for (const o of [-1.3, 0, 1.3]) { trees.push({ x: c.x + c.dx * o, z: c.z + c.dz * o, r: K.solid }); hedgePosts.push({ x: c.x + c.dx * o, z: c.z + c.dz * o }); addBrush(c.x + c.dx * o, c.z + c.dz * o, 1.9); }   // (hidden crouched close against it, either side)
       }
     }
     add('hedge', K, parts.hedge, parts.hedge.material, byChunk);
   }
-  return { chunks: [...chunks.values()], solids, trees };
+  // (hedgePosts: where the hedges stand, for the guards' route map: ai/nav.js)
+  return { chunks: [...chunks.values()], solids, trees, hedgePosts };
 
   // One kind's instances, a mesh per chunk.
   function add(kind, K, part, mat, byChunk) {

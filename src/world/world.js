@@ -81,6 +81,7 @@ export class World {
     const ground = buildGround(scene, { boxes: b.boxes, water: activeMap().waterLevel ?? null });
     craters(scene);
     this.groundChunks = ground.chunks;
+    this.hedgePosts = ground.hedgePosts ?? [];        // (hedges are walls to the guards' routes too: ai/nav.js)
     this.solids.push(...ground.solids);
     for (const t of ground.trees) {
       this.trees.push(t);
