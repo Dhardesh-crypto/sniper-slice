@@ -311,7 +311,8 @@ function biomeForest() {
   if (!B?.trees) return null;
   const k = areaKm2(activeMap());
   return {
-    counts: Object.fromEntries(Object.entries(B.trees.counts).map(([name, n]) => [name, Math.round(n * k)])),
+    // (a map can thin or thicken its biome's woods: biome: { kind, density: 0.3 })
+    counts: Object.fromEntries(Object.entries(B.trees.counts).map(([name, n]) => [name, Math.round(n * k * (B.o.density ?? 1))])),
     spacing: B.trees.spacing, density: (x, z, name) => B.trees.density(name, biomeAt(x, z, B)),
   };
 }

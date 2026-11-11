@@ -21,6 +21,8 @@ import { addGroundMarks } from '../world/groundmarks.js';
 import { panzerModel } from '../world/tank.js';
 import { hasProp, propModel, splitProp, dressProps } from '../world/props.js';
 import { worldUVs } from '../world/textures.js';
+import { compose, plateau as shelf, lakeBasin, sunkenLane, roadBed } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 
 const DECK = 40.4, BW = 3.5;                    // the deck's top and half-width
 const WATER = 7, BED = 5.9;                     // the river: waist deep in the middle
@@ -57,7 +59,7 @@ function roadH(x) {
 // The engineers' hut stands on a levelled pad (the ground slopes half a metre across it otherwise).
 const HUT = { x: CAMP.x, z: CAMP.z - 12, hw: 5.6, hd: 3.6 };
 let hutY = null;
-function heightAt(x, z) {
+function gorge(x, z) {
   const e = Math.max(Math.abs(x - HUT.x) - HUT.hw, Math.abs(z - HUT.z) - HUT.hd);
   if (e >= 4) return ground(x, z);
   hutY ??= ground(HUT.x, HUT.z);
@@ -72,6 +74,24 @@ function ground(x, z) {
   const t = Math.min(1, (d - 14) / (rimAt(z, x < gx(z)) - 14));
   return lerp(8, top, smoothstep(0, 1, t));
 }
+// The two plateaus, made from the terrain kit (world/landforms.js) on the gorge as it was (the
+// river, the cliffs, the road, the camp and the checkpoint have not moved):
+//   west, a knoll north of the road with the ruin of an old customs post on it: from its boards
+//   you look down the road to the bridge, 230 m off, and across to the camp;
+//   a sunken lane from below your hill to the head of the west gully (the covered way to the river);
+//   east, a tarn in a hollow and a shepherd's ruined hut above the checkpoint road.
+const KNOLL = { x: -205, z: -145 }, TARN = { x: 300, z: 215, r: 24 }, HUT2 = { x: 236, z: 150 };
+const LANE = [[-296, 268], [-240, 212], [-172, 162], [-116, 130]];
+const TRACKS = [
+  { id: 'customs', kind: 'path', path: [[-150, -6], [-186, -70], [-200, -132]] },
+  { id: 'tarn', kind: 'path', path: [[176, 30], [222, 120], [270, 190]] },
+];
+const heightAt = compose(gorge, [
+  shelf({ area: { ...KNOLL, r: 15, blend: 52, wobble: 6 }, level: gorge(KNOLL.x, KNOLL.z) + 9, rough: 0.3 }),
+  lakeBasin({ ...TARN, level: gorge(TARN.x, TARN.z) - 0.8, depth: 1.9, shore: 16, wobble: 0.25, seed: 6 }),
+  sunkenLane({ path: LANE, width: 3.2, depth: 1.7, banks: 2.4 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2, shoulder: 3 })),
+]);
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 const onBridge = (x, z) => Math.abs(x) < 40 && Math.abs(z) < BW - 0.3;
 
@@ -85,6 +105,23 @@ const map = {
   wade: WATER - BED + 0.1,               // how deep you can walk: all of it, so nowhere in the river is a dead end
   maxSlope: 0.9,
   heightAt,
+  // The mountain's own growth (world/biomes.js): larch and fir, thinned so the long shots stay
+  // open; scree and juniper; snow on the heights round the edge.
+  biome: { kind: 'alpine', treeLine: 80, snowLine: 98, density: 0.3 },
+  waters: heightAt.waters,             // the tarn on the east plateau (the river is the sheet at waterLevel)
+  roads: TRACKS,
+  // Built cover (world/cover.js): pasture walls on both plateaus, crates, the customs post on its
+  // knoll and the shepherd's hut, each with a ladder to its boards.
+  cover: {
+    walls: [[[-250, -96], [-226, -112], [-180, -108]], [[-262, 40], [-232, 96], [-196, 126]], [[-96, -150], [-70, -108], [-74, -60]], [[150, 96], [196, 110], [214, 168]], [[136, -120], [190, -146], [250, -128]], [[110, 60], [128, 12]]],
+    crates: [[-196, -138, 3], [228, 156, 3], [-122, 136, 3]],
+    ruins: [
+      { ...KNOLL, w: 8, d: 6, h: 5.4, seed: 83, tint: '#b9ad98', fallen: 0, doors: ['w'], breach: 'n' },
+      { ...HUT2, w: 6.5, d: 5, h: 3.4, seed: 87, tint: '#a59a88', fallen: 2, doors: ['e'], breach: null },
+    ],
+    grass: [{ x: -120, z: 140, r: 9 }, { x: -168, z: -96, r: 9 }, { x: 200, z: 70, r: 9 }, { x: 150, z: -90, r: 9 }],
+  },
+  checkGoals: [[-196, -128], [228, 144], [-118, 134]],
   roadCenterZ: roadZ,
   // Guards don't take the cliffs; the bridge deck is open while it stands.
   navBlocked: (x, z) => !onBridge(x, z) && Math.abs(x - gx(z)) < 110 && slopeAt(x, z) > 0.9,
@@ -94,6 +131,8 @@ const map = {
     if (d < 40 + m) return true;                                                         // the gorge and its rims
     if (Math.abs(z - roadZ(x)) < 6 + m) return true;
     if (Math.hypot(x - CAMP.x, z - CAMP.z) < 45 + m) return true;
+    // (a strip felled from the customs post on its knoll toward the bridge: the long shot down the road)
+    { const ax = KNOLL.x + 4, az = KNOLL.z + 4, ex = -64 - ax, ez = -8 - az, t = Math.min(1, Math.max(0, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez))); if (Math.hypot(x - ax - ex * t, z - az - ez * t) < 7 + m) return true; }
     if (Math.hypot(x - 70, z) < 35 + m) return true;                                     // the east checkpoint, MG nest, tower
     return Math.hypot(x - START.x, z - START.z) < 12 + m;
   },
@@ -324,6 +363,7 @@ function site(scene, world) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates and ruins of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
