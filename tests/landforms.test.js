@@ -89,11 +89,17 @@ test('ravine and plateau', () => {
 });
 
 test('river bed: its surface falls along it and never rises; the bed is under it', () => {
-  const r = riverBed({ path: LINE, width: 8, depth: 1.2, from: 30, to: 20, banks: 8 });
+  const r = riverBed({ path: LINE, width: 8, depth: 1.2, from: 30, to: 20, banks: 8, spread: 0 });
   near(r.levelAt(0), 30); near(r.levelAt(400), 20); near(r.levelAt(200), 25);
   near(r(0, 0, 50), 25 - 1.2, 1e-6, 'mid-stream'); near(r(0, 4, 50), 25, 0.01, 'the water line');
   near(r(0, 12, 50), 50, 1e-6, 'past the banks');
   assert.ok(r(0, 6, 10) > 25, 'low land is banked up above the water');
+  // Through higher ground the banks spread with the cut: no wall, a dale.
+  const cut = compose(50, [riverBed({ path: LINE, width: 8, from: 30, to: 20, banks: 8 })]);
+  let steepest = 0;
+  for (let z = 5; z < 90; z += 1) steepest = Math.max(steepest, Math.abs(cut(0, z + 1) - cut(0, z)));
+  assert.ok(steepest < 0.75, `sides walkable (${steepest.toFixed(2)})`); near(cut(0, 90), 50);
+  assert.ok(slopeAt(compose(50, [r]), 0, 8) > 2, 'without spread: a trench');
   // Levels per point: a pool, a weir, a run; an uphill level is pressed down.
   const w = riverBed({ path: [[0, 0], [100, 0], [110, 0], [200, 0]], smooth: false, levels: [12, 12, 9, 9.5] });
   near(w.levelAt(50), 12); near(w.levelAt(150), 9); assert.ok(w.levelAt(105) < 12 && w.levelAt(105) > 9);

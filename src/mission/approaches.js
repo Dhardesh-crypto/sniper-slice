@@ -35,6 +35,7 @@ export function findApproaches(world) {
       if (Math.abs(x) > PLAY_HALF - 15 || Math.abs(z) > PLAY_HALF - 15) continue;
       const y = world.groundAt(x, z);
       if (water != null && y < water + 0.6) continue;                                          // in the sea or a river
+      if (world.waterAt(x, z) != null) continue;                                              // in a pond or a stream (a map's `waters`)
       if (Math.abs(world.floorAt(x, z, y + 3) - y) > 0.3) continue;                            // on a roof or a wall
       const slope = Math.max(Math.abs(world.groundAt(x + 3, z) - world.groundAt(x - 3, z)), Math.abs(world.groundAt(x, z + 3) - world.groundAt(x, z - 3))) / 6;
       if (slope > 0.35) continue;                                                             // a cliff or a steep bank

@@ -264,6 +264,15 @@ export class NavGrid extends Grid {
         if (world.groundAt(this.x0 + (i + 0.5) * CELL, this.z0 + (j + 0.5) * CELL) < world.waterLevel - 0.3) this.blocked[j * this.n + i] = 1;
       }
     }
+    // Water at other heights (a map's `waters`: a pond, a falling river, a marsh; world/waters.js):
+    // nobody walks where it is deeper than it can be waded there (a hand's breadth short of that:
+    // a guard doesn't go in to his chin).
+    if (world.waters?.length) {
+      for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
+        const x = this.x0 + (i + 0.5) * CELL, z = this.z0 + (j + 0.5) * CELL, w = world.waterHere(x, z);
+        if (w.level != null && world.groundAt(x, z) < w.level - Math.max(0.3, (w.wade ?? 0.3) - 0.15)) this.blocked[j * this.n + i] = 1;
+      }
+    }
     // Ground the map opens whatever is under it (a bridge deck over the river).
     const navOpen = activeMap().navOpen;
     if (navOpen) for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {

@@ -9,6 +9,9 @@
 // woods, which one of the counter-snipers watches.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
+import { compose, valley, ravine, cliffBand, riverBed, lakeBasin, marshFlat, fall, slopeAt, locator } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
+import { waterSurfaceAt } from '../world/terrain.js';
 import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder, timberFrame } from '../world/buildings.js';
@@ -63,15 +66,38 @@ const CLEAR = [
   { ...LODGE, r: 34, h: roadH(62) }, { ...CAMP, r: 46, h: roadH(CAMP.x) },
   { ...START, r: 12, h: base(START.x, START.z) }, { ...MEADOW, r: 30, h: base(MEADOW.x, MEADOW.z) },
 ];
+// The land beyond the clearings, made from the terrain kit (world/landforms.js) round what was
+// already here, none of it under the lodge, the camp, the meadow, the road or the firebreak:
+//   a stream that rises in the hills to the north-east, comes down a ravine east of the firebreak,
+//   crosses the firebreak and winds west through its own shallow dale and a bog to a lake in the
+//   south-west (you wade it anywhere: it is the first thing between your start and the lodge);
+//   a scarp north of the lodge, its edge looking down on the clearing from a hundred metres.
+const STREAM = [[300, -445], [288, -340], [268, -230], [262, -110], [272, 15], [252, 135], [205, 205], [95, 268], [-40, 300], [-150, 318], [-238, 305]];
+const LAKE = { x: -300, z: 300, r: 65 }, BOG = { x: -90, z: 306, r: 52 };
+const SCARP = [[-40, -140], [60, -150], [150, -138]];
+const land = compose(base, [
+  valley({ path: STREAM, depth: 5, floor: 16, width: 70 }),
+  ravine({ path: STREAM.slice(0, 4), depth: 12, width: 34, bed: 4, taper: 40 }),
+  cliffBand({ path: SCARP, height: 13, run: 6, reach: 130, side: -1, rough: 4, taper: 35, seed: 3 }),
+]);
+const LAKE_LEVEL = land(LAKE.x, LAKE.z) - 1.5;
+const stream = riverBed({ path: STREAM, width: 6, depth: 0.7, banks: 7, levels: fall(land, STREAM, { under: 1, end: LAKE_LEVEL }) });
+// (the bog stands at the stream's own level where it runs through it, or one would drain the other)
+const BOG_LEVEL = stream.levelAt(locator(stream.path, 300)(BOG.x, BOG.z).t) + 0.05;
+const wild = compose(land, [
+  marshFlat({ area: { ...BOG, blend: 30, wobble: 14 }, level: BOG_LEVEL, hummock: 0.35, pools: 0.46, seed: 5 }),
+  stream,
+  lakeBasin({ ...LAKE, level: LAKE_LEVEL, depth: 4, shore: 30, wobble: 0.3, seed: 2 }),
+]);
 function heightAt(x, z) {
-  let h = base(x, z);
+  let h = wild(x, z);
   const rz = roadZ(x);
   if (!Number.isNaN(rz)) { const d = Math.abs(z - rz); if (d < 14) h = lerp(roadH(x), h, smoothstep(4, 14, d)); }
   for (const c of CLEAR) { const d = Math.hypot(x - c.x, z - c.z); if (d < c.r + 30) h = lerp(c.h, h, smoothstep(c.r * 0.7, c.r + 30, d)); }
   return h;
 }
 const fromLodge = (routes) => Object.fromEntries(Object.entries(routes).map(([k, pts]) => [k, pts.map(([x, z, w]) => [x - LODGE.x, z - LODGE.z, w])]));
-const NEEDLES = new THREE.Color(0x4a3a28);
+const NEEDLES = new THREE.Color(0x4a3a28), PEAT = new THREE.Color(0x2e281f);
 const inFirebreak = (x, z, m = 0) => Math.abs(x - FB) < 8 + m && Math.abs(z) < 470;
 
 const map = {
@@ -82,6 +108,33 @@ const map = {
   weather: { rain: 1 },   // steady rain: it hides a little of your noise
   animals: [['deer', -150, 220, 30, 3]],   // red deer, far from the lodge
   half: 500, playHalf: 470, focus: { x: LODGE.x, z: LODGE.z, r: 60 }, start: START, navHalf: 285,
+  // The stream, the bog and the lake, each at its own height (world/waters.js); you wade to the
+  // waist. The ravine's sides and the scarp's face are too steep to walk, for you and for them.
+  waters: wild.waters, wade: 0.9, maxSlope: 1.0,
+  navBlocked: (x, z) => slopeAt(heightAt, x, z, 1.5) > 1.0,
+  checkGoals: [[300, 100], [0, 150], [85, -180], [-200, 230]],          // (tools: places a guard must be able to walk to)
+  // Tracks and paths (world/roads.js; the forest road itself is roadCenterZ, above): the loggers'
+  // track down to the lake, the hunters' path from the east to the hay meadow, and the path up to
+  // the old chapel on the scarp. Each is a lane through the trees you can see along, and be seen on.
+  roads: [
+    { id: 'lake', kind: 'track', path: [[-140, 100], [-185, 170], [-225, 235], [-232, 262]] },
+    { id: 'hunters', kind: 'path', path: [[322, 296], [262, 262], [205, 238], [110, 205], [28, 192]] },
+    { id: 'chapel', kind: 'path', path: [[176, -10], [160, -100], [110, -160], [62, -170]] },
+  ],
+  // Built cover (world/cover.js): old boundary walls in the wood, crates where the loggers left
+  // them, and three ruins, each with a ladder to the boards in its standing corner: the chapel on
+  // the scarp looks down on the lodge clearing, the charcoal burners' hut watches the road and the
+  // meadow, the fisherman's hut the lake track.
+  cover: {
+    walls: [[[-52, 158], [-46, 226], [22, 234]], [[150, -96], [180, -60], [178, -12]], [[-72, -4], [-30, -40], [12, -50]], [[-192, 112], [-130, 120], [-84, 102]], [[226, 232], [262, 286], [318, 318]]],
+    crates: [[206, 252, 3], [-214, 262, 3], [150, -128, 3]],
+    ruins: [
+      { x: 55, z: -172, w: 8, d: 6, h: 5.4, seed: 67, tint: '#b3a48c', fallen: 0, doors: ['w'], breach: 'n' },
+      { x: 24, z: 78, w: 7, d: 5.5, h: 3.4, seed: 71, tint: '#a8957a', burnt: true, fallen: 3, doors: ['s'], breach: null },
+      { x: -206, z: 252, w: 6, d: 5, h: 3.2, seed: 73, tint: '#a39680', fallen: 1, doors: ['e'], breach: null },
+    ],
+    grass: [{ x: 236, z: 176, r: 9 }, { x: 120, z: 236, r: 9 }, { x: 96, z: -128, r: 8 }, { x: -168, z: 196, r: 9 }],
+  },
   fog: { color: 0xb6bfbd, density: 0.008 },          // mist: half gone at 100 m, nearly all at 200 m
   canopyShade: true,
   heightAt,
@@ -91,6 +144,8 @@ const map = {
     const rz = roadZ(x);
     if (!Number.isNaN(rz) && Math.abs(z - rz) < 5 + m) return true;
     if (inFirebreak(x, z, m)) return true;
+    // (a strip felled below the old chapel on the scarp: from its boards you look down it to the lodge)
+    { const t = Math.min(1, Math.max(0, ((x - 56) * 34 + (z + 168) * 88) / (34 * 34 + 88 * 88))); if (Math.hypot(x - 56 - 34 * t, z + 168 - 88 * t) < 8 + m) return true; }
     return STANDS.some(s => Math.hypot(x - s.x, z - s.z) < 3 + m);
   },
   // Firs, with beech in the lower, damper hollows; thick in the middle, thinner toward the edge.
@@ -104,7 +159,8 @@ const map = {
   },
   // The forest floor (Blender, see world/ground.js): ferns in patches, fallen needles and branches,
   // sawn stumps from the logging, a few stones; on a photo of real pine-forest ground (Poly Haven).
-  ground: { fern: 9000, litter: 7000, branch: 2600, stump: 520, rock1: 260, rock2: 520, rock3: 40 },
+  ground: { fern: 9000, litter: 7000, branch: 2600, stump: 520, rock1: 260, rock2: 520, rock3: 40,
+    reed: { n: 2600, where: (at) => at.water != null && at.y > at.water - 0.5 && at.y < at.water + 0.4 } },   // (reeds along the stream, round the lake and through the bog: they hide you)
   groundTexture: 'forestGround',
   // Grass in the open; under the trees, only a little, in patches.
   grassDensity(x, z) {
@@ -120,6 +176,8 @@ const map = {
     c.lerp(yard, 0.5 * (1 - smoothstep(16, 26, Math.hypot(x - LODGE.x, z - LODGE.z))));
     const rz = roadZ(x);
     if (!Number.isNaN(rz)) c.lerp(road, 1 - smoothstep(2, 3.5, Math.abs(z - rz)));
+    const w = waterSurfaceAt(x, z);                                       // wet black earth at the water's edge
+    if (w != null) c.lerp(PEAT, 0.7 * (1 - smoothstep(w + 0.1, w + 1.2, heightAt(x, z))));
   },
   truck: { from: -600, stop: -200 },
   reinforceHome: [CAMP.x, CAMP.z],
@@ -310,6 +368,8 @@ function site(scene) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  // The walls, crates and ruins of the map's `cover` (world/cover.js), and the ladders up to the ruins' boards.
+  ladders.push(...buildCover(b).ladders);
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),

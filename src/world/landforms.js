@@ -285,9 +285,12 @@ export function plateau({ area, level = null, height = 0, rough = 0.6, seed = 0 
 // a weir's drop; it never runs uphill). The bed is cut `depth` m below the surface in the middle and
 // comes up to it `width / 2` m out; from there the banks meet the land around over `banks` m. Where
 // the land is lower than the water the banks are built up, so the river never hangs in the air.
+// Where it cuts through higher ground the banks widen with the depth of the cut (`spread` metres
+// out for each metre down, to at most `reach` m: 0 keeps them `banks` wide whatever the cut,
+// which through a rise is a sheer-walled trench), so it runs in a dale of its own making.
 // river.water is its water for the map's `waters`; river.levelAt(t) the surface t metres along.
-export function riverBed({ path, width = 8, depth = 1.2, banks = 8, from = 0, to = from, levels = null, lip = 0.35, ...o }) {
-  const P = makePath(path, o), near = locator(P, width / 2 + banks), levelAt = along(P, { levels, from, to }, true);
+export function riverBed({ path, width = 8, depth = 1.2, banks = 8, from = 0, to = from, levels = null, lip = 0.35, spread = 2.4, reach = 70, ...o }) {
+  const P = makePath(path, o), near = locator(P, width / 2 + (spread ? Math.max(banks, reach) : banks)), levelAt = along(P, { levels, from, to }, true);
   const f = (x, z, h) => {
     const n = near(x, z);
     if (!n) return h;
@@ -296,7 +299,9 @@ export function riverBed({ path, width = 8, depth = 1.2, banks = 8, from = 0, to
     // The bank: a lip just over the water, then the land around; land lower than the water gets a
     // levee (the lip held for the first part of the bank before it falls away).
     const e = n.d - width / 2, top = lv + lip * smoothstep(0, 1.5, e);
-    return lerp(top, h, h < lv + lip ? smoothstep(banks * 0.4, banks, e) : smoothstep(0, banks, e));
+    if (h < lv + lip) return e >= banks ? h : lerp(top, h, smoothstep(banks * 0.4, banks, e));
+    const out = spread ? Math.min(reach, banks + spread * (h - lv)) : banks;
+    return e >= out ? h : lerp(top, h, smoothstep(0, out, e));
   };
   f.levelAt = levelAt; f.path = P;
   f.water = { kind: 'river', path: P, width, levelAt, depth };
