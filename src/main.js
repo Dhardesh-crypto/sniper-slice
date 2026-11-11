@@ -72,6 +72,7 @@ import { Interactions } from './world/interact.js';
 import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missions/campaign.js';
 import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
+import { plantProps } from './world/biomes.js';
 import { HEAVY_AMMO, CATALOG } from './weapons/defs.js';
 import { horizonReady } from './world/horizon.js';
 import { LoadoutUI } from './ui/loadout.js';
@@ -133,8 +134,8 @@ const M = (await MISSION_MODULES[missionId]()).default;
     ...((M.props ?? []).includes('mgNest') ? ['mg42'] : []),    // (the gun in a nest)
     'tank', 'opel', 'kubel', 'plane'];
   // Trees: the kinds this map plants (a forest map lists its own counts; the others have olives, cypresses, pines).
-  const planted = M.map?.forest ? Object.entries(M.map.forest.counts ?? {}).filter(([, n]) => n > 0).map(([k]) => k) : ['olive', 'cypress', 'pine'];
-  const trees = planted.map(k => ({ fir: 'treeFir', beech: 'treeBeech', olive: 'treeOlive', cypress: 'treeCypress', pine: 'treePine' })[k]).filter(Boolean);
+  // (a map with a `biome` plants that biome's, and may need the second ground model: world/biomes.js)
+  const trees = plantProps(M.map);
   const props = [...trees, 'groundDetail', 'archKit', 'interiorKit', 'safe', 'siren', 'crates', 'desk', 'radioSet', 'mapTable', 'tableSet', 'locker', 'filingCabinet', 'bunk', 'dog', 'motorcycle',
     ...(M.map?.animals ?? []).map(a => a[0]), ...(M.props ?? [])];
   // One bar for both: the models are most of the bytes either way.

@@ -44,8 +44,8 @@ const BY_KEY = {
     'pak40', 'kitchen', 'fiat', 'handcar', 'waterCrane', 'bombTrolley', 'kettenkrad', 'fuelTrailer', 'wurzburg', 'assaultBoat', 'waterTower',
     'wreckPanzer', 'wreckTiger', 'wreckTruck', 'wreckCar', 'wreckHalftrack', 'wreckPlane', 'safe', 'locker', 'filingCabinet', 'stove', 'radioSet'],
   animal: ['cow', 'horse', 'goat', 'deer', 'dog'],
-  foliage: ['treeFir', 'treeBeech', 'treeOlive', 'treePine', 'treeCypress', 'vineRow', 'haystack', 'felledTree', 'logs'],
-  kit: ['groundDetail', 'archKit', 'interiorKit', 'ruinKit'],
+  foliage: ['treeFir', 'treeBeech', 'treeOlive', 'treePine', 'treeCypress', 'treeLarch', 'treeBirch', 'vineRow', 'haystack', 'felledTree', 'logs'],
+  kit: ['groundDetail', 'groundBiome', 'archKit', 'interiorKit', 'ruinKit'],
 };
 const KIND_OF = new Map(Object.entries(BY_KEY).flatMap(([k, keys]) => keys.map(key => [key, k])));
 export const kindOf = (key) => key?.startsWith('skin_') ? 'skin' : KIND_OF.get(key) ?? 'prop';

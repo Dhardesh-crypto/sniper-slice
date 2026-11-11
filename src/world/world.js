@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { setAtmosphere } from './atmosphere.js';
 import { craters } from './ruins.js';
-import { buildTerrain, heightAt, intersectTerrain, PLAY_HALF, activeMap, MAP_HALF } from './terrain.js';
+import { buildTerrain, heightAt, intersectTerrain, clampToPlay, activeMap, MAP_HALF, waterAt, waterBodyAt, waterBodies } from './terrain.js';
 import { buildTrees, buildGrass, buildNearGrass, windUniforms, cullTreeChunks } from './vegetation.js';
 import { buildGround, cullGround } from './ground.js';
 import { mergeDecor } from './kit.js';
@@ -13,7 +13,7 @@ import { armNests } from './mgnest.js';
 import { storeys } from './buildings.js';
 
 import { buildHorizon } from './horizon.js';
-import { makeWater } from './water.js';
+import { makeWater, makeWaterBody } from './water.js';
 import { setEnvironment } from './materials.js';
 
 // Late-afternoon sun, about 24° up, low enough for long shadows and warm light.
@@ -24,6 +24,7 @@ export const STEP = 0.55;   // tallest ledge you walk up without climbing (stair
 // the sky-and-ground fill, and the exposure; warmth and saturation are the region's colour grade
 // (core/post.js: 1 and 1.08 are the grade every map had before; Tuscany warmer, the coast cooler).
 const CHARGE_REACH = 0.8;   // m past whatever a shot meets first that a charge on it still takes the bullet
+const _water = { level: null, wade: null };   // (waterHere's answer, reused)
 const _inst = new THREE.Matrix4(); // (one instance's matrix, for the face normal of a tree trunk or rock hit)
 export const LIGHT = { zenith: 66, azimuth: 215, sun: 0xffe0b0, sunIntensity: 2.7, turbidity: 5, rayleigh: 1.6, clouds: 0.48,
   hemiSky: 0xc9dbea, hemiGround: 0x6a5232, hemi: 0.5, env: 0.22, exposure: 0.85, warmth: 1, saturation: 1.08 };
@@ -106,6 +107,11 @@ export class World {
       this.water = water;
       this.raycastTargets.push(water);
     }
+    // Water at other heights, if the map declares any (`waters`: a falling river, a pond above it,
+    // a marsh; waters.js): each its own surface, drawn and splashed into like the sheet.
+    this.waters = waterBodies().filter(b => !b.sheet).map(b => makeWaterBody(scene, b));
+    for (const w of this.waters) this.raycastTargets.push(w.mesh);
+    this._here = { level: this.waterLevel, wade: this.wade };   // (what waterHere answers on a map with only the sheet)
 
     // Wind: direction it blows TOWARD (radians, 0 = +x), base speed, slow gusts.
     this.windAngle = THREE.MathUtils.degToRad(100);
@@ -188,6 +194,7 @@ export class World {
     windUniforms.uTime.value = this.time;
     this.updateWind();
     this.sea?.tick(dt, this.wind);
+    for (const w of this.waters) w.tick(dt, this.wind);
     // Animation level of detail: soldiers far from the player animate a third as often
     // (accumulating the time), which is invisible at that range. Dying ones always update.
     this.frame = (this.frame ?? 0) + 1;
@@ -319,9 +326,21 @@ export class World {
         pos.z = t.z + (dz / d) * r;
       }
     }
-    pos.x = THREE.MathUtils.clamp(pos.x, -PLAY_HALF, PLAY_HALF);
-    pos.z = THREE.MathUtils.clamp(pos.z, -PLAY_HALF, PLAY_HALF);
+    clampToPlay(pos);      // (the play box, and the map's own outline if it isn't a square: terrain.js)
   }
+
+  // The water at a spot, for whoever walks, drives or looks there: { level, wade }: its surface
+  // (null: none) and how deep it can be waded (null: not at all, its edge stops you). On a map with
+  // only the one sheet that is the sheet's level everywhere, as it always was; on a map that
+  // declares `waters`, the body whose outline covers the spot (a pond's level on its shore too).
+  waterHere(x, z) {
+    if (!this.waters.length) return this._here;
+    const b = waterBodyAt(x, z);
+    _water.level = b ? b.at : null; _water.wade = b ? b.wade : null;
+    return _water;
+  }
+  // The surface where there is water over the ground at (x, z), else null (any map).
+  waterAt(x, z) { return waterAt(x, z); }
 
   // Each frame: on a map that says how far you can see (mist), skip the trees beyond it; and draw
   // the trees near the viewer whole, the rest as far cards (zoom: how much a scope magnifies).

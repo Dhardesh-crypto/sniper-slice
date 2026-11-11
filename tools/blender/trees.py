@@ -3,7 +3,7 @@
 # Each tree_<kind>.glb holds three meshes: `trunk` (bark), `crown` (branch cards cut from the
 # spray textures, normals bent outward so the crown shades as a volume) and `far`: two crossed
 # cards with the whole tree rendered on them, front and side, for the distance.
-# The fir, beech and olive are shaped by hand below; the umbrella pine and the cypress are grown
+# The fir, beech, olive, larch and birch are shaped by hand below; the umbrella pine and the cypress are grown
 # from a seed by one recursive brancher (grow(): depth, split angle, taper, leaf density), the way
 # a procedural bonsai is: change the seed in TREES and you get another tree of the same kind.
 #   ONLY=pine,cypress blender -b -P tools/blender/trees.py -- <texture dir> <out dir>
@@ -170,7 +170,16 @@ class Cards:
         return ob
 
 
-# ---- the three trees ----
+def facing(d, side, out):
+    """`side`, or its opposite: whichever makes a card running along `d` show its front to `out`.
+    A card's front is d × side. For a hanging card that matters: the game (and Cycles) turn the
+    normals round on a back face, so a curtain whose back faces out of the crown would have its
+    outward-bent normals pointing back in, and go dark on the sunny side of the tree."""
+    d, side = Vector(d), Vector(side)
+    return side if d.cross(side).dot(out) >= 0 else -side
+
+
+# ---- the hand-shaped trees ----
 
 def fir(rng, M):
     H, base = 16.6, 5.2
@@ -289,6 +298,102 @@ def olive(rng, M):
         d = (tang * rng.choice((-1, 1)) + n * 0.3 + Vector((0, 0, -0.25))).normalized()
         L = rng.uniform(0.8, 1.15)
         cards.card(q - d * L * 0.5, d, n.cross(d).normalized(), L, L * 0.6, rng.randrange(2), droop=0.15, roll=rng.uniform(-0.5, 0.5), segs=2)
+    return trunk, cards.obj('crown', M['leaf']['game'], outward=0.7)
+
+
+def larch(rng, M):
+    """European larch (Larix decidua), the pale conifer of the high Alps: a dead-straight trunk and
+    a narrow, open crown you can see the sky through. Thin limbs leave the trunk in loose whorls,
+    sag, and turn up again at their tips; the needle-bearing twigs hang from them like curtains.
+    So unlike the fir (closed tiers of flat dark combs) nearly every card here hangs, and the
+    limbs themselves are drawn as wood because nothing hides them."""
+    H, base = 15.2, 4.4
+    zs = [-0.3, 0.5, 2, 4, 6, 8, 10, 12, 13.6, 14.6, H]
+    rs = [0.31, 0.27, 0.25, 0.22, 0.19, 0.16, 0.13, 0.1, 0.065, 0.035, 0.012]
+    wood = Wood(1.3)
+    wood.tube([Vector((0, 0, z)) for z in zs], rs, sides=10)
+    # Dead stubs below the live crown: a larch sheds its shaded lower limbs but keeps their stumps.
+    for z in (2.4, 3.0, 3.5, 3.9):
+        a = rng.uniform(0, math.tau)
+        wood.tube(curve((math.cos(a) * 0.2, math.sin(a) * 0.2, z), (math.cos(a), math.sin(a), -0.1), rng.uniform(0.4, 0.8), 2, rng, 0.15), [0.025, 0.015, 0.006], sides=3)
+    cards = Cards((0, 0, 9.5))
+    z = base
+    while z < H - 0.5:
+        rel = (z - base) / (H - base)
+        L0 = 0.5 + 3.0 * (1 - rel) ** 0.85
+        n = rng.choice((3, 4, 4))
+        a0 = rng.uniform(0, math.tau)
+        r = 0.23 - 0.2 * rel
+        for k in range(n):
+            a = a0 + k / n * math.tau + rng.uniform(-0.35, 0.35)
+            L = L0 * rng.uniform(0.7, 1.1)
+            out = Vector((math.cos(a), math.sin(a), 0)); side = Vector((-math.sin(a), math.cos(a), 0))
+            b0 = out * r + Vector((0, 0, z + rng.uniform(-0.15, 0.15)))
+            sag = L * rng.uniform(0.16, 0.3) * (1 - rel * 0.8)            # (the top limbs are young and still point up)
+            limb = [b0, b0 + out * (L * 0.55) - Vector((0, 0, sag)), b0 + out * L - Vector((0, 0, sag - L * 0.14))]
+            if L > 0.8: wood.tube(limb, [0.016 + 0.01 * L, 0.01 + 0.004 * L, 0.005], sides=3)
+            v = rng.randrange(2)
+            # The limb's own end: one spray lying along its upturned tip.
+            tip = (limb[2] - limb[1]).normalized()
+            cards.card(limb[1] - tip * (L * 0.3), tip, facing(tip, side, (0, 0, 1)), L * 0.85, L * 0.55, v, droop=0.06, roll=rng.uniform(-0.5, 0.5), segs=1)
+            # The curtains: sprays hanging straight down from points along the limb, each in a
+            # plane near the limb's own but turned a little, so they show from every side.
+            for j in range(2 if L < 1.0 else 4 if L < 2.2 else 5):
+                t = rng.uniform(0.2, 1.0)
+                p = limb[0] + (limb[1] - limb[0]) * (t / 0.55) if t < 0.55 else limb[1] + (limb[2] - limb[1]) * ((t - 0.55) / 0.45)
+                yaw = a + rng.uniform(-0.7, 0.7)
+                Lc = rng.uniform(1.0, 1.6) * (0.5 + 0.5 * (1 - rel))
+                d = Vector((0, 0, -1)) + out * rng.uniform(0.0, 0.3)
+                sd = Vector((math.cos(yaw), math.sin(yaw), 0))
+                face = Vector((p.x, p.y, 0)) + Vector((-sd.y, sd.x, 0)) * rng.choice((-0.3, 0.3))   # (out of the crown; near the trunk, either way)
+                cards.card(p + Vector((0, 0, 0.08)), d, facing(d, sd, face), Lc, Lc * 0.7, rng.randrange(2), droop=0, segs=1)
+        z += rng.uniform(0.46, 0.64)
+    # The leader: two upright sprays crossing at the top.
+    for a in (0, math.pi / 2):
+        cards.card(Vector((0, 0, H - 1.0)), (0, 0, 1), (math.cos(a), math.sin(a), 0), 1.2, 0.45, 0, droop=0, segs=1)
+    return wood.obj('trunk', M['bark']['game']), cards.obj('crown', M['leaf']['game'], outward=0.6)
+
+
+def birch(rng, M):
+    """Silver birch (Betula pendula), the tree of heath and field edge: a slender white trunk that
+    runs right up through the crown, limbs climbing steeply off it and arching over, and from
+    their ends the long whip twigs that hang straight down. The crown is light: the trunk and
+    limbs show through it, so they are all drawn."""
+    wood = Wood(1.2)
+    stem = curve((0, 0, -0.3), (rng.uniform(-0.04, 0.04), rng.uniform(-0.04, 0.04), 1), 10.6, 10, rng, 0.03)
+    rs = [0.19, 0.16, 0.145, 0.13, 0.115, 0.1, 0.085, 0.068, 0.05, 0.03, 0.012]
+    wood.tube(stem, rs, sides=8)
+    cards = Cards((0, 0, 7.0))
+    hang = []                                               # where twigs hang from: (point, outward angle, how far up the crown)
+    a = rng.uniform(0, math.tau)
+    for i in range(3, 10):
+        for k in range(3 if i < 8 else 2):
+            a += 2.4 + rng.uniform(-0.5, 0.5)               # (the golden angle, roughly: limbs spread all round)
+            p = stem[i] + (stem[i + 1] - stem[i]) * rng.random()
+            rel = (p.z - 3.0) / 7.3
+            L = (3.3 - 2.3 * rel) * rng.uniform(0.8, 1.1)
+            el = math.radians(rng.uniform(26, 44))          # from upright: birch limbs climb
+            limb = curve(p, (math.cos(a) * math.sin(el), math.sin(a) * math.sin(el), math.cos(el)), L, 3, rng, 0.1, gravity=0.1)
+            r0 = rs[i] * 0.55
+            wood.tube(limb, [r0, r0 * 0.65, r0 * 0.38, 0.006], sides=4)
+            hang += [(limb[2], a, rel), (limb[3], a, rel)]
+            if L > 2.0: hang.append(((limb[1] + limb[2]) / 2 + Vector((math.cos(a), math.sin(a), 0)) * 0.3, a, rel))
+    hang.append((stem[-1], a, 1.0))
+    trunk = wood.obj('trunk', M['bark']['game'])
+    for p, a, rel in hang:
+        out = Vector((math.cos(a), math.sin(a), 0)); side = Vector((-math.sin(a), math.cos(a), 0))
+        # The limb's end arches out and over…
+        d = out * rng.uniform(0.5, 1.0) + Vector((0, 0, rng.uniform(0.3, 0.8)))
+        L = rng.uniform(1.2, 1.7)
+        cards.card(p - d.normalized() * 0.25, d, facing(d, side, (0, 0, 1)), L, L * 0.6, rng.randrange(2), droop=0.55, roll=rng.uniform(-0.6, 0.6), segs=3)
+        # …and the whips hang from it: curtains turned every way, longer low in the crown.
+        for k in range(4):
+            q = p + Vector((rng.uniform(-0.45, 0.45), rng.uniform(-0.45, 0.45), rng.uniform(-0.1, 0.35)))
+            yaw = rng.uniform(0, math.pi)
+            Lc = rng.uniform(1.1, 1.7) * (1.0 - 0.35 * rel)
+            dd = Vector((0, 0, -1)) + out * rng.uniform(-0.05, 0.3)
+            sd = Vector((math.cos(yaw), math.sin(yaw), 0))
+            cards.card(q, dd, facing(dd, sd, Vector((q.x, q.y, 0)) + out * 0.2), Lc, Lc * 0.6, rng.randrange(2), droop=0, segs=1)
     return trunk, cards.obj('crown', M['leaf']['game'], outward=0.7)
 
 
@@ -441,6 +546,8 @@ TREES = {
     'fir': dict(build=fir, spray='fir_spray', bark='bark_fir', seed=5),
     'beech': dict(build=beech, spray='beech_spray', bark='bark_beech', seed=7),
     'olive': dict(build=olive, spray='olive_spray', bark='bark_olive', seed=9),
+    'larch': dict(build=larch, spray='larch_spray', bark='bark_larch', seed=6, label='larch_'),
+    'birch': dict(build=birch, spray='birch_spray', bark='bark_birch', seed=8, label='birch_'),
     # Grown ones (seed: change it for another tree of the kind). P are grow()'s parameters — depth:
     # levels of forking; split: their angle, degrees; taper: how much a branch narrows along itself;
     # ratio: a child's length; flat: how far the levels bend toward the horizontal; wood: levels

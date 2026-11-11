@@ -18,7 +18,7 @@ const args = process.argv.slice(2);
 const base = args[0]?.startsWith('http') ? args.shift() : 'http://localhost:5179';
 const url = base + (base.includes('?') ? '&' : '?') + 'mute';   // (silent twice over: ?mute in the game, --mute-audio in Chromium)
 const MISSIONS = args.length ? args : ['vineyard', 'town', 'harbour', 'forest', 'flak', 'railway', 'bridge', 'airfield', 'radar'];
-const PORT = 9333;
+const PORT = +(process.env.SMOKE_CDP_PORT ?? 9333);   // (the DevTools port: set another when two sessions smoke at once)
 
 function chromium() {
   const root = join(homedir(), 'Library/Caches/ms-playwright');

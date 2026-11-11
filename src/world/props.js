@@ -81,6 +81,8 @@ export const PROPS = {
   groundDetail: { file: 'ground_detail', turn: 0 }, archKit: { file: 'arch_kit', turn: 0 }, interiorKit: { file: 'interior_kit', turn: 0 }, anatomy: { file: 'anatomy', turn: 0 },   // the houses' stone dressing (arch.js)
   treeFir: { file: 'tree_fir', turn: 0 }, treeBeech: { file: 'tree_beech', turn: 0 }, treeOlive: { file: 'tree_olive', turn: 0 },
   treePine: { file: 'tree_pine', turn: 0 }, treeCypress: { file: 'tree_cypress', turn: 0 },   // (grown from a seed: trees.py grow())
+  // The biomes' own (world/biomes.js): larch and birch, and the second ground model (gorse, heather, reed, marram, juniper, hedge, scree).
+  treeLarch: { file: 'tree_larch', turn: 0 }, treeBirch: { file: 'tree_birch', turn: 0 }, groundBiome: { file: 'ground_biome', turn: 0 },
   vineRow: { file: 'prop_vine_row', turn: 1 },
   rock: { file: 'prop_rock', turn: 0 },
   ruinKit: { file: 'ruin_kit', turn: 0 },   // debris for ruins.js (tools/blender/ruin_kit.py)
@@ -117,7 +119,7 @@ export const hasProp = (k) => !!assets.models[k];
 // [r, g, b]): the textures are rendered albedo, and in the game's light they need taking down.
 // (Shine and sky reflection come from the material step at load: kind foliage or kit, materials.js;
 // the shade is on top of the asset's brightness fix there.)
-const CARDS = new Set(['crown', 'far', 'fern', 'bush', 'litter']);
+const CARDS = new Set(['crown', 'far', 'fern', 'bush', 'litter', 'gorse', 'heather', 'reed', 'marram', 'juniper', 'hedge']);
 const cardMaps = new WeakMap();      // a card texture → its version with leafy mips (foliage-mips.js)
 function cardMap(t) {
   const im = t.image, w = im?.width;

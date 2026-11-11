@@ -6,9 +6,20 @@ import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from './noise.js';
 import { textures } from './textures.js';
 import { snowTexture } from './winter.js';
+import { region } from './landforms.js';
+import { makeWaters } from './waters.js';
+import { makeRoads } from './roads.js';
+import { biomeOf } from './biomes.js';
 
+// The map's size. Every map so far is a square (`half`: half its side; `playHalf`: half the side of
+// the ground you can walk on), and MAP_HALF and PLAY_HALF are that. A map can also be longer one way
+// than the other: `size: { x: 1400, z: 700 }` (and `playSize`, default 25 m in from each edge), and
+// its playable ground any shape inside that: `playArea` (a landforms.js area: a polygon for an L).
+// Then MAP_HALF and PLAY_HALF are the longer half (so whatever still thinks in squares, the paper
+// map and the guards' grid, takes in the whole of it), and MAP_HALF_X/Z, PLAY_HALF_X/Z the real ones.
 export let MAP_HALF = 400;
 export let PLAY_HALF = 375;
+export let MAP_HALF_X = 400, MAP_HALF_Z = 400, PLAY_HALF_X = 375, PLAY_HALF_Z = 375;
 export let COMPOUND = { x: 20, z: -30, r: 70 };      // the target area (guards' paths are worked out around it)
 export let START_HILL = { x: -210, z: 170 };         // where you start (and usually extract)
 export const RANGE_LANE = { z: 240, x0: -215, x1: 315, half: 10 };
@@ -75,12 +86,26 @@ export const VINEYARD_MAP = {
 };
 
 let MAP = VINEYARD_MAP;
+// What a map may declare beyond its ground (all optional; a map with none is built as before):
+// its water at several heights (waters.js), its roads and tracks (roads.js), its biome (biomes.js).
+let WATERS = makeWaters(MAP, (x, z) => MAP.heightAt(x, z)), ROADS = makeRoads(MAP), BIOME = null, AREA = null;
 export function useMap(map) {
   MAP = map;
-  MAP_HALF = map.half; PLAY_HALF = map.playHalf ?? map.half - 25;
+  if (map.size) {
+    MAP_HALF_X = map.size.x / 2; MAP_HALF_Z = map.size.z / 2;
+    PLAY_HALF_X = map.playSize ? map.playSize.x / 2 : MAP_HALF_X - 25; PLAY_HALF_Z = map.playSize ? map.playSize.z / 2 : MAP_HALF_Z - 25;
+    MAP_HALF = Math.max(MAP_HALF_X, MAP_HALF_Z); PLAY_HALF = Math.max(PLAY_HALF_X, PLAY_HALF_Z);
+    map.half ??= MAP_HALF;                         // (for whatever reads the map's own field)
+  } else {
+    MAP_HALF = MAP_HALF_X = MAP_HALF_Z = map.half; PLAY_HALF = PLAY_HALF_X = PLAY_HALF_Z = map.playHalf ?? map.half - 25;
+  }
+  AREA = map.playArea ? region(map.playArea) : null;
+  WATERS = makeWaters(map, heightAt); ROADS = makeRoads(map); BIOME = biomeOf(map);
   COMPOUND = map.focus; START_HILL = map.start;
   H_COMPOUND = map.heightAt(map.focus.x, map.focus.z);
-  PADS = (map.damage?.pads ?? []).map(([x, z, hw, hd]) => ({ x, z, hw, hd, y: map.heightAt(x, z) }));
+  // (a ruin or a windmill of the map's `cover` stands on levelled ground too: cover.js)
+  const coverPads = [...(map.cover?.ruins ?? []).map(r => [r.x, r.z, (r.w ?? 8) / 2 + 1, (r.d ?? 6) / 2 + 1]), ...(map.cover?.windmills ?? []).map(w => [w.x, w.z, 4, 4])];
+  PADS = [...(map.damage?.pads ?? []), ...coverPads].map(([x, z, hw, hd]) => ({ x, z, hw, hd, y: map.heightAt(x, z) }));
   CRATERS = (map.damage?.craters ?? []).map(([x, z, r]) => ({ x, z, r }));
 }
 export const activeMap = () => MAP;
@@ -127,20 +152,40 @@ const clearOfDamage = (x, z, m) => PADS.some(p => Math.abs(x - p.x) < p.hw + 2 +
   || CRATERS.some(c => Math.hypot(x - c.x, z - c.z) < c.r * 1.3 + m);
 
 export function heightAt(x, z) { return damaged(x, z, MAP.heightAt(x, z)); }
-export function roadCenterZ(x) { return MAP.roadCenterZ ? MAP.roadCenterZ(x) : NaN; }
-export function keepClear(x, z, margin = 0) { return clearOfDamage(x, z, margin) || (MAP.keepClear ? MAP.keepClear(x, z, margin) : false); }
+// The road's z at this x: the map's own function, or its main road (the first of `roads`).
+export function roadCenterZ(x) { return MAP.roadCenterZ ? MAP.roadCenterZ(x) : ROADS.centerZ(x); }
+// The nearest point on any of the map's roads and tracks: { id, kind, width, d, on, x, z, t, dx, dz } (roads.js).
+export const nearestRoad = (x, z) => ROADS.nearestRoad(x, z);
+export const roadList = () => ROADS.roads;
+// Water: waterAt, the surface where there is water over the ground at (x, z), else null;
+// waterSurfaceAt, the surface of the body whose outline covers the spot, wet or dry (its shore);
+// waterBodyAt, that body ({ kind, wade, calm, … }: waters.js).
+export const waterAt = (x, z) => WATERS.waterAt(x, z);
+export const waterSurfaceAt = (x, z) => WATERS.surfaceAt(x, z);
+export const waterBodyAt = (x, z) => WATERS.bodyAt(x, z);
+export const waterBodies = () => WATERS.bodies;
+export const activeBiome = () => BIOME;
+// Growth keeps off the map's own clearings, its ruins and craters, its roads, and (on a map that
+// declares waters) out of the water.
+export function keepClear(x, z, margin = 0) {
+  if (clearOfDamage(x, z, margin) || (MAP.keepClear ? MAP.keepClear(x, z, margin) : false)) return true;
+  if (ROADS.any && ROADS.clear(x, z, margin)) return true;
+  return WATERS.declared && WATERS.waterAt(x, z) != null;
+}
 
 export function normalAt(x, z, out = new THREE.Vector3()) {
   const e = 0.75;
   return out.set(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize();
 }
 
+const _at = { x: 0, z: 0, y: 0, slope: 0, up: 1, water: null, sea: null, o: null };   // (what a biome is told about a spot)
 const _pre = new THREE.Color(), _snow = new THREE.Color(0xeef1f6), _slush = new THREE.Color(0x77706a);
 export function buildTerrain() {
-  const SEG = Math.round(MAP_HALF);   // 2 m squares
-  const geo = new THREE.PlaneGeometry(MAP_HALF * 2, MAP_HALF * 2, SEG, SEG);
+  // 2 m squares, each way (a long map has more of them along its length than across).
+  const geo = new THREE.PlaneGeometry(MAP_HALF_X * 2, MAP_HALF_Z * 2, Math.round(MAP_HALF_X), Math.round(MAP_HALF_Z));
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
+  _at.sea = MAP.waterLevel ?? null; _at.o = BIOME?.o ?? null;
   for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)) - sunk(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
 
@@ -159,8 +204,12 @@ export function buildTerrain() {
     c.lerp(dirt, smoothstep(0.12, 0.3, slope));
     if (y > 22) c.lerp(dry, smoothstep(22, 45, y) * 0.45);           // drier grass up the hills
     c.lerp(rock, smoothstep(0.28, 0.5, slope) * 0.85);                  // rock only where it's steep
+    // The biome's ground (scree and snow, sand, peat, fields: biomes.js), then the map's own on top.
+    if (BIOME) { _at.x = x; _at.z = z; _at.y = y; _at.slope = slope; _at.up = nrm.getY(i); _at.water = WATERS.surfaceAt(x, z); BIOME.paint?.(c, _at); }
     if (MAP.winter) _pre.copy(c);
     MAP.paint?.(c, x, z, { yard, road, mowed, rock, dirt, dry, y, slope });
+    // Roads and tracks (`roads`): worn bare, a track mostly in its ruts.
+    if (ROADS.any) { const w = ROADS.wear(x, z); if (w) c.lerp(w.kind === 'road' ? road : dirt, w.w * (w.kind === 'road' ? 1 : 0.8)); }
     if (PADS.length) c.lerp(dirt, dusted(x, z) * 0.8);
     if (MAP.winter) {
       // Snow where it's level enough to lie, thinner in drifts' lee; trodden to slush where the map
@@ -183,7 +232,7 @@ export function buildTerrain() {
   // Ground detail repeats every 4 m on top of the large-scale vertex colours.
   const { map, normalMap } = textures()[MAP.groundTexture ?? 'ground'];
   const detail = MAP.winter ? snowTexture() : map.clone(), detailN = normalMap.clone();   // (under snow: its own white grain)
-  for (const t of [detail, detailN]) t.repeat.set(MAP_HALF / 2, MAP_HALF / 2);
+  for (const t of [detail, detailN]) t.repeat.set(MAP_HALF_X / 2, MAP_HALF_Z / 2);
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.95, map: detail, normalMap: detailN, normalScale: new THREE.Vector2(0.6, 0.6),
   }));
@@ -214,4 +263,18 @@ export function intersectTerrain(a, b, out = new THREE.Vector3()) {
   return null;
 }
 
-export const inPlayArea = (x, z) => Math.abs(x) < PLAY_HALF && Math.abs(z) < PLAY_HALF;
+// The ground you can walk on: inside the play box, and inside the map's `playArea` if it has one.
+export const inPlayArea = (x, z) => Math.abs(x) < PLAY_HALF_X && Math.abs(z) < PLAY_HALF_Z && (!AREA || AREA.sd(x, z) <= 0);
+// Keep a position (anything with x and z) on that ground: back inside the box, and if the map has
+// its own outline, back across its nearest edge (downhill on the distance to it, a few steps).
+export function clampToPlay(pos) {
+  pos.x = Math.min(PLAY_HALF_X, Math.max(-PLAY_HALF_X, pos.x));
+  pos.z = Math.min(PLAY_HALF_Z, Math.max(-PLAY_HALF_Z, pos.z));
+  for (let i = 0; AREA && i < 4; i++) {
+    const d = AREA.sd(pos.x, pos.z);
+    if (d <= 0) break;
+    const gx = AREA.sd(pos.x + 0.5, pos.z) - AREA.sd(pos.x - 0.5, pos.z), gz = AREA.sd(pos.x, pos.z + 0.5) - AREA.sd(pos.x, pos.z - 0.5), len = Math.hypot(gx, gz) || 1;
+    pos.x -= gx / len * (d + 0.02); pos.z -= gz / len * (d + 0.02);
+  }
+  return pos;
+}

@@ -2,7 +2,8 @@
 // including tall-grass patches that will hide a crouched or prone player.
 import * as THREE from 'three';
 import { foliageTexture } from './foliage-mips.js';
-import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF, PLAY_HALF, keepClear, activeMap } from './terrain.js';
+import { heightAt, normalAt, COMPOUND, START_HILL, roadCenterZ, inPlayArea, MAP_HALF_X, MAP_HALF_Z, PLAY_HALF_X, PLAY_HALF_Z, keepClear, activeMap, activeBiome, waterSurfaceAt } from './terrain.js';
+import { areaKm2 } from './biomes.js';
 import { fbm, makeRng, valueNoise } from './noise.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { textures } from './textures.js';
@@ -103,7 +104,8 @@ function leafTex(seed, { leaves = 70, len = 26, wid = 9 } = {}) {
   return t;
 }
 
-function makeTreeTypes() {
+// wanted: the kinds this map plants (the larch and the birch are only drawn up for a map that has them).
+function makeTreeTypes(wanted = new Set()) {
   const T = textures();
   const bark = T.wood.map.clone();
   bark.repeat.set(1, 2);
@@ -135,7 +137,24 @@ function makeTreeTypes() {
     }
     return [g, 0, y, 0];
   });
+  const extra = [];
+  if (wanted.has('larch')) extra.push({ // European larch (alpine): tall and airy, pale needles (trees.py; the fir's shape, lighter, if it isn't loaded)
+    name: 'larch', count: 0, blender: 'treeLarch', shade: { trunk: 0.4, crown: [0.62, 0.68, 0.42], far: [0.62, 0.68, 0.42] }, noAO: true,
+    trunk: new THREE.CylinderGeometry(0.12, 0.3, 15, 8).translate(0, 7.5, 0), trunkR: 0.3,
+    crown: canopy(firTiers.map(([g, x, y, z]) => [g.clone().scale(0.8, 1, 0.8), x, y, z]), 0x55692f, 0xa9b867, { cards: 150, cardSize: 1.9, seed: 6 }),
+    coreMat, leafMat: leafMat(needle), trunkMat, scale: [0.75, 1.25],
+  });
+  if (wanted.has('birch')) extra.push({ // silver birch (heath, field edges): slender, a light hanging crown (trees.py; drawn if it isn't loaded)
+    name: 'birch', count: 0, blender: 'treeBirch', shade: { trunk: 0.8, crown: 0.7, far: 0.7 }, noAO: true,
+    trunk: new THREE.CylinderGeometry(0.1, 0.2, 7, 8).translate(0, 3.5, 0), trunkR: 0.2,
+    crown: canopy([
+      [blob(1.9, 1.0, 1.25, 1.0, 11, 0.25), 0, 7.6, 0],
+      [blob(1.3, 1.0, 1.1, 1.0, 12), 0.9, 6.2, 0.5],
+    ], 0x4a6a2c, 0x9dbb5e, { cards: 150, cardSize: 1.5, seed: 7 }),
+    coreMat, leafMat: leafMat(broad), trunkMat, scale: [0.8, 1.25],
+  });
   return [
+    ...extra,
     { // silver fir (the mountain forests; only on maps that ask for it)
       name: 'fir', count: 0, blender: 'treeFir', shade: { trunk: 0.32, crown: [0.46, 0.55, 0.52], far: [0.46, 0.55, 0.52] },
       trunk: new THREE.CylinderGeometry(0.14, 0.34, 16, 8).translate(0, 8, 0), trunkR: 0.34,
@@ -192,8 +211,11 @@ export function buildTrees(scene) {
   const trunks = [];     // instanced meshes for bullet raycasts
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
-  // A map can ask for its own forest: { counts: { fir: 3000, ... }, density(x, z, name): 0…1, spacing }.
-  const forest = activeMap().forest;
+  // A map can ask for its own forest: { counts: { fir: 3000, ... }, density(x, z, name): 0…1, spacing };
+  // failing that its biome plants one (biomes.js: counts per km², where each kind grows from the
+  // height, the slope and the water). A map with neither gets the Tuscan groves, below.
+  const forest = activeMap().forest ?? biomeForest();
+  const wet = activeMap().waters?.length ? waterSurfaceAt : null;   // (no trees standing in a pond)
   const chunks = new Map();
   const spacing = forest?.spacing ?? 3, cell = (x, z) => `${Math.floor(x / spacing)},${Math.floor(z / spacing)}`;
   const taken = new Map();          // grid of placed trees, for the spacing check
@@ -205,13 +227,13 @@ export function buildTrees(scene) {
     }
     return false;
   };
-  for (const type of makeTreeTypes()) {
+  for (const type of makeTreeTypes(new Set(Object.keys(forest?.counts ?? {})))) {
     if (forest) type.count = forest.counts[type.name] ?? 0;
     if (!type.count) continue;
     const placed = [];
     let tries = 0;
     while (placed.length < type.count && tries++ < type.count * 60) {
-      const x = (rng() * 2 - 1) * (MAP_HALF - 10), z = (rng() * 2 - 1) * (MAP_HALF - 10);
+      const x = (rng() * 2 - 1) * (MAP_HALF_X - 10), z = (rng() * 2 - 1) * (MAP_HALF_Z - 10);
       // Groves: density follows noise; olives cluster, cypresses line up along the road.
       const grove = fbm(x * 0.012 + type.name.length * 5, z * 0.012, 3);
       if (forest) { if (rng() > forest.density(x, z, type.name)) continue; }
@@ -223,6 +245,7 @@ export function buildTrees(scene) {
       if (Math.hypot(x - START_HILL.x, z - START_HILL.z) < 14) continue;
       if (near(x, z)) continue;
       const y = heightAt(x, z);
+      if (wet) { const w = wet(x, z); if (w != null && y < w + 0.3) continue; }
       const sc = type.scale[0] + rng() * (type.scale[1] - type.scale[0]);
       q.setFromAxisAngle(up, rng() * Math.PI * 2);
       placed.push({ x, z, m: m.compose(p.set(x, y - 0.1, z), q, s.set(sc, sc, sc)).clone() });
@@ -276,6 +299,23 @@ export function buildTrees(scene) {
   return { trees, trunks, chunks: [...chunks.values()] };
 }
 
+// A biome's trees as a `forest`: its counts for this map's size, and where each kind grows.
+const _at = { x: 0, z: 0, y: 0, up: 1, slope: 0, water: null, sea: null, o: null }, _n = new THREE.Vector3();
+export function biomeAt(x, z, B = activeBiome()) {
+  _at.x = x; _at.z = z; _at.y = heightAt(x, z); _at.up = normalAt(x, z, _n).y; _at.slope = 1 - _at.up;
+  _at.water = waterSurfaceAt(x, z); _at.sea = activeMap().waterLevel ?? null; _at.o = B?.o ?? null;
+  return _at;
+}
+function biomeForest() {
+  const B = activeBiome();
+  if (!B?.trees) return null;
+  const k = areaKm2(activeMap());
+  return {
+    counts: Object.fromEntries(Object.entries(B.trees.counts).map(([name, n]) => [name, Math.round(n * k)])),
+    spacing: B.trees.spacing, density: (x, z, name) => B.trees.density(name, biomeAt(x, z, B)),
+  };
+}
+
 // Hide the tree chunks beyond `far` metres of the viewer (a misty map can't see them anyway), and
 // pick each chunk's detail: the whole Blender trees within `near` m (more through a scope: `zoom`),
 // their far cards beyond.
@@ -295,7 +335,8 @@ export function cullTreeChunks(chunks, viewer, far = Infinity, zoom = 1) {
 function tuftGeometry(rng, blades, height) {
   const positions = [], colors = [];
   const winter = activeMap().winter;   // (dead straw, frosted, poking through the snow)
-  const base = new THREE.Color(winter ? 0x6a604c : 0x3f5a22), tip = new THREE.Color(winter ? 0xd2c8a8 : 0xa9b25c);
+  const own = activeBiome()?.grassColor;   // (a biome's own green: paler on the dunes, browner on the heath)
+  const base = new THREE.Color(winter ? 0x6a604c : own?.base ?? 0x3f5a22), tip = new THREE.Color(winter ? 0xd2c8a8 : own?.tip ?? 0xa9b25c);
   for (let i = 0; i < blades; i++) {
     const a = rng() * Math.PI * 2, r = rng() * 0.18;
     const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
@@ -337,19 +378,22 @@ function grassMaterial() {
 // Grass is chunked on a grid so each chunk can be frustum-culled on its own.
 export function buildGrass(scene) {
   grassDensity = activeMap().grassDensity ?? null;
+  // (a biome thins its grass by where it is: none on scree or sand; the map's own setting wins)
+  const B = activeBiome();
+  if (!grassDensity && B?.grass) grassDensity = (x, z) => B.grass(biomeAt(x, z, B));
   const rng = makeRng(77);
   const shortGeo = tuftGeometry(rng, 9, 0.5);
   const tallGeo = tuftGeometry(rng, 12, 0.55);
   const mat = grassMaterial();
-  const CH = 8, CELL = (MAP_HALF * 2) / CH;
+  const CH = 8, CELLX = (MAP_HALF_X * 2) / CH, CELLZ = (MAP_HALF_Z * 2) / CH;
   const cells = Array.from({ length: CH * CH }, () => ({ short: [], tall: [] }));
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const nrm = new THREE.Vector3();
-  const cellOf = (x, z) => cells[Math.min(CH - 1, Math.floor((z + MAP_HALF) / CELL)) * CH + Math.min(CH - 1, Math.floor((x + MAP_HALF) / CELL))];
+  const cellOf = (x, z) => cells[Math.min(CH - 1, Math.floor((z + MAP_HALF_Z) / CELLZ)) * CH + Math.min(CH - 1, Math.floor((x + MAP_HALF_X) / CELLX))];
 
   // Short grass everywhere that isn't yard, road, lane or cliff.
   for (let i = 0; i < 70000; i++) {
-    const x = (rng() * 2 - 1) * PLAY_HALF, z = (rng() * 2 - 1) * PLAY_HALF;
+    const x = (rng() * 2 - 1) * PLAY_HALF_X, z = (rng() * 2 - 1) * PLAY_HALF_Z;
     if (keepClear(x, z)) continue;
     if (normalAt(x, z, nrm).y < 0.85) continue;
     if (fbm(x * 0.02, z * 0.02, 2) < 0.38) continue;
@@ -364,15 +408,21 @@ export function buildGrass(scene) {
   const patches = [];
   const rngP = makeRng(4242);
   let attempts = 0;
-  while (patches.length < 46 && attempts++ < 2000) {
-    const x = (rngP() * 2 - 1) * (PLAY_HALF - 30), z = (rngP() * 2 - 1) * (PLAY_HALF - 30);
+  // (46 on the old square maps; a map with a `size` or a biome gets them by its area, 82 to the
+  // square kilometre of playable ground as the old ones had, times the biome's `cover`: open
+  // country with few trees needs more places to lie up)
+  const kit = activeMap().size || B;
+  const want = kit ? Math.round(82 * (4 * PLAY_HALF_X * PLAY_HALF_Z / 1e6) * (B?.cover ?? 1)) : 46;
+  brush.clear();                                  // (the bushes that hide you are added by ground.js, after this)
+  while (patches.length < want && attempts++ < (kit ? want * 45 : 2000)) {
+    const x = (rngP() * 2 - 1) * (PLAY_HALF_X - 30), z = (rngP() * 2 - 1) * (PLAY_HALF_Z - 30);
     if (keepClear(x, z, 8) && Math.hypot(x - COMPOUND.x, z - COMPOUND.z) < 58) continue;
     if (keepClear(x, z, 4)) continue;
     if (normalAt(x, z, nrm).y < 0.88) continue;
     patches.push({ x, z, r: 6 + rngP() * 9 });
   }
   // Guaranteed cover on the way in, where the map asks for it.
-  patches.push(...(activeMap().coverPatches ?? []));
+  patches.push(...(activeMap().coverPatches ?? []), ...(activeMap().cover?.grass ?? []));   // (and the map's `cover.grass`: cover.js)
   for (const pt of patches) {
     const n = Math.floor(pt.r * pt.r * 3.2);
     for (let i = 0; i < n; i++) {
@@ -401,7 +451,26 @@ export function buildGrass(scene) {
 }
 
 export function inTallGrass(patches, x, z) {
-  return patches.some(p => (p.x - x) ** 2 + (p.z - z) ** 2 < p.r * p.r);
+  return patches.some(p => (p.x - x) ** 2 + (p.z - z) ** 2 < p.r * p.r) || inBrush(x, z);
+}
+
+// Brush that hides you as tall grass does: a biome's reeds, gorse, juniper, marram, the foot of a
+// hedge (ground.js adds each plant as it sets it down). Thousands of them, so they are kept by 4 m
+// cell and a question looks at the nine cells round it. Empty on a map without such growth.
+const brush = new Map(), BR = 4;
+export function addBrush(x, z, r) {
+  const k = `${Math.floor(x / BR)},${Math.floor(z / BR)}`;
+  if (!brush.has(k)) brush.set(k, []);
+  brush.get(k).push(x, z, r);
+}
+export function inBrush(x, z) {
+  if (!brush.size) return false;
+  const cx = Math.floor(x / BR), cz = Math.floor(z / BR);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const l = brush.get(`${cx + i},${cz + j}`);
+    if (l) for (let n = 0; n < l.length; n += 3) if ((l[n] - x) ** 2 + (l[n + 1] - z) ** 2 < l[n + 2] * l[n + 2]) return true;
+  }
+  return false;
 }
 
 // Dense grass close to the camera: one instanced field in an 80 m window that wraps
@@ -413,7 +482,7 @@ export function buildNearGrass(scene, patches) {
   const nrm = new THREE.Vector3();
   for (let j = 0; j < RES; j++) {
     for (let i = 0; i < RES; i++) {
-      const x = (i + 0.5) / RES * MAP_HALF * 2 - MAP_HALF, z = (j + 0.5) / RES * MAP_HALF * 2 - MAP_HALF;
+      const x = (i + 0.5) / RES * MAP_HALF_X * 2 - MAP_HALF_X, z = (j + 0.5) / RES * MAP_HALF_Z * 2 - MAP_HALF_Z;
       const k = j * RES + i;
       heights[k] = THREE.DataUtils.toHalfFloat(heightAt(x, z));
       let d = 0.55 + 0.45 * fbm(x * 0.03, z * 0.03, 2);
@@ -441,13 +510,13 @@ export function buildNearGrass(scene, patches) {
 
   const uniforms = {
     uCenter: { value: new THREE.Vector2() }, uSize: { value: SIZE },
-    uHeight: { value: heightTex }, uMask: { value: maskTex }, uHalf: { value: MAP_HALF },
+    uHeight: { value: heightTex }, uMask: { value: maskTex }, uHalf: { value: new THREE.Vector2(MAP_HALF_X, MAP_HALF_Z) },
   };
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms, { uTime: windUniforms.uTime, uWind: windUniforms.uWind });
     shader.vertexShader = `attribute vec3 aOffset;
-      uniform vec2 uCenter; uniform float uSize; uniform float uHalf; uniform float uTime; uniform vec2 uWind;
+      uniform vec2 uCenter; uniform float uSize; uniform vec2 uHalf; uniform float uTime; uniform vec2 uWind;
       uniform sampler2D uHeight; uniform sampler2D uMask;\n` + shader.vertexShader.replace('#include <begin_vertex>', `
       #include <begin_vertex>
       vec2 rel = mod(aOffset.xy - uCenter + 0.5 * uSize, uSize) - 0.5 * uSize;

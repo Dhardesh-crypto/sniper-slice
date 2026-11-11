@@ -1,8 +1,10 @@
 # Renders the vegetation textures from modelled detail (run: blender -b -P tools/blender/textures.py -- <out dir>).
-#   fir_spray / beech_spray / olive_spray / pine_spray / cypress_spray: two branch sprays per texture
-#     (top and bottom half), each a twig with its needles or leaves, seen from above: colour (with
-#     alpha) and normals
-#   bark_fir / bark_beech / bark_olive / bark_pine / bark_cypress: seamless bark, colour and normals
+#   fir_spray / beech_spray / olive_spray / pine_spray / cypress_spray / larch_spray / birch_spray:
+#     two branch sprays per texture (top and bottom half), each a twig with its needles or leaves,
+#     seen from above: colour (with alpha) and normals
+#   bark_fir / bark_beech / bark_olive / bark_pine / bark_cypress / bark_larch / bark_birch:
+#     seamless bark, colour and normals
+#   ONLY=larch_spray,bark_larch blender -b -P tools/blender/textures.py -- <out dir>   (just those)
 import bpy, math, os, random, sys
 from mathutils import Vector
 sys.path.append(os.path.dirname(__file__))
@@ -285,6 +287,86 @@ def cypress_spray():
     return m
 
 
+# ---- European larch: short soft needles in rosettes on spurs, along thin hanging twigs ----
+
+def larch_twig(m, cell, start, ang, length, rng, depth):
+    """A larch twig: straw-coloured wood with, every couple of centimetres, a spur carrying a
+    rosette of short soft needles. The rosettes barely touch, so the twig shows between them and
+    the spray stays see-through: that is what makes the larch the pale, airy conifer beside the
+    fir's closed dark combs. Side twigs sweep forward (on the tree the whole spray hangs)."""
+    twig = srgb(0x9a8358)
+    lo, mid, hi = srgb(0x6f9436), srgb(0x98b84a), srgb(0xc0d66c)
+    pts, dirs = stem(m, start, ang, length, 0.005 if depth == 2 else 0.003, 0.0014, twig, rng, bend=0.5, z=0.002, cell=cell)
+    n = len(pts)
+    t = 0.03
+    while t < 1.0:
+        i = min(n - 1, int(t * (n - 1)))
+        c = pts[i] + Vector((rng.uniform(-0.005, 0.005), rng.uniform(-0.005, 0.005), 0))
+        r = rng.uniform(0.018, 0.025)
+        for k in range(18):                # one rosette: needles all round the spur, the last on top
+            a = k / 18 * math.tau + rng.uniform(-0.25, 0.25)
+            d = Vector((math.cos(a), math.sin(a), 0)); l = r * rng.uniform(0.65, 1.0)
+            if cell.inside(c + d * l):
+                needle(m, c, d, l, 0.0028, mix(mix(lo, mid, rng.random()), hi, rng.random() * k / 18), 0.004 + k * 0.0003)
+        t += rng.uniform(0.024, 0.034) / length
+    if depth > 0:
+        t, side = 0.06 + rng.random() * 0.04, rng.choice((-1, 1))
+        while t < 0.9:
+            i = int(t * (n - 1))
+            sl = length * (0.5 if depth == 2 else 0.6) * (1 - t) ** 0.5 * rng.uniform(0.75, 1.1)
+            if sl > 0.05:
+                larch_twig(m, cell, pts[i], math.atan2(dirs[i].y, dirs[i].x) + side * math.radians(rng.uniform(24, 40)), sl, rng, depth - 1)
+            side = -side
+            t += rng.uniform(0.06, 0.085) if depth == 2 else rng.uniform(0.16, 0.24)
+
+
+def larch_spray():
+    m = Mesh()
+    for k, (lo, hi) in enumerate(((0.0, 0.5), (0.5, 1.0))):
+        rng = random.Random(61 + k)
+        larch_twig(m, Cell(lo, hi), (0.02, (lo + hi) / 2, 0), rng.uniform(-0.05, 0.05), 0.95, rng, 2)
+    return m
+
+
+# ---- silver birch: whip-thin dark twigs with small, long-stalked, triangular leaves ----
+
+def birch_twig(m, cell, start, ang, length, rng, depth):
+    """A birch twig: nearly black, hair-thin, its small leaves standing off it on stalks so light
+    comes through between them (a light crown, not the beech's closed roof). A few leaves are
+    already yellowing, as birches' are from midsummer on. Side twigs sweep forward: they hang."""
+    twig = srgb(0x3d2f2a)
+    greens = [srgb(0x5a8a30), srgb(0x6c9c38), srgb(0x7fae42), srgb(0x93bd4e)]
+    pts, dirs = stem(m, start, ang, length, 0.0035 if depth == 2 else 0.002, 0.001, twig, rng, bend=0.6, z=0.0, cell=cell)
+    n = len(pts)
+    t, side = 0.05, 1
+    while t < 0.99:
+        i = int(t * (n - 1))
+        p, d = pts[i], dirs[i]
+        la = math.atan2(d.y, d.x) + side * math.radians(rng.uniform(30, 65))
+        L = rng.uniform(0.03, 0.042)
+        dd = Vector((math.cos(la), math.sin(la), 0))
+        base = p + dd * 0.012                                  # (the stalk's length: the leaf stands clear)
+        if cell.inside(base + dd * L) and cell.inside(base + rot(dd, 1.2) * L * 0.5) and cell.inside(base + rot(dd, -1.2) * L * 0.5):
+            c = srgb(0xb9b24a) if rng.random() < 0.07 else rng.choice(greens)
+            m.poly([p - Vector((-dd.y, dd.x, 0)) * 0.0006, base - Vector((-dd.y, dd.x, 0)) * 0.0006,
+                    base + Vector((-dd.y, dd.x, 0)) * 0.0006, p + Vector((-dd.y, dd.x, 0)) * 0.0006], twig)
+            leaf(m, base, dd, L, L * 0.8, c, rng, fold=rng.uniform(0.1, 0.35), tilt=rng.uniform(-0.5, 0.5), steps=5, z=rng.uniform(0.002, 0.012))
+        if depth and rng.random() < (0.5 if depth == 2 else 0.3) and t < 0.8:
+            birch_twig(m, cell, p, math.atan2(d.y, d.x) + side * math.radians(rng.uniform(20, 38)),
+                       length * rng.uniform(0.4, 0.6) * (1 - t) ** 0.6, rng, depth - 1)
+        side = -side
+        t += rng.uniform(0.022, 0.034) / length
+    return pts
+
+
+def birch_spray():
+    m = Mesh()
+    for k, (lo, hi) in enumerate(((0.0, 0.5), (0.5, 1.0))):
+        rng = random.Random(71 + k)
+        birch_twig(m, Cell(lo, hi), (0.02, (lo + hi) / 2, 0), rng.uniform(-0.06, 0.06), 0.95, rng, 2)
+    return m
+
+
 def render_spray(name, mesh):
     alb = albedo_material(name + '_alb', vertex_color, ao=0.55, ao_dist=0.02)
     nrm = normal_material(name + '_nrm')
@@ -325,6 +407,12 @@ BARK = {
     'pine': dict(su=3.0, sv=0.6, cell=1.8, crack=0.1, noise=4.5, colors=(0x2e2119, 0x5f4433, 0x8e6a50), depth=1.3, lichen=0x7d7a66),
     # Cypress: grey-brown, in thin fibrous strips running up the trunk (cells many round, few up).
     'cypress': dict(su=7.0, sv=0.35, cell=3.2, crack=0.07, noise=6, colors=(0x2f2721, 0x5c4d40, 0x8a7a68), depth=0.7, lichen=0x7f8466),
+    # Larch: grey-brown scaly plates, a little longer than wide, red-brown down in the fissures.
+    'larch': dict(su=3.6, sv=0.7, cell=2.4, crack=0.09, noise=5, colors=(0x3b2a22, 0x6e5d50, 0x938a7e), depth=1.1, lichen=0x86886c),
+    # Silver birch: chalk-white paper with black marks lying across the trunk (much more happens up
+    # it than round it, so the cracks between the "plates" run sideways) and, in place of lichen,
+    # the rough black patches an older birch gets.
+    'birch': dict(su=0.5, sv=2.6, cell=1.5, crack=0.05, noise=3, colors=(0x1b1917, 0xcfcabd, 0xf1eee4), depth=0.35, lichen=0x2b2825),
 }
 
 
@@ -390,7 +478,8 @@ def render_bark(kind):
 if __name__ == '__main__':
     only = os.environ.get('ONLY', '').split(',') if os.environ.get('ONLY') else None
     for name, fn in (('fir_spray', fir_spray), ('beech_spray', beech_spray), ('olive_spray', olive_spray),
-                     ('pine_spray', pine_spray), ('cypress_spray', cypress_spray)):
+                     ('pine_spray', pine_spray), ('cypress_spray', cypress_spray),
+                     ('larch_spray', larch_spray), ('birch_spray', birch_spray)):
         if only and name not in only: continue
         reset(); render_spray(name, fn())
     for kind in BARK:

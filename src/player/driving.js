@@ -117,7 +117,8 @@ export class Driving {
     // Move, then test what it ran into.
     const next = pos.clone().addScaledVector(new THREE.Vector3(Math.sin(v.yaw), 0, Math.cos(v.yaw)), v.speed * dt);
     const g = this.world.groundAt(next.x, next.z);
-    if (!Number.isFinite(g) || this.world.water?.position && g < this.world.water.position.y - 0.3) { v.speed = 0; }
+    const wl = this.world.waterHere(next.x, next.z).level;      // (the sea, or a pond or river of the map's `waters`)
+    if (!Number.isFinite(g) || wl != null && g < wl - 0.3) { v.speed = 0; }
     else {
       if (v.box) v.box.min.y = v.box.max.y = -1e6;               // (not into its own block)
       const probe = next.clone(); probe.y = g;
