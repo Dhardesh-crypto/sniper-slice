@@ -11,6 +11,8 @@
 // crew's dugouts, a searchlight. Tunnels: from a shell-hole by the ruined farmhouse under the
 // wire to the back of the trench line; and from the ammunition bunker out to the woods east.
 import * as THREE from 'three';
+import { compose, plateau, cliffBand, quarry, sunkenLane } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
 import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
@@ -52,17 +54,33 @@ function ground(x, z) {
   return h;
 }
 // The crest levelled for the battery, each gun in a shallow pit.
-function heightAt(x, z) {
+function battery(x, z) {
   let h = ground(x, z);
   const pad = 1 - smoothstep(70, 110, Math.hypot(x - POST.x, (z - POST.z) * 1.3));
   if (pad > 0) h = lerp(h, ground(POST.x, POST.z), pad);
   for (const g of GUNS) { const d = Math.hypot(x - g.x, z - g.z); if (d < 6.5) h -= 0.9 * (1 - smoothstep(4.2, 6.5, d)); }
   return h - SYS.carve(x, z);
 }
+// The flanks and the valley, made from the terrain kit (world/landforms.js); the battery, the
+// trenches, the wire and the farm are as they were:
+//   west, a limestone scar: from its top you look along the fire trench from its end, 100 m off;
+//   east, an old quarry (benches to get down by, a haul road out) and above it a knoll with a
+//   ruined chapel: from its boards the whole line and the crest are in view;
+//   a sunken lane from beside your start round to the foot of the scar;
+//   and more shell holes in the valley in front of the wire (terrain.js craters: you lie in them).
+const SCAR = [[-332, 56], [-320, 130], [-300, 204]], PIT = { x: 306, z: 140 }, KNOLL = { x: 292, z: 36 };
+const LANE = [[-40, 298], [-102, 270], [-190, 264], [-264, 224]];
+const heightAt = compose(battery, [
+  cliffBand({ path: SCAR, height: 8, run: 5, reach: 110, side: 1, rough: 3, taper: 30, seed: 6 }),
+  plateau({ area: { ...KNOLL, r: 14, blend: 46, wobble: 6 }, level: battery(KNOLL.x, KNOLL.z) + 6, rough: 0.3 }),
+  quarry({ ...PIT, r: 38, depth: 11, benches: 3, floor: 0.42, ramp: Math.PI, rampWidth: 8, seed: 5 }),
+  sunkenLane({ path: LANE, width: 3.2, depth: 1.7, banks: 2.4 }),
+]);
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
-  damage: { pads: [[-150, 215, 7, 5.5]], craters: [[-147, 205, 4.5], [40, 205, 5], [-60, 200, 5], [-20, 212, 4]] },   // the ground the war left (terrain.js)
+  damage: { pads: [[-150, 215, 7, 5.5]], craters: [[-147, 205, 4.5], [40, 205, 5], [-60, 200, 5], [-20, 212, 4],
+    [-104, 188, 4.5], [-12, 182, 4], [62, 186, 4.5], [122, 198, 5], [172, 184, 4], [-192, 188, 4.5], [92, 232, 4.5], [-72, 240, 4], [10, 250, 4.5], [150, 240, 4]] },   // the ground the war left (terrain.js)
   wallStyle: 'apennine',                 // its walls' photographs (public/textures/styles/)
   // Late autumn in the foothills: a low, pale sun through haze, the far ridges blue.
   light: { zenith: 72, azimuth: 205, sun: 0xffd9a8, sunIntensity: 2.2, turbidity: 7, rayleigh: 1.8, clouds: 0.55, hemiSky: 0xb7c3cf, hemi: 0.55, exposure: 0.9, warmth: 0.7, saturation: 1.0 },   // (grade: an Apennine ridge)
@@ -72,6 +90,18 @@ const map = {
   half: 480, playHalf: 450, focus: { x: 0, z: 40, r: 170 }, start: START, navHalf: 330,
   maxSlope: 0.95,
   heightAt,
+  // Limestone scrub (world/biomes.js): pale rock through thin dry grass, juniper and lentisk
+  // (juniper hides you), stones and scree, hardly a tree.
+  biome: 'limestone',
+  navBlocked: (x, z) => (x < -280 || (x > 250 && z > 80)) && slopeAt(x, z) > 0.95,      // the scar's face and the quarry's benches
+  // Built cover (world/cover.js): sheep walls in the valley, crates, the ruined chapel on its knoll.
+  cover: {
+    walls: [[[-262, 282], [-200, 302], [-122, 292]], [[58, 282], [130, 272], [202, 288]], [[246, 170], [256, 226]], [[-300, 30], [-262, 8], [-250, -40]]],
+    crates: [[286, 42, 3], [-318, 216, 3], [270, 140, 3]],
+    ruins: [{ ...KNOLL, w: 8, d: 6, h: 5.4, seed: 79, tint: '#cfc9bc', fallen: 1, doors: ['e'], breach: 'n' }],
+    grass: [{ x: -230, z: 240, r: 9 }, { x: 110, z: 250, r: 9 }, { x: -340, z: 150, r: 8 }, { x: 240, z: 60, r: 9 }],
+  },
+  checkGoals: [[-340, 130], [284, 44], [300, 140]],
   roadCenterZ: (x) => NaN,
   keepClear(x, z, m = 0) {
     if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m) || SYS.inRamp(x, z, 1 + m)) return true;
@@ -206,6 +236,7 @@ function site(scene, world) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates and chapel of the map's `cover`, and the ladder up it
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, towerTops, siren,
     generator: null, generatorMesh: null,
