@@ -197,6 +197,14 @@ const map = {
   ground: { bush: 1500, rock1: 450, rock2: 1400, rock3: 110,
     reed: { n: 2400, where: (at) => at.water != null && at.y > at.water - 0.5 && at.y < at.water + 0.4 } },
   checkGoals: [[380, -52], [-86, -160], [240, -54]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'town', name: "the town", x: F.x, z: F.z, r: 100 },
+    { id: 'farm', name: "the Contis' farm", x: FARM.x, z: FARM.z, r: 50 },
+    { id: 'crossroads', name: "the crossroads", x: CROSS.x, z: CROSS.z, r: 40 },
+    { id: 'knoll', name: "the lookout post", x: KNOLL.x, z: KNOLL.z, r: 30 },
+  ],
   roadCenterZ: (x) => (x < F.x - HX ? roadZ(x) : NaN),
   keepClear(x, z, margin = 0) {
     if (outside(x, z) < 4 + margin) return true;

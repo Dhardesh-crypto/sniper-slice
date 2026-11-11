@@ -111,6 +111,13 @@ const map = {
     grass: [{ x: -250, z: 140, r: 9 }, { x: 120, z: 130, r: 9 }, { x: 0, z: 150, r: 9 }, { x: 290, z: 40, r: 9 }],
   },
   checkGoals: [[60, 170], [320, -96], [-326, 70]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'radars', name: "the radar site", x: 0, z: -30, r: 90 },
+    { id: 'battery', name: "the west battery", x: -140, z: -120, r: 80 },
+    { id: 'light', name: "the lighthouse", x: LIGHT.x, z: LIGHT.z, r: 60 },
+  ],
   roadCenterZ: (x) => (x <= -40 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
     const d = z - zc(x);

@@ -74,6 +74,7 @@ import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
 import { plantProps } from './world/biomes.js';
 import { PERKS, perkOf } from './core/perks.js';
+import { placePhones, PHONE_DELAY } from './mission/zones.js';
 import { duskOf } from './world/conditions.js';
 import { Flyover, flyoverCaptions } from './ui/flyover.js';
 import { HEAVY_AMMO, CATALOG } from './weapons/defs.js';
@@ -266,6 +267,12 @@ const guns = new MountedGuns({ world, player, input, arsenal, audio });
 interactions.addDoors(world.doors);
 mission.interactions = interactions;
 M.intel?.(interactions, world, { pickups, items, arsenal, mission, scene, player, audio, hud, hotspots });
+// The garrison's places and their telephone lines (mission/zones.js), on a map that has zones.
+if (ai.zones) {
+  placePhones({ zones: ai.zones, scene, world, interactions, mission, hud, stealth });
+  const names = ai.zones.list.map(z => z.name);
+  document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p><b>The garrison</b> is in ${names.length} places: ${names.slice(0, -1).join(', ')} and ${names.at(-1)}. An alarm wakes the place it is raised in; the places near by send two men to look; the rest hear of it by telephone ${PHONE_DELAY} seconds later. Each place has its line on a pole with a grey box: cut it, and that place is never warned, and can warn nobody.</p>`);
+}
 const wire = new Wire({ scene, world, interactions, stealth, audio, hud, pickups });   // barbed wire: hold E to cut a gap (after the mission's own levers, so saves keep their order)
 interactions.onSafe = (safe) => { if (safe.objective) mission.complete(safe.objective, safe.objectiveText ?? 'SAFE OPENED'); };
 search.onPapers = () => { if (mission.papersDoc) interactions.give(mission.papersDoc); };
@@ -739,6 +746,7 @@ const avatarPos = new THREE.Vector3();   // (reused every frame: the avatar copi
 let paused = false;
 
 function tick(dt) {
+  if (ai.zones) for (const z of ai.zones.list) z.restore?.();      // (a loaded game's cut lines: mission.flags)
   const ev = mission.def.evening;
   if (ev && !activeMap().dusk && conditions.kind === 'briefed' && !mission.done) {
     if (!eveningWarned && mission.time > ev.at - 60) { eveningWarned = true; if (mission.time < ev.at) hud.message('THE LIGHT IS GOING · IN A MINUTE THEY SEE LESS FAR, AND THE LAMPS COME ON', ''); }

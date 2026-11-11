@@ -102,6 +102,13 @@ const map = {
     grass: [{ x: -230, z: 240, r: 9 }, { x: 110, z: 250, r: 9 }, { x: -340, z: 150, r: 8 }, { x: 240, z: 60, r: 9 }],
   },
   checkGoals: [[-340, 130], [284, 44], [300, 140]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'battery', name: "the battery", x: POST.x, z: POST.z - 25, r: 95 },
+    { id: 'west', name: "the west trench", x: -130, z: 115, r: 100 },
+    { id: 'east', name: "the east trench", x: 120, z: 115, r: 100 },
+  ],
   roadCenterZ: (x) => NaN,
   keepClear(x, z, m = 0) {
     if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m) || SYS.inRamp(x, z, 1 + m)) return true;

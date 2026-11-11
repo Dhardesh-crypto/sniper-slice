@@ -112,7 +112,15 @@ const map = {
   // waist. The ravine's sides and the scarp's face are too steep to walk, for you and for them.
   waters: wild.waters, wade: 0.9, maxSlope: 1.0,
   navBlocked: (x, z) => slopeAt(heightAt, x, z, 1.5) > 1.0,
-  checkGoals: [[300, 100], [0, 150], [85, -180], [-200, 230]],          // (tools: places a guard must be able to walk to)
+  checkGoals: [[300, 100], [0, 150], [85, -180], [-200, 230]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, its neighbours send two men, the
+  // rest hear by telephone unless you've cut their line. All three are within earshot of each
+  // other's siren here, so the line decides how many come, not whether anyone does.
+  zones: [
+    { id: 'lodge', name: 'the lodge', x: LODGE.x, z: LODGE.z, r: 70, phone: [LODGE.x + 26, LODGE.z + 20] },
+    { id: 'camp', name: 'the logging camp', x: CAMP.x, z: CAMP.z, r: 70, phone: [CAMP.x + 34, CAMP.z - 16] },
+    { id: 'meadow', name: 'the hay meadow', x: MEADOW.x, z: MEADOW.z, r: 45, phone: [MEADOW.x - 12, MEADOW.z - 14] },
+  ],          // (tools: places a guard must be able to walk to)
   // Tracks and paths (world/roads.js; the forest road itself is roadCenterZ, above): the loggers'
   // track down to the lake, the hunters' path from the east to the hay meadow, and the path up to
   // the old chapel on the scarp. Each is a lane through the trees you can see along, and be seen on.

@@ -99,6 +99,14 @@ const map = {
     grass: [{ x: 60, z: 300, r: 9 }, { x: -120, z: 290, r: 9 }, { x: 250, z: -262, r: 9 }, { x: -80, z: -262, r: 9 }],
   },
   checkGoals: [[-205, 318], [150, -290], [-100, -224]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'apron', name: "the apron", x: 0, z: 125, r: 130 },
+    { id: 'radar', name: "the radar", x: RADAR.x, z: RADAR.z, r: 70 },
+    { id: 'gate', name: "the gate and the trenches", x: 200, z: 235, r: 150 },
+    { id: 'west', name: "the west dispersal", x: -250, z: 0, r: 120 },
+  ],
   roadCenterZ: (x) => (x <= 10 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
     if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m)) return true;

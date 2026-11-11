@@ -94,6 +94,13 @@ const map = {
     marram: { n: 2600, where: (at) => Math.abs(at.x) > DX && at.y > 0.9 && at.y < 6.5 && at.z < 60 },
     reed: { n: 1500, where: (at) => at.water != null && at.water > 1 && at.y > at.water - 0.45 && at.y < at.water + 0.35 } },
   checkGoals: [[-30, 232], [132, 176], [300, 110]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'quay', name: "the quay", x: -60, z: 0, r: 150 },
+    { id: 'depot', name: "the fuel depot", x: 140, z: 20, r: 90 },
+    { id: 'mole', name: "the mole battery", x: 225, z: -150, r: 90 },
+  ],
   roadCenterZ: (x) => (x < -DX ? roadZ(x) : NaN),
   keepClear(x, z, margin = 0) {
     if (Math.abs(x) < DX + 6 + margin && z < DZ1 + 6 + margin) return true;

@@ -122,6 +122,13 @@ const map = {
     grass: [{ x: -120, z: 140, r: 9 }, { x: -168, z: -96, r: 9 }, { x: 200, z: 70, r: 9 }, { x: 150, z: -90, r: 9 }],
   },
   checkGoals: [[-196, -128], [228, 144], [-118, 134]],
+  // The garrison's places (mission/zones.js): an alarm wakes one, those in earshot send two men,
+  // the rest hear by telephone unless their line is cut.
+  zones: [
+    { id: 'camp', name: "the engineers' camp", x: CAMP.x, z: CAMP.z, r: 70 },
+    { id: 'west', name: "the west bridgehead", x: -50, z: 0, r: 45 },
+    { id: 'east', name: "the east checkpoint", x: 70, z: 0, r: 60 },
+  ],
   roadCenterZ: roadZ,
   // Guards don't take the cliffs; the bridge deck is open while it stands.
   navBlocked: (x, z) => !onBridge(x, z) && Math.abs(x - gx(z)) < 110 && slopeAt(x, z) > 0.9,

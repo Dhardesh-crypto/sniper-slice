@@ -18,6 +18,7 @@ import { NavGrid } from './nav.js';
 import { Soldier, DRAG_SPEED } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
+import { Zones, PHONE_DELAY, PATROL } from '../mission/zones.js';
 import { addExhaust } from '../world/exhaust.js';
 import { addGroundMarks } from '../world/groundmarks.js';
 import { ARC, PITCH } from '../world/mgnest.js';
@@ -77,6 +78,9 @@ export class GuardAI {
     this.nav = new NavGrid(world);
     this.time = 0;
     this.siren = world.siren;
+    // The garrison's places, if the map has them (mission/zones.js): the alarm then wakes one place, not all.
+    this.zones = activeMap().zones?.length ? new Zones(activeMap().zones) : null;
+    if (this.zones) for (const s of world.soldiers) if (!s.range) s.zone = this.zones.of(s.root.position.x, s.root.position.z);
     this.alarm = { on: false, working: true, runner: null, quietT: 0, count: 0, activateT: 0 };
     this.truck = null;
     this.reinforced = false;
@@ -697,6 +701,18 @@ export class GuardAI {
       al.quietT = seen ? 0 : al.quietT + dt;
       if (al.quietT > ALARM_QUIET || !al.working) this.stopAlarm();
       if (!this.reinforced && !this.radioDown && (al.reinforceT -= dt) <= 0) this.sendTruck(); // the radio calls them
+      // Zones: the telephone call that warns the places the siren didn't reach, if the line is up.
+      if (this.zones && !al.spread) {
+        this.zones.cutAll = !!this.radioDown;
+        if (!this.zones.lineUp(al.zone)) {
+          if (!al.saidDead) { al.saidDead = true; this.hud.message(`THE LINE IS DEAD · THE ALARM STAYS IN ${al.zone.name.toUpperCase()}`, ''); }
+        } else if ((al.phoneT -= dt) <= 0) {
+          al.spread = true;
+          const told = this.zones.plan(al.zone, al.sirenZone).phoned;
+          for (const s of this.guards()) if (told.includes(s.zone ??= this.zones.of(s.root.position.x, s.root.position.z)) && s.aware.state !== 'alerted') { this.stealth.raise(s, 'alerted', al.known.clone(), 'shout'); if (!s.brain.lastSeen) s.brain.lastSeen = al.known.clone(); }
+          if (told.length) this.hud.message('THE ALARM IS TELEPHONED ROUND · THE WHOLE GARRISON IS WARNED', 'wound');
+        }
+      }
     }
   }
 
@@ -707,15 +723,33 @@ export class GuardAI {
     if (al.count === 1) al.reinforceT = REINFORCE_DELAY;
     this.stealth.alarm = true;
     this.audio.setSiren(1);
-    this.hud.message('ALARM RAISED', 'wound');
+    if (!this.zones) this.hud.message('ALARM RAISED', 'wound');
     // Every guard hears it and heads for roughly where you were seen; if nobody has seen you, for
     // where the alarm came from, else the compound (never where you really are: they don't know).
     const known = this.guards().reduce((k, s) => (s.brain.lastSeenT > (k?.t ?? -1) && s.brain.lastSeen ? { t: s.brain.lastSeenT, at: s.brain.lastSeen } : k), null)?.at
       ?? where ?? new THREE.Vector3(COMPOUND.x, this.world.groundAt(COMPOUND.x, COMPOUND.z), COMPOUND.z);
-    for (const s of this.guards()) {
+    const come = (s) => {
       const guess = known.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 0, (Math.random() - 0.5) * 20));
       this.stealth.raise(s, 'alerted', guess, 'shout');
       if (!s.brain.lastSeen) s.brain.lastSeen = guess;
+    };
+    if (!this.zones) { for (const s of this.guards()) come(s); return; }
+    // Zones (mission/zones.js): the place it was raised over and the siren's own come for you; the
+    // places in earshot send two men each and the rest of theirs stand to; the others hear
+    // nothing until it is telephoned round (tickAlarm).
+    this.zones.cutAll = !!this.radioDown;
+    al.zone = this.zones.of(known.x, known.z); al.sirenZone = this.siren ? this.zones.of(this.siren.pos.x, this.siren.pos.z) : al.zone;
+    al.known = known.clone(); al.phoneT = PHONE_DELAY; al.spread = false; al.saidDead = false;
+    const plan = this.zones.plan(al.zone, al.sirenZone), sent = new Map();
+    this.hud.message(`ALARM RAISED · ${al.zone.name.toUpperCase()}`, 'wound');
+    const byDistance = this.guards().sort((a, b) => a.root.position.distanceToSquared(known) - b.root.position.distanceToSquared(known));
+    for (const s of byDistance) {
+      const z = s.zone ??= this.zones.of(s.root.position.x, s.root.position.z);   // (men who came later: of the place they are in)
+      if (plan.full.includes(z) || s.aware.state === 'alerted') come(s);
+      else if (plan.patrol.includes(z)) {
+        const n = sent.get(z) ?? 0, free = !(s.officer || s.flamer || s.brain.fixed || s.brain.nest || s.riding || s.manning);
+        if (free && n < PATROL) { sent.set(z, n + 1); come(s); } else this.stealth.raise(s, 'suspicious', known.clone(), 'shout');
+      }
     }
   }
 
