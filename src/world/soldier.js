@@ -332,6 +332,7 @@ export class Soldier {
   // centre line it turns him: a shoulder hit spins him round); `power`: the round's punch (0–1.2);
   // `blast`: an explosion's force on him (0–1.5), which throws him through the air.
   die(bulletDir, { quiet = false, zone = 'torso', point = null, power = 1, blast = 0 } = {}) {
+    this.deathZone = zone; this.deathBlast = blast;      // (how he went: a man hit in the body cries out, stealth.js)
     // His uniform: soaked through by a body wound, past use after a blast (disguise.js).
     if (zone === 'torso' || this.bleed > 0 || this.downed) this.bloodied = true;
     if (blast > 0) this.uniformRuined = true;

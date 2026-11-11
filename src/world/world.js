@@ -125,6 +125,7 @@ export class World {
 
   setupSkyAndLight(renderer) {
     const scene = this.scene;
+    this.renderer = renderer;
     const L = { ...LIGHT, ...activeMap().light };
     this.sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(L.zenith), THREE.MathUtils.degToRad(L.azimuth));
     renderer.toneMappingExposure = L.exposure;
@@ -157,7 +158,8 @@ export class World {
     const fog = activeMap().fog;          // a misty map brings the fog in close
     scene.fog = fog?.density ? new THREE.FogExp2(fog.color, fog.density) : new THREE.Fog(fog?.color ?? 0xb9c6cc, fog?.near ?? 320, fog?.far ?? 1600);
     setAtmosphere(this.sunDir, L.sun);
-    scene.add(new THREE.HemisphereLight(L.hemiSky, L.hemiGround, L.hemi));
+    this.hemi = new THREE.HemisphereLight(L.hemiSky, L.hemiGround, L.hemi);
+    scene.add(this.hemi);
 
     const sun = new THREE.DirectionalLight(L.sun, L.sunIntensity);
     sun.castShadow = true;
@@ -168,6 +170,32 @@ export class World {
     sun.shadow.normalBias = 0.6;
     scene.add(sun, sun.target);
     this.sun = sun;
+  }
+
+  // The light changed during play (evening falls: main.js nightfall, after the map's light and fog
+  // were set to dusk's): the sun, the sky and what it lights, the haze, all moved to the map's
+  // settings as they stand now. The sky is baked again for the reflections, so this costs a moment:
+  // it is done behind a fade.
+  relight() {
+    const scene = this.scene, renderer = this.renderer, L = { ...LIGHT, ...activeMap().light }, u = this.sky.material.uniforms;
+    this.sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(L.zenith), THREE.MathUtils.degToRad(L.azimuth));
+    renderer.toneMappingExposure = L.exposure;
+    u.turbidity.value = L.turbidity; u.rayleigh.value = L.rayleigh; u.cloudCoverage.value = L.clouds;
+    u.sunPosition.value.copy(this.sunDir);
+    const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
+    envScene.add(this.sky.clone());
+    scene.environment?.dispose?.();
+    scene.environment = pmrem.fromScene(envScene, 0, 1, 5000).texture;
+    scene.environmentIntensity = L.env;
+    setEnvironment(scene.environment, L.env);
+    pmrem.dispose();
+    const fog = activeMap().fog;
+    if (scene.fog?.isFog) { scene.fog.color.set(fog?.color ?? 0xb9c6cc); scene.fog.near = fog?.near ?? 320; scene.fog.far = fog?.far ?? 1600; }
+    else if (scene.fog) scene.fog.color.set(fog?.color ?? 0xb9c6cc);
+    setAtmosphere(this.sunDir, L.sun);
+    this.hemi.color.set(L.hemiSky); this.hemi.groundColor.set(L.hemiGround); this.hemi.intensity = L.hemi;
+    this.sun.color.set(L.sun); this.sun.intensity = L.sunIntensity;
+    return L;
   }
 
   // Keep the shadow box centred on what the player is looking at.

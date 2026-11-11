@@ -2,6 +2,7 @@
 // climbing (Space: mantle onto a ledge or wall, get on a ladder) and heart rate.
 // Look is applied per render frame from raw mouse deltas; movement runs at the fixed step.
 import * as THREE from 'three';
+import { perkK } from '../core/perks.js';
 import { STEP } from '../world/world.js';
 import { climbRise, vaultAt } from '../world/characters.js';
 import { level } from '../core/difficulty.js';
@@ -143,7 +144,7 @@ export class Player {
 
     // Heart rate: climbs fast with effort, settles slowly at rest.
     const target = this.sprinting ? 168 : this.climb ? 110 : this.moving ? st.moveHR : st.restHR;
-    const rate = target > this.heartRate ? 16 : 4.5;
+    const rate = target > this.heartRate ? 16 : 4.5 * perkK('calmHeart');
     this.heartRate += Math.sign(target - this.heartRate) * Math.min(Math.abs(target - this.heartRate), rate * dt);
 
     if (this.moving) {
@@ -167,10 +168,10 @@ export class Player {
     this.sprinting = wantsSprint && this.stance === 'stand';
 
     const st = STANCES[this.stance];
-    let speed = this.sprinting ? st.sprint : st.walk;
+    let speed = this.sprinting ? st.sprint * perkK('sprinter') : st.walk * (this.stance === 'stand' ? 1 : perkK('quickCrawl'));   // (what you've learnt: core/perks.js)
     if (aiming) speed *= 0.55;
     if (this.carrying) speed *= 0.45; // dragging a body
-    speed *= 1 - 0.55 * Math.min(1, depth / 1.1);
+    speed *= 1 - 0.55 * perkK('sureFoot') * Math.min(1, depth / 1.1);
 
     // Wish direction in world space (yaw 0 faces -z).
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);

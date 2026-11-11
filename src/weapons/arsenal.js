@@ -6,6 +6,7 @@ import { throughCover, weakened } from './penetration.js';
 import { WEAPONS, SIGHT_HEIGHT, BINOCULARS, WIND_EFFECT, AMMO, HEAVY_AMMO, buildWeapon } from './defs.js';
 import { weaponPicture } from '../ui/weapon-pictures.js';
 import { level } from '../core/difficulty.js';
+import { perkK } from '../core/perks.js';
 
 const STANCE_SWAY = { stand: 0.0036, crouch: 0.0024, prone: 0.001 }; // radians
 const BULLET_SUBSTEPS = 6;
@@ -362,7 +363,7 @@ export class Arsenal {
       if (!this.holding) this.audio.breathIn();
       this.holding = true;
       // Lungs run out faster when the heart is racing.
-      const duration = THREE.MathUtils.clamp(6.5 - (this.player.heartRate - 70) / 22, 2.5, 6.5) * (this.def.breathScale ?? 1); // a cheek-rest stock helps
+      const duration = THREE.MathUtils.clamp(6.5 - (this.player.heartRate - 70) / 22, 2.5, 6.5) * (this.def.breathScale ?? 1) * perkK('deepBreath'); // a cheek-rest stock helps (and what you've learnt: core/perks.js)
       this.breath -= dt / duration;
       if (this.breath <= 0) {
         this.breath = 0;
@@ -684,7 +685,7 @@ export class Arsenal {
     if (s) {
       if (this.tagCandidate !== s) { this.tagCandidate = s; this.tagT = 0; }
       this.tagT += dt;
-      if (this.tagT > 0.35) {
+      if (this.tagT > 0.35 * perkK('keenEye')) {
         s.tagged = true;
         this.audio.click(0, 900, 0.2);
         this.onTag?.(s);
@@ -719,7 +720,7 @@ export class Arsenal {
     this.swayT += dt;
     const hr = p.heartRate;
     const hrFactor = Math.max(0, hr - 100) / 50;
-    let amp = STANCE_SWAY[p.stance] * hrFactor * (p.moving ? 2.2 : 1) * (this.def.swayScale ?? 1);
+    let amp = STANCE_SWAY[p.stance] * hrFactor * (p.moving ? 2.2 : 1) * (this.def.swayScale ?? 1) * perkK('steadyHands');
     if (this.current === 'pistol') amp *= 1.4;
     const holdTarget = this.holding ? 0.1 : this.exhaustedT > 0 ? 2.2 : 1;
     this.swayScale += (holdTarget - this.swayScale) * (1 - Math.exp(-(this.holding ? 5 : 3) * dt));

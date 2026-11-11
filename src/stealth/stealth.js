@@ -7,6 +7,7 @@ import { inTallGrass } from '../world/vegetation.js';
 import { activeMap } from '../world/terrain.js';
 import { inBeam } from '../world/flashlights.js';
 import { level } from '../core/difficulty.js';
+import { perkK } from '../core/perks.js';
 
 const STEP_NOISE = { stand: 8, crouch: 3.5, prone: 1.2 };      // metres, walking
 const SPRINT_NOISE = 20;
@@ -17,6 +18,7 @@ const SUSPICIOUS = 0.45;
 const MASKED_SHOT = 0.12;        // a fully masked shot carries 12% as far
 const CALM_DOWN = 14;            // seconds without news before a suspicious guard relaxes
 const ALERT_HOLD = 45;           // seconds an alerted guard stays alerted (Phase 5: searching)
+const CRY_RADIUS = 40;          // metres a dying man's cry carries (his fall: 9; the Welrod: 10)
 const SHOUT = 40;                // an alerted guard alerts others this close
 // Concealed in tall grass (crouched or prone), a guard can't make you out beyond this
 // (metres; half as far again while you move). Inside it, you're merely hard to see.
@@ -72,7 +74,7 @@ export class Stealth {
     if (!p.moving || p.underground) return 0;
     const r = p.sprinting ? SPRINT_NOISE : STEP_NOISE[p.stance] * Math.min(1.3, p.speed / 2.5 + 0.4);
     // Broken glass underfoot (world/alarms.js) carries; the garrison may be listening harder.
-    return r * (this.alarms?.glassAt(p.pos) ? 2.4 : 1) * this.earsK * level(this.settings, 'guards').hearing * (1 - 0.7 * this.mask.amount);
+    return r * perkK('softStep') * (this.alarms?.glassAt(p.pos) ? 2.4 : 1) * this.earsK * level(this.settings, 'guards').hearing * (1 - 0.7 * this.mask.amount);
   }
 
   // ---- noise events ----
@@ -94,6 +96,19 @@ export class Stealth {
       if (Math.cos(Math.atan2(to.x, to.z) - s.root.rotation.y) < Math.cos(1.3)) continue;
       this.raise(s, 'suspicious', at.clone().setY(this.world.groundAt(at.x, at.z)), 'glimpse');
     }
+  }
+
+  // A man shot anywhere but the head has time to cry out as he goes down, and that carries much
+  // further than his fall, or than the silent pistol or a shot under a covering noise: the guards
+  // within earshot come to look, and find him. A head shot, a knife, a man who bled out or was blown up makes no such sound: the clean
+  // kill is the quiet one. (Heard less far under a covering noise, like everything else.)
+  deathCry(b, at) {
+    if (b.quietDeath || b.bledOut || b.deathBlast || b.deathZone === 'head' || b.deathZone === 'neck') return false;
+    const r = CRY_RADIUS * level(this.settings, 'guards').hearing * (1 - 0.7 * this.masking.loudnessAt(at).amount);
+    this.audio.shout?.('medic', at.distanceTo(this.player.pos));      // (the wounded man's call: there is no cry of its own yet)
+    this.noise(at, r, 'cry');
+    b.cried = true;
+    return true;
   }
 
   noise(pos, radius, kind) {
@@ -161,6 +176,7 @@ export class Stealth {
       b.hidden = inTallGrass(this.world.grassPatches, bp.x, bp.z);
       b.diedAt = bp.clone().setY(this.world.floorAt(bp.x, bp.z, bp.y + 0.5));   // (his blood stays here if he's moved: clues.js)
       this.noise(bp, b.quietDeath ? 2 : 9, 'body'); // a takedown lowers him down almost silently
+      this.deathCry(b, bp);
     }
 
     for (const s of this.guards()) {

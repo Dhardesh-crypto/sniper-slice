@@ -3,11 +3,17 @@
 // reinforcements can be called, and take his papers; then get back to the start hill.
 // Also keeps the score for the end screen.
 import * as THREE from 'three';
-import { START_HILL, COMPOUND } from '../world/terrain.js';
+import { START_HILL, COMPOUND, PLAY_HALF_X, PLAY_HALF_Z, inPlayArea, waterAt, activeMap } from '../world/terrain.js';
 import { tickObjectives, objectiveMarkers } from './objectives.js';
 
 const RADIO_TIME = 2.4;     // seconds holding E at the radio truck
 const EXTRACT_RADIUS = 10;
+// The escape (once the job is done and the pick-ups open): its own part of the mission. Leave
+// unheard and you walk out. Let the alarm go up, before or after, and the way you'd be expected
+// to leave is watched (that pick-up closes), more men are called in, and after a while the
+// partisans open one last way out on the side furthest from the garrison.
+const ESCAPE_CALL = 40;      // s of alarm during the escape before more men are sent for
+const ESCAPE_LAST = 75;      // s of alarm before the last way out opens
 
 // def (from the mission module): { target: name, objectives: [...], extraction: {x, z},
 //   targetArea: {x, z} (marker until the target is tagged), killText, tick(mission, dt) }.
@@ -98,17 +104,61 @@ export class Mission {
       if (!killedNow || off.optional) this.hud.message(this.def.extractText ?? 'ALL DONE · GET TO THE PICK-UP', '');   // (a kill message already says so)
     }
     if (!ex.hidden) {
+      this.tickEscape(dt);
       // Green smoke marks the pick-up.
       this.smokeT -= dt;
       if (this.smokeT <= 0) {
         this.smokeT = 0.35;
-        for (const pk of this.pickups) this.fx.emit(pk.at.clone().setY(pk.at.y + 0.5), new THREE.Vector3(0, 1, 0), { color: 0x7fbf6a, count: 2, speed: 2.5, size: 3, life: 7, grow: 2.5, gravity: -0.3 });
+        for (const pk of this.pickups) if (!pk.closed) this.fx.emit(pk.at.clone().setY(pk.at.y + 0.5), new THREE.Vector3(0, 1, 0), { color: 0x7fbf6a, count: 2, speed: 2.5, size: 3, life: 7, grow: 2.5, gravity: -0.3 });
       }
-      if (!this.player.dead && this.pickups.some(pk => Math.hypot(this.player.pos.x - pk.at.x, this.player.pos.z - pk.at.z) < EXTRACT_RADIUS)) {
+      if (!this.player.dead && this.pickups.some(pk => !pk.closed && Math.hypot(this.player.pos.x - pk.at.x, this.player.pos.z - pk.at.z) < EXTRACT_RADIUS)) {
         ex.done = true;
         this.finish();
       }
     }
+  }
+
+  tickEscape(dt) {
+    // (begun here, not at the kill: a loaded game picks it up again where it stands)
+    const e = this.escape ??= { hot: false, hotT: 0, called: false, last: false, alarms: this.ai.alarm.count };
+    // (the siren sounding now, or one raised since the escape began)
+    if (!e.hot && (this.stealth.alarm || this.ai.alarm.count > e.alarms)) {
+      e.hot = true;
+      const open = this.pickups.filter(pk => !pk.closed);
+      if (open.length > 1) {
+        // The one nearest the garrison goes: that is where they look first.
+        const c = activeMap().focus ?? COMPOUND;
+        const lost = open.reduce((a, b) => (Math.hypot(a.at.x - c.x, a.at.z - c.z) < Math.hypot(b.at.x - c.x, b.at.z - c.z) ? a : b));
+        lost.closed = true;
+        this.hud.message(`THE ALARM IS UP · THEY ARE WATCHING ${lost.name === 'EXTRACTION' ? 'THE WAY YOU CAME' : lost.name} · TAKE ANOTHER WAY OUT`, 'wound');
+      } else this.hud.message('THE ALARM IS UP · GET OUT', 'wound');
+    }
+    if (!e.hot) return;
+    e.hotT += dt;
+    if (!e.called && e.hotT > ESCAPE_CALL) {
+      e.called = true;
+      if (!this.ai.reinforced && !this.ai.radioDown) { this.ai.sendTruck?.({ quiet: true }); this.hud.message('MORE OF THEM ARE COMING · KEEP MOVING', 'wound'); }
+    }
+    if (!e.last && e.hotT > ESCAPE_LAST) {
+      e.last = true;
+      const at = this.lastWayOut();
+      if (at) { this.pickups.push({ at, name: "PARTISANS' WAY OUT" }); this.hud.message("THE PARTISANS HAVE OPENED ONE LAST WAY OUT · FOLLOW THE SMOKE", ''); }
+    }
+  }
+
+  // Where the partisans wait: of sixteen spots round the edge of the playable ground, the dry one
+  // furthest from every living guard (and at least 150 m from the pick-ups there already are).
+  lastWayOut() {
+    const guards = this.world.soldiers.filter(s => s.alive && !s.range).map(s => s.root.position);
+    let best = null, bd = 0;
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * Math.PI * 2, x = Math.cos(a) * PLAY_HALF_X * 0.86, z = Math.sin(a) * PLAY_HALF_Z * 0.86;
+      if (!inPlayArea(x, z) || waterAt(x, z) != null) continue;
+      if (this.pickups.some(pk => Math.hypot(pk.at.x - x, pk.at.z - z) < 150)) continue;
+      const d = Math.min(...guards.map(g => Math.hypot(g.x - x, g.z - z)), 1e4);
+      if (d > bd) { bd = d; best = new THREE.Vector3(x, this.world.groundAt(x, z), z); }
+    }
+    return best;
   }
 
   // The pick-up points: any of them ends the mission once it's open (the start, and the other
@@ -165,6 +215,7 @@ export class Mission {
         ['Times spotted', String(s.spotted)],
         ['Bodies found', String(s.bodiesFound)],
         ['Alarms raised', String(alarms)],
+        ['Escape', !this.escape ? '–' : this.escape.hot ? (this.escape.last ? 'Under alarm, by the last way out open' : 'Under alarm') : 'Unheard'],
       ],
     };
   }
@@ -186,7 +237,7 @@ export class Mission {
     if (this.obj('papers') && this.officer && !this.officer.alive && !this.obj('papers').done) out.push({ pos: this.officer.bodyPosition(), kind: 'papers', label: 'PAPERS', height: 1.2 });
     for (const k of objectiveMarkers(this)) out.push({ ...k, pos: new THREE.Vector3(k.pos.x, k.pos.y, k.pos.z) });
     for (const m of this.def.markers?.(this) ?? []) out.push(m);
-    if (!this.obj('extract').hidden) for (const pk of this.pickups) out.push({ pos: pk.at, kind: 'extract', label: pk.name, height: 3 });
+    if (!this.obj('extract').hidden) for (const pk of this.pickups) if (!pk.closed) out.push({ pos: pk.at, kind: 'extract', label: pk.name, height: 3 });
     return out;
   }
 }

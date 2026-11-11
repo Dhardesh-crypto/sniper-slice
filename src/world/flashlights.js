@@ -20,7 +20,14 @@ export class Flashlights {
     Object.assign(this, { scene, world, player });
     this.torches = [];
     this.lights = [];
-    if (!activeMap().dusk) return;
+    if (activeMap().dusk) this.light();
+  }
+
+  // Lit: from the start on a dusk run, or when evening falls during a mission (main.js nightfall).
+  light() {
+    if (this.lit) return;
+    this.lit = true;
+    const { scene, world, player } = this;
     const geo = new THREE.ConeGeometry(Math.tan(ANGLE) * REACH, REACH, 16, 1, true);
     geo.translate(0, -REACH / 2, 0);
     const pos = geo.attributes.position, fade = new Float32Array(pos.count);

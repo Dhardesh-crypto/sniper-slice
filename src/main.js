@@ -73,6 +73,8 @@ import { CAMPAIGN, currentMissionId, chooseMission, missionById } from './missio
 import { STORY, HANDLER, storyLine } from './missions/story.js';
 import { useMap } from './world/terrain.js';
 import { plantProps } from './world/biomes.js';
+import { duskOf } from './world/conditions.js';
+import { Flyover, flyoverCaptions } from './ui/flyover.js';
 import { HEAVY_AMMO, CATALOG } from './weapons/defs.js';
 import { horizonReady } from './world/horizon.js';
 import { LoadoutUI } from './ui/loadout.js';
@@ -240,6 +242,7 @@ const applyLoadout = (lo) => { arsenal.equip(lo); avatar.setWeapons(lo, arsenal)
 applyLoadout(profile.loadout);
 const pickups = new Pickups({ scene, world, player, input, audio, stealth, hud, profile });
 pickups.onPart = () => { mission.stats.parts = (mission.stats.parts ?? 0) + 1; };
+pickups.onPerk = () => { mission.stats.perk = true; };   // (the mission's hidden find: core/perks.js)
 // Heavy weapons: you can take ammunition for the ones you have; a found one goes into the slot.
 arsenal.heavyOwned = (id) => profile.ownsWeapon(id);
 pickups.onHeavy = (id) => { profile.setWeapon('heavy', id); applyLoadout(profile.loadout); };
@@ -453,6 +456,9 @@ arsenal.onTag = (s) => { hud.message(`TAGGED · ${s.label ? s.label() : s.name.t
 let timeScale = 1, slowmoT = 0;
 arsenal.onKill = (e) => {
   if (!killCam.active) slowmoT = 0.55;
+  // Mastery (core/profile.js): at 10, 25 and 50 kills a weapon earns a part for its kind.
+  const earned = profile.addKill(arsenal.def?.id);
+  if (earned) hud.message(`MASTERY · ${(CATALOG[arsenal.def.id]?.name ?? '').toUpperCase()} · ${earned.kills} KILLS · ${earned.part ? `PART EARNED: ${earned.part.name.toUpperCase()}` : 'EVERY PART IS YOURS ALREADY'}`, 'head');
   if (e.kills >= 2) hud.message(e.kills >= 3 ? 'TRIPLE KILL' : 'DOUBLE KILL', 'head');   // one round through two (or three) men
 };
 
@@ -601,7 +607,8 @@ input.onLockChange = (locked) => {
     takeStart();        // the way in chosen in the Mission tab
     renderApproaches();
     loadLater();        // what the mission didn't need to start (the end of this file)
-    if (chosenStart() === 'start') tutorial.begin();   // the first mission's training, the first time (mission/tutorial.js): on the start hill only
+    const train = () => { if (chosenStart() === 'start') tutorial.begin(); };   // the first mission's training, the first time (mission/tutorial.js): on the start hill only
+    if (!loadedSlot && !new URLSearchParams(location.search).has('nofly')) startFlyover(train); else train();
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
   menuPaused = !locked && !mapView.open && !over && !benchOpen;
@@ -654,6 +661,38 @@ const approaches = findApproaches(world);
 const START_KEY = `sniper-slice.start.${missionId}`;
 const chosenStart = () => { try { return sessionStorage.getItem(START_KEY) || 'start'; } catch { return 'start'; } };
 mission.setPickups(approaches);
+// The fly-over of this mission's land before you set out (ui/flyover.js): on a new mission, not a
+// loaded game; ?nofly in the address leaves it out.
+const flyover = new Flyover({ world, post });
+function startFlyover(then) {
+  const a = approaches.find(x => x.id === chosenStart()) ?? approaches[0], c = activeMap().focus;
+  const hide = (v) => { for (const id of ['hud', 'markers']) document.getElementById(id).style.visibility = v; };
+  hide('hidden');
+  flyover.begin({ from: a.at, to: c, captions: flyoverCaptions({ title: mission.title, side: a.side, target: mission.officer?.name }),
+    onEnd: () => { hide(''); input.consume(); then?.(); } });
+}
+// Evening falls during a mission that says so (its def's `evening: { at: seconds }`), on a run
+// that began in its briefed daylight: the day is for looking (they see you from further off, but
+// you see everything), the dusk for the shot (they see a quarter less far; the searchlights and
+// the guards' torches come on, and a beam finds you even in tall grass). A minute's warning, then
+// a short fade, behind which the light is changed and the lamps are lit.
+let eveningWarned = false, eveningFalling = false;
+function nightfall() {
+  if (eveningFalling) return;
+  eveningFalling = true;
+  let veil = document.getElementById('evening');
+  if (!veil) { veil = document.createElement('div'); veil.id = 'evening'; veil.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;transition:opacity .9s;pointer-events:none;z-index:30'; document.body.appendChild(veil); }
+  veil.style.opacity = '1';
+  setTimeout(() => {
+    Object.assign(activeMap(), duskOf(activeMap()));
+    const L = world.relight();
+    post.setGrade(L.warmth, L.saturation);
+    searchlights.light(); flashlights.light();
+    renderer.shadowMap.needsUpdate = true;
+    veil.style.opacity = '0';
+    hud.message('EVENING · THEY SEE LESS FAR NOW · THE LAMPS ARE LIT: KEEP OUT OF THE BEAMS', '');
+  }, 950);
+}
 function takeStart() {
   const a = approaches.find(x => x.id === chosenStart());
   if (loadedSlot || !a || a.id === 'start') return;
@@ -692,6 +731,11 @@ const avatarPos = new THREE.Vector3();   // (reused every frame: the avatar copi
 let paused = false;
 
 function tick(dt) {
+  const ev = mission.def.evening;
+  if (ev && !activeMap().dusk && conditions.kind === 'briefed' && !mission.done) {
+    if (!eveningWarned && mission.time > ev.at - 60) { eveningWarned = true; if (mission.time < ev.at) hud.message('THE LIGHT IS GOING · IN A MINUTE THEY SEE LESS FAR, AND THE LAMPS COME ON', ''); }
+    if (mission.time > ev.at) nightfall();
+  }
   if (input.wasPressed('F3')) ai.pathLines.visible = hud.debugOn = !hud.debugOn;
   if (input.wasPressed('F5')) { const r = saves.save('quick'); hud.message(r.ok ? 'QUICK SAVED' : `CAN'T SAVE: ${r.why.toUpperCase()}`, r.ok ? '' : 'wound'); }
   if (input.wasPressed('F9')) { if (!saves.load('quick')) hud.message('NO QUICK SAVE YET', 'wound'); }
@@ -833,6 +877,28 @@ function step(realDt, draw = true) {
     killCam.render(renderer, post);
     hud.update(realDt, { camera, player, arsenal, world, fps });
     return;
+  }
+
+  // The fly-over before you set out: no control, the world idles under the camera.
+  if (flyover.active && !forceRun) {
+    if (input.pressed.size) flyover.skip();
+    input.consume();
+    input.takeMouse();
+    if (flyover.active) {
+      const cam = flyover.frame(realDt);
+      if (flyover.active) {
+        world.tick(realDt);
+        fx.update(realDt);
+        avatar.root.visible = false;
+        if (!draw) return;
+        renderer.shadowMap.needsUpdate = (shadowFrame++ & 1) === 0;
+        world.cullTrees(cam.position, 1);
+        world.nearGrass.update(cam.position.x, cam.position.z);
+        world.focusShadows(flyover.to);
+        post.setCamera(cam); post.draw(); post.setCamera(camera);
+        return;
+      }
+    }
   }
 
   // Kill slow-mo: drop to 25% speed, then ease back to full speed.
@@ -1002,11 +1068,13 @@ async function loadLater() {
 window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   counterfire, clues, alarms, orders,
+  flyover, conditions, activeMap, nightfall,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench, tutorial, padNav,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },
   // Run the game synchronously for `seconds` at `rate` fps (for testing while the tab is in the background).
   advance(seconds, rate = 60) {
+    flyover.skip();
     renderer.setAnimationLoop(null);
     const n = Math.round(seconds * rate);
     forceRun = true;

@@ -2,6 +2,11 @@
 // loadout you last chose. Kept in the browser, separate from mission saves: a part you pick
 // up is yours from that moment, whether you finish the mission, restart it or die.
 import { CATALOG, PARTS, STARTING_WEAPONS } from '../weapons/defs.js';
+import { usePerks } from './perks.js';
+
+// Mastery: kills with one weapon at which it earns you a part for its kind (rifle or pistol) that
+// you haven't found yet. Use a weapon and it gets better, without a toolbox.
+export const MASTERY = [10, 25, 50];
 
 const KEY = 'sniper-slice.profile';
 const VERSION = 1;
@@ -22,6 +27,7 @@ export class Profile {
       const d = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (d?.version === VERSION) this.data = { ...fresh(), ...d, weapons: { ...fresh().weapons, ...d.weapons } };
     } catch { /* storage blocked or corrupt: start fresh */ }
+    usePerks(this.data.perks);
   }
 
   save() {
@@ -98,6 +104,32 @@ export class Profile {
   get challengeCount() { return Object.values(this.data.challenges ?? {}).reduce((n, l) => n + l.length, 0); }
   get habits() { return this.data.habits ?? {}; }
   setHabits(h) { this.data.habits = h; this.save(); }
+
+  // What you've learnt for good (core/perks.js: one hidden on each mission's map).
+  hasPerk(id) { return !!this.data.perks?.[id]; }
+  addPerk(id) {
+    if (this.hasPerk(id)) return false;
+    (this.data.perks ??= {})[id] = true;
+    usePerks(this.data.perks); this.save();
+    return true;
+  }
+
+  // Kills with each weapon. Returns what the kill earned, if it reached a mastery step:
+  // { kills, part } (part: the one unlocked, or null if you already have them all).
+  kills(weaponId) { return this.data.mastery?.[weaponId] ?? 0; }
+  addKill(weaponId) {
+    if (!CATALOG[weaponId]) return null;
+    const n = ((this.data.mastery ??= {})[weaponId] = this.kills(weaponId) + 1);
+    let earned = null;
+    if (MASTERY.includes(n)) {
+      const mine = Object.values(PARTS[CATALOG[weaponId].slot] ?? {}).flat().filter(p => !p.stock && !this.data.parts[p.id]);
+      const part = mine[0] ?? null;
+      if (part) this.data.parts[part.id] = true;
+      earned = { kills: n, part };
+    }
+    this.save();
+    return earned;
+  }
 
   get loadout() { return this.data.loadout; }
 }

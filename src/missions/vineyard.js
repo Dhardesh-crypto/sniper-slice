@@ -95,6 +95,6 @@ export default {
     const boxes = [...c.boxes, ...r.boxes, ...w.boxes], d = dressProps(scene, dressing(), heightAt, boxes, vehicleModel);
     return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...w.solids, ...d.solids], boxes: [...boxes, ...d.boxes], spawn: r.spawn };
   },
-  def: {},            // the original objectives (see mission.js)
+  def: { evening: { at: 420 } },            // the original objectives (see mission.js); evening falls seven minutes in (main.js nightfall)
   intel: placeVineyardIntel,
 };

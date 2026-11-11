@@ -14,6 +14,8 @@ import { COMPOUND, H_COMPOUND, START_HILL, heightAt, roadCenterZ, activeMap } fr
 import { CATALOG, HEAVY_AMMO } from '../weapons/defs.js';
 import { takeSupplies } from '../player/supplies.js';
 import { PickupModels } from './pickup-models.js';
+import { PERKS, perkOf, perkK } from '../core/perks.js';
+import { inPlayArea, waterAt } from './terrain.js';
 
 // What each kind of supply cache holds (rolled when you open it).
 const SUPPLY = {
@@ -107,6 +109,10 @@ export class Pickups {
       scene.add(b.model);
       this.boxes.push(b);
     }
+    // The mission's hidden find (core/perks.js): a partisan's cache, last in the list (so a saved
+    // game's box numbers stay as they were), not shown on the map: you come across it.
+    const cache = this.hiddenCache(on);
+    if (cache) { cache.model = this.models.add('toolbox', cache.at, 0.7); this.boxes.push(cache); }
     this.benches = layout.benches;
     for (const b of this.benches) b.model = this.models.add('bench', b.at, Math.PI / 2);
     this.models.finish();
@@ -114,6 +120,24 @@ export class Pickups {
     this.progress = 0;
     this.onBench = null;          // () => void: open the workbench screen
     this.onPart = null;           // (part) => void, for the mission stats
+  }
+
+  // Where the hidden find lies: in the tall-grass patch nearest the garrison that is still 60 m
+  // from every guard (close enough to be a risk, hidden enough to be missed), dry, on the playable
+  // ground, 12 m from any other box and 120 m from where you start: the same place every run. None on a map with no such patch, or a mission without a perk.
+  hiddenCache(on) {
+    const id = perkOf(activeMap().id);
+    if (!id) return null;
+    const w = this.world, guards = w.soldiers.filter(s => !s.range).map(s => s.root.position), c = activeMap().focus ?? COMPOUND;
+    let best = null, bd = 0;
+    for (const p of w.grassPatches ?? []) {
+      if (!inPlayArea(p.x, p.z) || waterAt(p.x, p.z) != null) continue;
+      if (guards.some(g => Math.hypot(g.x - p.x, g.z - p.z) < 60) || this.boxes.some(b => Math.hypot(b.at.x - p.x, b.at.z - p.z) < 12)) continue;
+      if (Math.hypot(p.x - w.spawn.x, p.z - w.spawn.z) < 120) continue;
+      const d = 1e4 - Math.hypot(p.x - c.x, p.z - c.z);
+      if (d > bd) { bd = d; best = p; }
+    }
+    return best && { kind: 'perk', perk: id, where: 'hidden in tall grass', at: on(best.x, best.z), opened: false };
   }
 
   near() {
@@ -143,7 +167,7 @@ export class Pickups {
     }
     if (b.kind === 'tool') { if (this.input.wasPressed('KeyE')) this.open(b); return; }
     if (this.input.down('KeyE') && !p.moving) {
-      this.progress += dt / (this.tools.has('crowbar') ? CROWBAR_TIME : OPEN_TIME);
+      this.progress += dt / ((this.tools.has('crowbar') ? CROWBAR_TIME : OPEN_TIME) * perkK('quickHands'));
       if (this.progress >= 1) this.open(b);
     } else this.progress = 0;
   }
@@ -174,6 +198,12 @@ export class Pickups {
     this.models.open(b.model);
     this.stealth.noise(b.at.clone(), quiet, 'rustle');
     this.audio.pickup();
+    if (b.kind === 'perk') {
+      const k = PERKS[b.perk];
+      this.hud.message(this.profile.addPerk(b.perk) ? `PARTISAN'S CACHE · YOU LEARN: ${k.name.toUpperCase()} · ${k.info.toUpperCase()} · KEPT FOR GOOD` : `PARTISAN'S CACHE · ${k.name.toUpperCase()}: YOU KNOW IT ALREADY`, 'head');
+      this.onPerk?.(b.perk);
+      return;
+    }
     if (b.kind === 'weapon') {
       const w = CATALOG[b.weapon];
       if (w.slot === 'heavy') {
@@ -269,7 +299,7 @@ export class Pickups {
   // For the map: unopened boxes and the benches.
   markers() {
     return [
-      ...this.boxes.filter(b => !b.opened && ((b.kind !== 'supply' && b.kind !== 'tool') || b.seen)).map(b => ({ pos: b.at, kind: b.kind === 'supply' || b.kind === 'tool' ? 'supply' : b.kind === 'weapon' ? 'crate' : 'toolbox' })),
+      ...this.boxes.filter(b => !b.opened && b.kind !== 'perk' && ((b.kind !== 'supply' && b.kind !== 'tool') || b.seen)).map(b => ({ pos: b.at, kind: b.kind === 'supply' || b.kind === 'tool' ? 'supply' : b.kind === 'weapon' ? 'crate' : 'toolbox' })),
       ...this.benches.map(b => ({ pos: b.at, kind: 'bench' })),
     ];
   }

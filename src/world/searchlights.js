@@ -15,7 +15,14 @@ export class Searchlights {
   constructor({ scene, world, player, stealth, hotspots, audio, hud }) {
     Object.assign(this, { scene, world, player, stealth, hotspots, audio, hud });
     this.lights = [];
-    if (!activeMap().dusk) return;
+    if (activeMap().dusk) this.light();
+  }
+
+  // Lit: from the start on a dusk run, or when evening falls during a mission (main.js nightfall).
+  light() {
+    if (this.lit) return;
+    this.lit = true;
+    const { scene, world } = this;
     const heads = [];
     scene.traverse(o => {
       if (o.userData?.propKey !== 'searchlight') return;

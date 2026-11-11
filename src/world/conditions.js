@@ -36,6 +36,22 @@ export function pickConditions(map, seed, season = 'random') {
   return { kind: c.kind, label, winter: true, snowing };
 }
 
+// Dusk, as settings for a map: the sun on the hills, the sky going from orange to blue; the
+// searchlights come on. A strong blue fill from the sky keeps the trees and the grass readable in
+// the foreground. Drawn as a run's weather (below), or fallen during a mission that starts by day
+// (a mission's `evening`: main.js nightfall): the same evening either way.
+export function duskOf(map) {
+  const L = { ...LIGHT, ...map.light };
+  const fog = new THREE.Color(map.fog?.color ?? 0xb9c6cc).lerp(new THREE.Color(0x8c7c84), 0.6).multiplyScalar(0.72);
+  return {
+    light: { ...L, zenith: 87, sun: 0xff8448, sunIntensity: L.sunIntensity * 0.45, turbidity: 9, rayleigh: 3.4, clouds: 0.45,
+      hemi: (L.hemi ?? 0.5) * 1.6, hemiSky: 0x8c9cc4, hemiGround: 0x5a4c3e, env: (L.env ?? 0.22) * 1.35, exposure: (L.exposure ?? 0.85) + 0.25,
+      warmth: (L.warmth ?? 1) + 0.4 },   // (the low sun warms the grade)
+    fog: { color: fog.getHex(), near: 220, far: 1300 },
+    horizonFade: 0.55, sightScale: 0.75, dusk: true,
+  };
+}
+
 function pickWeather(map, seed) {
   const rnd = seeded(seed ^ 0x51ed27);
   // A map written with mist or rain of its own (the forest) keeps it; the dawn mist map can't have more.
@@ -58,16 +74,7 @@ function pickWeather(map, seed) {
     map.sightScale = wet ? 0.75 : 0.95;
     if (wet) map.weather = { ...map.weather, rain: 0.75 };
   } else if (kind === 'dusk') {
-    // The sun on the hills, the sky going from orange to blue; the searchlights come on. A strong
-    // blue fill from the sky keeps the trees and the grass readable in the foreground.
-    map.light = { ...L, zenith: 87, sun: 0xff8448, sunIntensity: L.sunIntensity * 0.45, turbidity: 9, rayleigh: 3.4, clouds: 0.45,
-      hemi: (L.hemi ?? 0.5) * 1.6, hemiSky: 0x8c9cc4, hemiGround: 0x5a4c3e, env: (L.env ?? 0.22) * 1.35, exposure: (L.exposure ?? 0.85) + 0.25,
-      warmth: (L.warmth ?? 1) + 0.4 };   // (the low sun warms the grade)
-    fog.lerp(new THREE.Color(0x8c7c84), 0.6).multiplyScalar(0.72);
-    map.fog = { color: fog.getHex(), near: 220, far: 1300 };
-    map.horizonFade = 0.55;
-    map.sightScale = 0.75;
-    map.dusk = true;
+    Object.assign(map, duskOf(map));
   } else {
     map.light = { ...L, sunIntensity: L.sunIntensity * 0.8, exposure: (L.exposure ?? 0.85) + 0.05, warmth: (L.warmth ?? 1) * 0.6, saturation: (L.saturation ?? 1.08) * 0.95 };   // (mist: a cooler, softer grade)
     fog.lerp(new THREE.Color(0xd4d8d6), 0.5);
