@@ -8,6 +8,8 @@
 // with the safe, the records room), rows of terraced houses with alleys and some flat roofs you
 // can climb to, and the old walls with the west gate where the road comes up.
 import * as THREE from 'three';
+import { compose, plateau, terraces, riverBed, sunkenLane, roadBed, fall } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder, sirenPole, plasterFor } from '../world/kit.js';
 import { houseLook } from '../world/arch.js';
@@ -145,6 +147,32 @@ function shelledBlock(b, y, P) {
   ruinPiece(b, 'beam', wx0 + 10.6, y + 1.3, zS + 5, [0.2, 0.7, 0.5], 1);
 }
 
+// The valley round the town's hill, made from the terrain kit (world/landforms.js); the town, the
+// road, the farm lane, the farm, the crossroads and the lookout's knoll are as they were:
+//   a river down the valley east of the town, shallow enough to wade anywhere, reeds on its banks;
+//   across it, on a rise due east of the piazza, the old windmill (a ladder inside to a loft whose
+//   west window looks at the town's east wall and gate over the river, 240 m off);
+//   olive terraces on the slope south-east of the walls; a sunken lane from the river up toward
+//   the east gate; a ruined farm north-west of the town with a ladder to its boards.
+const MILL = { x: 392, z: -60 }, RUIN = { x: -92, z: -172 };
+const RIVER = [[336, -452], [304, -300], [282, -150], [300, 0], [322, 150], [302, 300], [334, 452]];
+const EAST_LANE = [[286, -40], [242, -54], [204, -48]];
+const TRACKS = [
+  { id: 'mill', kind: 'path', path: [[306, -52], [350, -58], [384, -60]] },
+  { id: 'ruin', kind: 'path', path: [[-60, -100], [-76, -140], [-88, -164]] },
+];
+const hill = (x, z) => lerp(H, country(x, z), smoothstep(0, 40, outside(x, z)));   // (the hilltop flattened inside the walls, falling away outside them)
+const land = compose(hill, [
+  plateau({ area: { ...MILL, r: 14, blend: 44, wobble: 6 }, level: hill(MILL.x, MILL.z) + 8, rough: 0.3 }),
+  terraces({ area: { x: 236, z: 96, r: 68, blend: 24, wobble: 10 }, step: 2.6, riser: 0.22 }),
+]);
+const river = riverBed({ path: RIVER, width: 11, depth: 0.7, banks: 8, levels: fall(land, RIVER, { under: 1.6 }) });
+const wild = compose(land, [
+  river,
+  sunkenLane({ path: EAST_LANE, width: 3.2, depth: 1.6, banks: 2.4 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2, shoulder: 3 })),
+]);
+
 const map = {
   ruinDust: 1,                         // (ruins.js: the low sun)
   wallStyle: 'umbria',                 // its walls' photographs (public/textures/styles/)
@@ -154,7 +182,21 @@ const map = {
   animals: [['cow', 70, 45, 16, 3], ['horse', 28, 32, 8, 1], ['cow', -95, 215, 22, 4], ['goat', -175, 120, 14, 4], ['horse', -150, 205, 8, 1]],   // below the south wall; round the farm
   half: 500, playHalf: 470, focus: { x: F.x, z: F.z, r: 90 }, start: START, navHalf: 310,   // (the guards' map reaches the farm and the crossroads)
   // The hilltop is flattened inside the walls and falls away outside them.
-  heightAt(x, z) { return lerp(H, country(x, z), smoothstep(0, 40, outside(x, z))); },
+  heightAt: wild,
+  waters: wild.waters, wade: 0.9,      // the river (world/waters.js): waded anywhere, by you and by them
+  roads: TRACKS,
+  // Built cover (world/cover.js): field and terrace walls, crates, the windmill across the river,
+  // the ruined farm; reeds along the river hide you.
+  cover: {
+    walls: [[[190, 40], [246, 50], [292, 96]], [[176, 132], [232, 160], [280, 150]], [[-150, -150], [-110, -196], [-60, -200]], [[344, -120], [372, -100], [420, -110]], [[350, 10], [400, 0], [430, 30]], [[-20, 180], [40, 196], [90, 176]]],
+    crates: [[398, -54, 3], [-86, -166, 3], [262, -44, 3]],
+    ruins: [{ ...RUIN, w: 9, d: 6.5, h: 5.4, seed: 47, tint: '#d2bc98', fallen: 3, doors: ['s'], breach: 'w' }],
+    windmills: [{ ...MILL }],
+    grass: [{ x: 250, z: -100, r: 9 }, { x: 340, z: 40, r: 9 }, { x: -20, z: -160, r: 9 }, { x: 210, z: 10, r: 8 }],
+  },
+  ground: { bush: 1500, rock1: 450, rock2: 1400, rock3: 110,
+    reed: { n: 2400, where: (at) => at.water != null && at.y > at.water - 0.5 && at.y < at.water + 0.4 } },
+  checkGoals: [[380, -52], [-86, -160], [240, -54]],
   roadCenterZ: (x) => (x < F.x - HX ? roadZ(x) : NaN),
   keepClear(x, z, margin = 0) {
     if (outside(x, z) < 4 + margin) return true;
@@ -432,6 +474,7 @@ function site(scene) {
   const dressed = dressProps(scene, dressing(), map.heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates, mill and ruin of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren,
     spawn: new THREE.Vector3(START.x, map.heightAt(START.x, START.z), START.z),
