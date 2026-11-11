@@ -140,3 +140,17 @@ three.js (r186) applies `material.envMapIntensity` only when `material.envMap` i
 ## Measure a texture over the surface that uses it (2026-11-08)
 A plain average of a model's texture counts the gutters between its UV islands: a building skin read albedo 0.009 that was really 0.25. Sample the maps at points on the triangles, weighted by area (materials.js `surfaceStats`, `tools/skins/uv-mask.mjs` offline).
 
+
+## Rigging and animation checklist (2026-11-11, after @maxt3chno's 11 fixes)
+Read before rigging a new character or changing a clip. Source: x.com/maxt3chno/status/2120263514761912346.
+1. A bad mesh costs more in fixes than a new one: judge the mesh first, regenerate rather than patch.
+2. Don't keep Tripo/Meshy weights: redo them (tripo_rig.py already does, with bone heat).
+3. Anything that must open (a mouth, a flap, a holster) is generated open: a bone can close it, nothing can split a fused mesh.
+4. Arms well away from the body in the reference picture (T-pose, or a wide A), so arm weights don't bleed onto the sides and thighs. Our rig asks for a 30° A-pose because the guard skeleton rests there; that is how the greatcoat came to be dragged by the arm. For coats, capes and packs ask for wider arms and pose the skeleton to match before weighting.
+5. Check the skeleton is symmetric (left and right joints mirrored) before animating on it.
+6. A part that must act on its own (jaw, ears, a dog's tail) gets its own bone.
+7. A body that shakes after motion is fitted to it is noise: smooth the torso's total lean, and how it is split between hips and spine, separately.
+8. Knees pop when IK takes a leg almost straight: use a soft limit near full extension, never a hard one (foot IK, crouch, crawl).
+9. A big twist at the shoulder or forearm thins the arm: it needs twist bones (three, not one). Our 24-bone rig has none, so keep clips under about 60° of twist, or add twist bones before a pose that needs more.
+10. After moving a clip to another body, check the contacts (feet on the ground, hands on the rifle, the ledge, the ladder): poses carry over, proportions don't.
+11. Check from an angle the reference didn't have: a 3/4 view shows what front and side hide. Contact sheets get a 3/4 frame.
