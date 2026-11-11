@@ -12,6 +12,8 @@
 // control tower, the fuel park and the pilots' mess on the apron, a perimeter fence (cut in two
 // places), flak around, and hills outside.
 import * as THREE from 'three';
+import { compose, plateau, marshFlat, ditch, sunkenLane, roadBed } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
@@ -36,7 +38,7 @@ const SYS = trenchSystem([TRENCH], { depth: 1.8, half: 0.85, bank: 0.8, dugouts:
 function fieldDist(x, z) {
   return Math.hypot(Math.max(0, -430 - x, x - 430), Math.max(0, -230 - z, z - 230));
 }
-function heightAt(x, z) {
+function field(x, z) {
   let h = (fbm(x * 0.0035 - 5, z * 0.0035 + 2, 4) - 0.5) * 70 + Math.max(0, Math.abs(z) - 240) * 0.08;
   h += 26 * Math.exp(-((x - START.x) ** 2 + (z - START.z) ** 2) / (2 * 70 * 70));
   const r = Math.max(Math.abs(x), Math.abs(z));
@@ -47,6 +49,29 @@ function heightAt(x, z) {
   y += 6 * (1 - smoothstep(24, 60, dr));
   return y - SYS.carve(x, z);
 }
+// The heath round the airfield, made from the terrain kit (world/landforms.js); everything inside
+// the fence, the road, the gate and the trench line are as they were:
+//   drainage ditches along the outside of the fence, north and south-west, knee deep and lined
+//   with reeds: you move along them unseen, a few metres from the wire;
+//   a marsh beyond the north ditch;
+//   a rise south-west of the gate road with the old windmill on it (a ladder inside to a loft
+//   whose north window looks over the fence onto the apron and the hangars);
+//   a sunken lane from below your hill west toward the gate road; a ruined farm north of the
+//   field with a ladder to its boards, looking down the runway and at the radar.
+const MILL = { x: -205, z: 332 }, MARSH = { x: -240, z: -335, r: 62 }, FARM = { x: 150, z: -306 };
+const LANE = [[300, 338], [222, 318], [122, 326], [44, 316]];
+const DITCHES = [[[-405, -219], [-200, -220], [0, -219], [200, -220], [405, -219]], [[-405, 219], [-200, 220], [-24, 219]]];
+const TRACKS = [
+  { id: 'mill', kind: 'track', path: [[-198, 322], [-150, 290], [-120, 256]] },
+  { id: 'farm', kind: 'path', path: [[150, -296], [140, -262], [120, -236]] },
+];
+const heightAt = compose(field, [
+  plateau({ area: { ...MILL, r: 14, blend: 44, wobble: 6 }, level: field(MILL.x, MILL.z) + 4, rough: 0.3 }),
+  marshFlat({ area: { ...MARSH, blend: 28, wobble: 14 }, level: field(MARSH.x, MARSH.z) - 0.3, hummock: 0.32, pools: 0.47, seed: 4 }),
+  ...DITCHES.map(path => ditch({ path, smooth: false, width: 3.2, depth: 0.8, level: Y - 0.45, banks: 1.6 })),
+  sunkenLane({ path: LANE, width: 3.2, depth: 1.7, banks: 2.4 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2.5, shoulder: 3 })),
+]);
 const inRunway = (x, z) => Math.abs(z) < 22 && Math.abs(x) < 385;
 const inTaxi = (x, z) => (Math.abs(z - TAXI_Z) < 8 && x > -268 && x < 208) || ((Math.abs(x + 260) < 8 || Math.abs(x - 200) < 8) && z > 0 && z < TAXI_Z);
 const inApron = (x, z) => x > -130 && x < 130 && z > 78 && z < 175;
@@ -60,6 +85,20 @@ const map = {
   weather: { mist: 1 },   // ground mist lying over the field at dawn
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 150 }, start: START, navHalf: 300,
   heightAt,
+  // Heath and marsh (world/biomes.js): heather everywhere dry, birch in clumps, gorse and reeds
+  // (both hide you), dark peat where it is wet.
+  biome: 'heath',
+  waters: heightAt.waters, wade: 1.0,  // the ditches and the marsh: all of it can be waded
+  roads: TRACKS,
+  // Built cover (world/cover.js): crates, the windmill on its rise, the ruined farm, a few walls.
+  cover: {
+    walls: [[[-250, 300], [-226, 352], [-170, 362]], [[110, -280], [176, -276], [196, -330]], [[-60, 300], [-10, 322], [60, 300]], [[-330, -270], [-300, -300]]],
+    crates: [[-198, 338, 3], [158, -298, 3], [52, 322, 3]],
+    ruins: [{ ...FARM, w: 9, d: 6.5, h: 5.4, seed: 57, tint: '#b8ad9a', fallen: 0, doors: ['e'], breach: 'n' }],
+    windmills: [{ ...MILL }],
+    grass: [{ x: 60, z: 300, r: 9 }, { x: -120, z: 290, r: 9 }, { x: 250, z: -262, r: 9 }, { x: -80, z: -262, r: 9 }],
+  },
+  checkGoals: [[-205, 318], [150, -290], [-100, -224]],
   roadCenterZ: (x) => (x <= 10 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
     if (SYS.dist(x, z) < 3 + m || SYS.inDugout(x, z, 2 + m)) return true;
@@ -296,6 +335,7 @@ function site(scene, world) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates, mill and farm of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
