@@ -11,6 +11,8 @@
 // lookout on its gallery.
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep } from '../world/noise.js';
+import { compose, plateau as shelf, lakeBasin, sunkenLane, roadBed } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { M, Builder, sirenPole } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
 import { building, furniture, ladder } from '../world/buildings.js';
@@ -47,7 +49,7 @@ function plateau(x, z) {
 }
 // Below the cliff: the beach falling to the sea, then the seabed.
 const shore = (d) => (d > -45 ? lerp(0.3, BEACH, smoothstep(-45, -10, d)) : lerp(-6, 0.3, smoothstep(-70, -45, d)));
-function heightAt(x, z) {
+function headland(x, z) {
   const d = z - zc(x), top = plateau(x, z);
   const sheer = Math.abs(x - LADDER_X) < 6 ? 0.3 : 10;                 // under the lighthouse the face is sheer (the ladder)
   let h = d >= 0 ? top : d > -sheer ? lerp(shore(d), top, smoothstep(-sheer, 0, d)) : shore(d);
@@ -59,6 +61,25 @@ function heightAt(x, z) {
   if (d > 4) h -= SYS.carve(x, z);
   return h;
 }
+// The downs behind the station, made from the terrain kit (world/landforms.js); the cliffs, the
+// beach, the gully, the trenches and the station itself are as they were:
+//   a knoll south of the station with the old windmill on it (a ladder inside to a loft whose
+//   north window looks over the whole station to the radars, 230 m off);
+//   a sunken lane from the head of the gully round the station's west side (a covered way inland);
+//   a dew pond out east, and two ruins: a coastguard's hut on the cliff top beyond the lighthouse
+//   and a farm west of the lane, each with a ladder to its boards.
+const MILL = { x: 60, z: 184 }, POND = { x: 250, z: 236, r: 17 }, HUT = { x: 332, z: zc(332) + 44 }, FARM = { x: -338, z: 64 };
+const LANE = [[-277, zc(-277) + 100], [-302, 10], [-294, 82], [-252, 130]];
+const TRACKS = [
+  { id: 'mill', kind: 'path', path: [[56, 176], [44, 140], [40, 116]] },
+  { id: 'hut', kind: 'path', path: [[236, 60], [290, -20], [328, zc(328) + 50]] },
+];
+const heightAt = compose(headland, [
+  shelf({ area: { ...MILL, r: 14, blend: 44, wobble: 6 }, level: headland(MILL.x, MILL.z) + 5, rough: 0.3 }),
+  lakeBasin({ ...POND, level: headland(POND.x, POND.z) - 0.7, depth: 1.6, shore: 13, wobble: 0.25, seed: 8 }),
+  sunkenLane({ path: LANE, width: 3.2, depth: 1.7, banks: 2.4 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2, shoulder: 3 })),
+]);
 const slopeAt = (x, z) => Math.max(Math.abs(heightAt(x + 0.7, z) - heightAt(x - 0.7, z)), Math.abs(heightAt(x, z + 0.7) - heightAt(x, z - 0.7))) / 1.4;
 
 const map = {
@@ -73,6 +94,23 @@ const map = {
   maxSlope: 0.9,
   navBlocked: (x, z) => { const d = z - zc(x); return (d < 15 || (Math.abs(x - GULLY_X) < 14 && d < 95)) && slopeAt(x, z) > 0.9; },   // the cliffs and the gully's walls
   heightAt,
+  // Chalk downs by the sea (world/biomes.js): gorse and heather on the top (gorse hides you),
+  // marram on the beach, a few wind-bent pines.
+  biome: 'coast',
+  waters: heightAt.waters,             // the dew pond (the sea is the sheet at waterLevel)
+  roads: TRACKS,
+  // Built cover (world/cover.js): field walls on the downs, crates, the windmill and the two ruins.
+  cover: {
+    walls: [[[-200, 150], [-120, 142], [-60, 160]], [[110, 150], [170, 142], [230, 160]], [[-340, 130], [-300, 170], [-250, 176]], [[260, 110], [300, 60], [296, 0]], [[-20, 260], [60, 268], [130, 250]]],
+    crates: [[66, 190, 3], [326, -100, 3], [-330, 72, 3]],
+    ruins: [
+      { ...HUT, w: 6.5, d: 5, h: 3.4, seed: 95, tint: '#cfc7b6', fallen: 1, doors: ['s'], breach: null },
+      { ...FARM, w: 8, d: 6, h: 5.4, seed: 97, tint: '#cdbfa6', fallen: 3, doors: ['e'], breach: 's' },
+    ],
+    windmills: [{ ...MILL }],
+    grass: [{ x: -250, z: 140, r: 9 }, { x: 120, z: 130, r: 9 }, { x: 0, z: 150, r: 9 }, { x: 290, z: 40, r: 9 }],
+  },
+  checkGoals: [[60, 170], [320, -96], [-326, 70]],
   roadCenterZ: (x) => (x <= -40 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
     const d = z - zc(x);
@@ -232,6 +270,7 @@ function site(scene, world) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates, mill and ruins of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren, towerTops,
     generator: gen.position.clone(), generatorMesh: gen,
