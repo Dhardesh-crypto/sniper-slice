@@ -8,6 +8,31 @@ import { vehicleModel } from '../world/vehicle-models.js';
 import { buildCompound, buildRange } from '../world/compound.js';
 import { Builder } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
+import { compose, plateau, terraces, lakeBasin, sunkenLane, roadBed } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
+
+// The country round the farm, made from the terrain kit (world/landforms.js) on the valley as it
+// was; nothing under the compound, the road, the range or your hill has moved:
+//   a knoll due north of the compound with an old windmill on it (a ladder inside to a loft with a
+//   window that looks straight down on the yard, 190 m off: the long shot);
+//   olive terraces on the north-west slope, with a ruined farmstead at their edge (a second perch);
+//   a sunken lane from below your hill toward the compound's south-west corner (a covered way in);
+//   the farm's pond in the south-east field.
+const MILL = { x: 20, z: -220 }, POND = { x: 122, z: 150, r: 20 }, FARM = { x: -152, z: -122 };
+const LANE = [[-190, 126], [-150, 86], [-110, 62], [-72, 52]];
+const TRACKS = [
+  { id: 'mill', kind: 'path', path: [[22, -108], [16, -160], [20, -212]] },
+  { id: 'pond', kind: 'track', path: [[62, 62], [92, 108], [104, 136]] },
+  { id: 'farm', kind: 'path', path: [[-120, -62], [-140, -92], [-150, -112]] },
+];
+const land0 = VINEYARD_MAP.heightAt;
+const land = compose(land0, [
+  plateau({ area: { ...MILL, r: 14, blend: 46, wobble: 6 }, level: land0(MILL.x, MILL.z) + 7, rough: 0.3 }),
+  terraces({ area: { x: -235, z: -150, r: 95, blend: 28, wobble: 12 }, step: 2.6, riser: 0.22 }),
+  lakeBasin({ ...POND, level: land0(POND.x, POND.z) - 0.8, depth: 1.7, shore: 14, wobble: 0.25, seed: 4 }),
+  sunkenLane({ path: LANE, width: 3.2, depth: 1.7, banks: 2.4 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2.5, shoulder: 3 })),
+]);
 export const VINEYARD_SAFE = { id: 'oberst-safe', name: "THE OBERST'S SAFE", combination: '18 – 04 – 37' };
 
 export function placeVineyardIntel(it, world, { pickups, items, arsenal, mission }) {
@@ -82,6 +107,18 @@ export default {
     damage: { pads: [[62, -8, 7, 6]], craters: [[20, -75, 5], [31, -84, 4], [8, -83, 3.5]] },   // the ground the war left (terrain.js)
     wallStyle: 'tuscany',               // its walls' photographs (public/textures/styles/)
     ...VINEYARD_MAP,
+    heightAt: land,
+    waters: land.waters,               // the pond (world/waters.js): deep in the middle, its edge stops you
+    roads: TRACKS,                     // paths to the mill, the pond and the farmstead (the road itself is roadCenterZ)
+    // Built cover (world/cover.js): the field walls of a Tuscan farm, crates, the windmill on its
+    // knoll and the ruined farmstead, each with a ladder up; tall grass where the lane ends.
+    cover: {
+      walls: [[[48, 62], [108, 72], [132, 12]], [[-58, -64], [-140, -60], [-222, -68]], [[-24, 84], [38, 98], [92, 88]], [[-14, -188], [52, -198]], [[-196, -96], [-168, -100], [-150, -140]], [[150, -60], [176, -8], [170, 50]]],
+      crates: [[27, -212, 3], [150, 62, 3], [-146, -112, 3]],
+      ruins: [{ ...FARM, w: 9, d: 6.5, h: 5.4, seed: 43, tint: '#d9c09a', fallen: 0, doors: ['e'], breach: 'n' }],
+      windmills: [{ ...MILL }],
+      grass: [{ x: -66, z: 56, r: 9 }, { x: 60, z: -150, r: 9 }, { x: -110, z: -100, r: 9 }, { x: 150, z: 110, r: 9 }],
+    },
     // Late morning in Tuscany: high, warm sun through a light haze.
     light: { zenith: 50, azimuth: 200, sun: 0xffe4b8, sunIntensity: 2.8, turbidity: 6, clouds: 0.4, warmth: 1.45, saturation: 1.12 },   // (grade: Tuscany: the warmest, fullest)
     fog: { color: 0xb6c6cd },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
@@ -92,8 +129,9 @@ export default {
     const c = buildCompound(scene), r = buildRange(scene), w = new Builder(scene);
     // The farm's old byre, east of the wall: a shell found it when the front came through.
     shellHouse(w, { x: 62, z: -8, y: heightAt(62, -8), w: 9, d: 7, h: 5.2, seed: 21, tint: '#dcc397', fallen: 1, doors: ['s'], breach: 'w' });
+    const cov = buildCover(w);          // the walls, crates, mill and farmstead of the map's `cover`, and the ladders up them
     const boxes = [...c.boxes, ...r.boxes, ...w.boxes], d = dressProps(scene, dressing(), heightAt, boxes, vehicleModel);
-    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...w.solids, ...d.solids], boxes: [...boxes, ...d.boxes], spawn: r.spawn };
+    return { ...c, soldiers: [...c.soldiers, ...r.targets], solids: [...c.solids, ...r.solids, ...w.solids, ...d.solids], boxes: [...boxes, ...d.boxes], ladders: [...(c.ladders ?? []), ...cov.ladders], spawn: r.spawn };
   },
   def: { evening: { at: 420 } },            // the original objectives (see mission.js); evening falls seven minutes in (main.js nightfall)
   intel: placeVineyardIntel,
