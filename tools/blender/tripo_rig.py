@@ -1,5 +1,5 @@
-# A Tripo character (image-to-3D, unrigged) put on our own 24-bone skeleton, so every clip in the
 # Before rigging a new character: the checklist in tasks/lessons.md ("Rigging and animation checklist").
+# A Tripo character (image-to-3D, unrigged) put on our own 24-bone skeleton, so every clip in the
 # game plays on it, at a third of the cost of a rigged Meshy character. (The method from a post by
 # Kensei: Tripo's mesh comes in hundreds of loose pieces, split along its seams with duplicate
 # vertices; merged, it is one mesh again and can be rigged in Blender.)
