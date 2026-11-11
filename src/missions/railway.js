@@ -12,6 +12,8 @@
 // 1 km map: the main line east–west through the station, a yard of sidings with an engine shed
 // and a goods shed, the town's road from the west, open fields and hills around.
 import * as THREE from 'three';
+import { compose, plateau, lakeBasin, sunkenLane, roadBed } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder } from '../world/kit.js';
 import { shellHouse } from '../world/ruins.js';
@@ -37,12 +39,46 @@ function flatDist(x, z) {
   const yard = Math.hypot(Math.max(0, -230 - x, x - 200), Math.max(0, -75 - z, z - 45));
   return Math.min(yard, Math.max(0, Math.abs(z) - 14), Math.max(0, segDist(x, z, BRANCH) - 10));
 }
-function heightAt(x, z) {
+function plain(x, z) {
   let h = (fbm(x * 0.0035 + 3, z * 0.0035 - 8, 4) - 0.5) * 70 + Math.max(0, Math.abs(z) - 80) * 0.06;
   h += 26 * Math.exp(-((x - START.x) ** 2 + (z - START.z) ** 2) / (2 * 75 * 75));
   const r = Math.max(Math.abs(x), Math.abs(z));
   if (r > 400) { const t = (r - 400) / 100; h += t * t * (30 + 40 * fbm(x * 0.006 + 1.1, z * 0.006, 3)); }
   return Y + Math.max(-4, h) * smoothstep(0, 70, flatDist(x, z));
+}
+
+// The farmland round the junction, made from the terrain kit (world/landforms.js); the line, the
+// yard, the station, the branch and the road are as they were:
+//   hedged fields on both sides of the line (bocage: the hedges stop you, bullets and eyes; every
+//   one has gaps, and a lane or a track goes through them);
+//   two sunken lanes: from below your hill toward the east end of the yard, and across the fields
+//   beyond the road;
+//   a rise south-west of the yard with the old windmill on it (a ladder inside to a loft whose
+//   north window looks over the hedges onto the platforms, 200 m off), a farm pond, a ruined farm
+//   beyond the road with a ladder to its boards.
+const MILL = { x: -118, z: 196 }, POND = { x: -300, z: 196, r: 18 }, FARM = { x: 152, z: -176 };
+const LANES = [[[300, 268], [252, 204], [222, 132], [214, 74]], [[-330, -262], [-262, -186], [-204, -124]]];
+const TRACKS = [
+  { id: 'mill', kind: 'track', path: [[-112, 186], [-104, 124], [-92, 62]] },
+  { id: 'farm', kind: 'track', path: [[148, -166], [122, -116], [84, -88]] },
+  ...LANES.map((path, i) => ({ id: `lane${i}`, kind: 'path', path })),
+];
+const heightAt = compose(plain, [
+  plateau({ area: { ...MILL, r: 14, blend: 44, wobble: 6 }, level: plain(MILL.x, MILL.z) + 4, rough: 0.3 }),
+  lakeBasin({ ...POND, level: plain(POND.x, POND.z) - 0.7, depth: 1.6, shore: 13, wobble: 0.25, seed: 3 }),
+  ...LANES.map(path => sunkenLane({ path, width: 3.4, depth: 1.8, banks: 2.4 })),
+  ...TRACKS.slice(0, 2).map(t => roadBed({ path: t.path, width: 3, shoulder: 3 })),
+]);
+// The hedges: two rows along the line and four across on each side, each in lengths of about 55 m
+// with a gap between (a gate, a gap a cow made). A length stops short of anything the map keeps
+// clear (the line, the branch, the road, a track: world/ground.js leaves those sections out).
+function hedgeRows() {
+  const out = [], piece = (a, b) => { const len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(len / 62)); for (let i = 0; i < n; i++) { const t0 = i / n, t1 = (i + 1) / n - 7 / len; out.push([[a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0], [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1]]); } };
+  for (const s of [1, -1]) {
+    for (const z of [116, 232]) piece([-430, s * z + 8 * s], [430, s * z - 6 * s]);
+    for (const x of [-338, -196, 44, 318]) piece([x + (s > 0 ? 0 : 60), s * 92], [x + (s > 0 ? 14 : 46), s * 400]);
+  }
+  return out;
 }
 
 const map = {
@@ -54,6 +90,20 @@ const map = {
   animals: [['cow', -160, 95, 25, 5]],   // cattle on the plain north of the line
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 120 }, start: START, navHalf: 280,
   heightAt,
+  // Hedged fields (world/biomes.js: each field its own crop, beech and birch standing in them).
+  biome: 'bocage',
+  hedges: hedgeRows(),
+  waters: heightAt.waters,             // the farm pond
+  roads: TRACKS,
+  // Built cover (world/cover.js): crates, the windmill on its rise, the ruined farm, a few walls.
+  cover: {
+    walls: [[[-150, 150], [-96, 158], [-84, 214]], [[110, -150], [176, -146], [190, -196]], [[240, 96], [282, 110]]],
+    crates: [[-110, 200, 3], [158, -168, 3], [218, 84, 3]],
+    ruins: [{ ...FARM, w: 9, d: 6.5, h: 5.4, seed: 53, tint: '#cdb99b', fallen: 1, doors: ['w'], breach: 'n' }],
+    windmills: [{ ...MILL }],
+    grass: [{ x: 214, z: 62, r: 9 }, { x: -200, z: -110, r: 9 }, { x: -60, z: 96, r: 9 }, { x: 60, z: -110, r: 9 }],
+  },
+  checkGoals: [[-118, 182], [150, -160], [222, 120]],
   roadCenterZ: (x) => (x <= 20 ? ROAD_Z : NaN),
   keepClear(x, z, m = 0) {
     if (x > -240 - m && x < 210 + m && z > -80 - m && z < 50 + m) return true;     // the station, yard and town edge
@@ -287,6 +337,7 @@ function site(scene, world) {
   const tiger = placeTank(scene, 'tiger', -80, 33, Math.PI / 2, heightAt, 'TIGER');
   b.solids.push(...tiger.solids); b.boxes.push(...tiger.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates, mill and farm of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, towerTops,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
