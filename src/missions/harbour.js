@@ -7,6 +7,8 @@
 // a railway siding), a breakwater (the mole) enclosing the basin with a flak gun and a light at
 // its end, and hills to the south where you start.
 import * as THREE from 'three';
+import { compose, ridge, cliffBand, plateau, terraces, marshFlat, roadBed, slopeAt } from '../world/landforms.js';
+import { buildCover } from '../world/cover.js';
 import { fbm, lerp, smoothstep, makeRng } from '../world/noise.js';
 import { M, Builder, sirenPole } from '../world/kit.js';
 import { rubble, shellHouse } from '../world/ruins.js';
@@ -32,7 +34,7 @@ function land(x, z) {
   if (r > 390) { const t = (r - 390) / 110; h += t * t * (30 + 40 * fbm(x * 0.006 + 1.1, z * 0.006, 3)); }
   return h;
 }
-function heightAt(x, z) {
+function quay(x, z) {
   if (inMole(x, z)) return Q;
   const sz = shoreZ(x), seabed = -7 - Math.min(9, Math.max(0, sz - z) * 0.03);
   if (Math.abs(x) <= DX) {
@@ -43,6 +45,28 @@ function heightAt(x, z) {
   return lerp(seabed, Math.max(l, 0.8), smoothstep(sz - 18, sz + 8, z));   // a beach beyond the docks
 }
 const roadZ = (x) => 40 + Math.sin(x * 0.012) * 14 * smoothstep(-260, -330, x);
+// The coast round the docks, made from the terrain kit (world/landforms.js); the quay, the moles,
+// the road and your hill are as they were:
+//   a bluff in two lengths above the back fence, a gully between them: from its edge you look
+//   down into the docks, 80 to 150 m off;
+//   on the hill behind it the old windmill (a ladder inside to a loft whose north window takes in
+//   the whole harbour, 220 m off) and Ligurian terraces to the south-west;
+//   east of the docks, dunes behind the beach and a salt marsh behind the dunes.
+const MILL = { x: -40, z: 246 }, MARSH = { x: 345, z: 62, r: 50 }, HOUSE = { x: 132, z: 162 };
+const TRACKS = [
+  { id: 'mill', kind: 'path', path: [[322, 316], [200, 292], [62, 268], [-30, 252]] },
+  { id: 'gully', kind: 'path', path: [[-30, 240], [2, 190], [4, 132], [0, 96]] },
+];
+const heightAt = compose(quay, [
+  cliffBand({ path: [[-214, 150], [-112, 138], [-30, 146]], height: 9, run: 5, reach: 120, side: 1, rough: 3, taper: 28, seed: 4 }),
+  cliffBand({ path: [[40, 146], [122, 138], [212, 150]], height: 9, run: 5, reach: 120, side: 1, rough: 3, taper: 28, seed: 9 }),
+  plateau({ area: { ...MILL, r: 14, blend: 44, wobble: 6 }, level: quay(MILL.x, MILL.z) + 5, rough: 0.3 }),
+  terraces({ area: { x: -255, z: 285, r: 90, blend: 26, wobble: 12 }, step: 2.6, riser: 0.22 }),
+  ridge({ path: [[252, -8], [330, -24], [432, -42]], height: 3.4, width: 15, rough: 0.7, taper: 30, seed: 2 }),   // dunes
+  ridge({ path: [[262, 22], [350, 4], [440, -6]], height: 2.6, width: 13, rough: 0.7, taper: 30, seed: 5 }),
+  marshFlat({ area: { ...MARSH, blend: 26, wobble: 12 }, level: Q - 0.25, hummock: 0.3, pools: 0.46, seed: 3 }),
+  ...TRACKS.map(t => roadBed({ path: t.path, width: 2, shoulder: 3 })),
+]);
 
 const map = {
   damage: { craters: [[-100, 67, 4.5], [-170, 66, 4]] },   // the ground the war left (terrain.js)
@@ -52,6 +76,24 @@ const map = {
   fog: { color: 0xd3c0b6 },   // the haze takes the colour of this sky low on the horizon (and so does the far country's)
   half: 500, playHalf: 470, focus: { x: 0, z: 0, r: 160 }, start: START, navHalf: 262, waterLevel: 0,
   heightAt,
+  // The salt marsh (world/waters.js: its own level, above the sea's); the bluff's faces are walls
+  // to you and to them, the gully and the bluff's ends the ways up.
+  waters: heightAt.waters, maxSlope: 1.0,
+  navBlocked: (x, z) => z > 100 && slopeAt(heightAt, x, z, 1.5) > 1.0,
+  roads: TRACKS,
+  // Built cover (world/cover.js): terrace and field walls, crates, the windmill, a ruined house on
+  // the bluff with a ladder to its boards; marram and reeds (they hide you) on the dunes and the marsh.
+  cover: {
+    walls: [[[-200, 196], [-120, 186], [-70, 200]], [[30, 196], [100, 184], [180, 200]], [[-300, 240], [-262, 300], [-200, 322]], [[236, 236], [262, 280], [300, 292]], [[-86, 262], [-60, 280], [-10, 272]]],
+    crates: [[-33, 252, 3], [124, 168, 3], [262, 96, 3]],
+    ruins: [{ ...HOUSE, w: 8, d: 6, h: 5.4, seed: 91, tint: '#d8c3a4', fallen: 3, doors: ['s'], breach: 'e' }],
+    windmills: [{ ...MILL }],
+    grass: [{ x: -150, z: 176, r: 9 }, { x: 70, z: 172, r: 9 }, { x: 0, z: 150, r: 8 }, { x: 300, z: 120, r: 9 }],
+  },
+  ground: { bush: 1500, rock1: 450, rock2: 1400, rock3: 110,
+    marram: { n: 2600, where: (at) => Math.abs(at.x) > DX && at.y > 0.9 && at.y < 6.5 && at.z < 60 },
+    reed: { n: 1500, where: (at) => at.water != null && at.water > 1 && at.y > at.water - 0.45 && at.y < at.water + 0.35 } },
+  checkGoals: [[-30, 232], [132, 176], [300, 110]],
   roadCenterZ: (x) => (x < -DX ? roadZ(x) : NaN),
   keepClear(x, z, margin = 0) {
     if (Math.abs(x) < DX + 6 + margin && z < DZ1 + 6 + margin) return true;
@@ -293,6 +335,7 @@ function site(scene) {
   const dressed = dressProps(scene, dressing(), heightAt, b.boxes, vehicleModel);
   b.solids.push(...dressed.solids); b.boxes.push(...dressed.boxes);
 
+  ladders.push(...buildCover(b).ladders);          // the walls, crates, mill and ruin of the map's `cover`, and the ladders up them
   return {
     solids: b.solids, boxes: b.boxes, soldiers, ladders, doors, siren,
     spawn: new THREE.Vector3(START.x, heightAt(START.x, START.z), START.z),
