@@ -31,4 +31,6 @@ for (const file of readdirSync(SRC).filter(f => f.endsWith('.glb') && (!only.len
   }
   console.log('prepared', out);
 }
-execFileSync('node', ['tools/compress-models.mjs'], { stdio: 'inherit' });   // meshopt, for the game
+// (only the files named, when there are names: with none it compressed every uncompressed model in
+// public/models, the region skins included, which nothing had asked to change)
+execFileSync('node', ['tools/compress-models.mjs', ...only], { stdio: 'inherit' });   // meshopt, for the game

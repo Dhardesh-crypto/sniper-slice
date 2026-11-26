@@ -154,3 +154,7 @@ Read before rigging a new character or changing a clip. Source: x.com/maxt3chno/
 9. A big twist at the shoulder or forearm thins the arm: it needs twist bones (three, not one). Our 24-bone rig has none, so keep clips under about 60° of twist, or add twist bones before a pose that needs more.
 10. After moving a clip to another body, check the contacts (feet on the ground, hands on the rifle, the ledge, the ladder): poses carry over, proportions don't.
 11. Check from an angle the reference didn't have: a 3/4 view shows what front and side hide. Contact sheets get a 3/4 frame.
+
+## Tools that write more than they're asked (2026-11-26)
+- After any model tool, `git status public/models`: `prepare-models.mjs` used to recompress every uncompressed model, not just the ones named (20 region skins changed by a run on three guards). It passes its names on now; check anyway.
+- Editing a file another session also has uncommitted edits in: in Python, `open(p, 'w').write(f(open(p).read()))` truncates the file before reading it (the `'w'` open happens first). Read into a variable, then write. Stage only your own lines (a blob built from HEAD plus your edits, `git update-index --cacheinfo`).
