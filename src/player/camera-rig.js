@@ -2,13 +2,16 @@
 // binoculars. A collision ray (spring arm) pulls it in when walls or terrain block it.
 import * as THREE from 'three';
 
-const OFFSETS = {         // [right, up, back] from the pivot, metres
+export const OFFSETS = {  // [right, up, back] from the pivot, metres
   stand: [0.7, 0.25, 3.1],
   crouch: [0.7, 0.28, 2.7],
   prone: [0.55, 0.55, 3.0],
   pistolAim: [0.45, 0.12, 1.15],
 };
-const PIVOT_H = { stand: 1.55, crouch: 0.9, prone: 0.45 };
+export const PIVOT_H = { stand: 1.55, crouch: 0.9, prone: 0.45 };
+// How fast the camera eases (per second, exponential): to a new stance's offsets, to its pivot
+// height, across on a shoulder swap, and back out after a wall pulled it in (it snaps in at once).
+export const RIG = { follow: 10, pivot: 8, side: 12, armOut: 5 };
 
 export class CameraRig {
   constructor(world) {
@@ -33,9 +36,9 @@ export class CameraRig {
   // Places `camera`. view: { yaw, pitch, roll, alpha, pistolAim, fpBlend }
   update(dt, camera, player, view) {
     const target = view.pistolAim ? OFFSETS.pistolAim : OFFSETS[player.stance];
-    for (let i = 0; i < 3; i++) this.off[i] += (target[i] - this.off[i]) * (1 - Math.exp(-10 * dt));
-    this.pivotH += (PIVOT_H[player.stance] - this.pivotH) * (1 - Math.exp(-8 * dt));
-    this.sideK += (this.side - this.sideK) * (1 - Math.exp(-12 * dt));
+    for (let i = 0; i < 3; i++) this.off[i] += (target[i] - this.off[i]) * (1 - Math.exp(-RIG.follow * dt));
+    this.pivotH += (PIVOT_H[player.stance] - this.pivotH) * (1 - Math.exp(-RIG.pivot * dt));
+    this.sideK += (this.side - this.sideK) * (1 - Math.exp(-RIG.side * dt));
 
     // Pivot follows the interpolated body position (frame-rate independent).
     const body = this._eye.lerpVectors(player.prevPos, player.pos, view.alpha);
@@ -55,7 +58,7 @@ export class CameraRig {
     const hit = this.world.raycastSegment(shoulder, end);
     const allowed = hit ? Math.max(0.3, hit.distance - 0.3) : desiredLen;
     // Snap in instantly (never show the inside of a wall), ease back out.
-    this.armLen = allowed < this.armLen ? allowed : this.armLen + (allowed - this.armLen) * (1 - Math.exp(-5 * dt));
+    this.armLen = allowed < this.armLen ? allowed : this.armLen + (allowed - this.armLen) * (1 - Math.exp(-RIG.armOut * dt));
     const third = shoulder.addScaledVector(fwd, -this.armLen);
     // Keep the lens above the ground.
     let g = this.world.floorAt(third.x, third.z, player.pos.y + 0.3) + 0.25;

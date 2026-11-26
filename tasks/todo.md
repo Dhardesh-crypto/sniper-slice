@@ -1486,3 +1486,32 @@ The three Tripo characters rigged on 9 Nov, before `tripo_rig.py` cut the import
 - [x] `node tools/prepare-models.mjs guard_mp.glb guard_winter.glb guard_sniper.glb`, `ASSET_VERSION` ?v=1 → ?v=2. Found on the way: `prepare-models.mjs` ran the compressor over every model, not just the ones named, so 20 region skins (`skin_*.glb`) came out recompressed as a side effect. Restored from git, and the script now passes its file list on to `compress-models.mjs`.
 - [x] Checked: all 31 clips (1690 tracks) bind on each of the three (24 bones, none missing), each 1.80 m tall, fetched as `?v=2`; npm test 37/37; smoke test (static build): all nine missions clean, no console errors or failed requests (Flak's 57 ms worst frame is the one-off headless shader compile seen before).
 - Not checked: played by hand. The sniper never leaves his tower in Forest, so his walk and run were seen by playing the clips on the game's own character, moved to open ground, not driven by the AI.
+
+## 26 November 2026: developer panel (?dev)
+
+A tuning panel so the look and feel can be judged and adjusted by hand while playing (the blue tint,
+the light, the camera, the sight cones), instead of one AI round trip per number. README, "Developer panel".
+- [x] `src/dev/panel.js` on lil-gui 0.21.0 (pinned, a dev dependency). main.js imports it only when
+  `import.meta.env.DEV || MODE === 'dev'` and the address has `?dev`: the normal build folds that to
+  false, and its output has no panel or lil-gui code (checked: no "lil-gui" or panel strings in the
+  build; the dev build with `?dev` shows it, without `?dev` it doesn't fetch the chunk).
+- [x] Every control sits on the value where the game keeps it: the map's `light`/`fog` (LIGHT in
+  world.js under the mission's own), the post chain's passes and grade uniforms, `renderer.toneMapping`,
+  and three things that were locked inside their modules, now exported: camera-rig.js `OFFSETS`,
+  `PIVOT_H` and a new `RIG` (the easing rates that were literals), atmosphere.js `ATMO` (haze height
+  and sun glow, were `H`/`GLOW`), stealth.js `SIGHT` (for the cones).
+- [x] Find the tint: a switch for each pass, the haze, the fog, the sky reflections, the sky dome, the
+  lights, and every top-level scene part by name. Sky changes bake the reflections again and move each
+  material onto the new cube (materials keep their own envMap).
+- [x] Play: god mode (wraps `player.damage`), refill, spawn a guard at the crosshair or a click (named
+  'Reinforcement' so saves put him back without shifting the original men), clear (quiet deaths, hidden;
+  the target spared by default, his death would end the mission), time scale, pause, sight cones (outline
+  plus faint fill: a dozen solid cones hid the ground), sound rings, restart, missions, checkpoints.
+- [x] Saving: Copy values (only what changed, grouped by file and object, colours as 0x hex), Save
+  (localStorage, light/fog per mission), Reset, Download overrides → `dev-overrides.json` at the root
+  (git-ignored), read through `import.meta.glob` so it's in dev builds only.
+- [x] Checked in the dev server by script, sound off (`?dev&mute&nofly`): every button and the free
+  cursor; save, reload and reset; the overrides file. 37/37 tests; smoke test on all nine missions with
+  `?dev`. Not played by hand.
+- [ ] To check: `world.relight()` (nightfall) disposes the old environment while materials still hold it
+  as their own envMap (materials.js); it probably should move them to the new one, as the panel's rebake does.

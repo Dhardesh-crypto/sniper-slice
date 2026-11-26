@@ -13,8 +13,8 @@ const SUN = new Float32Array([0, 1, 0]);        // direction toward the sun
 const SUN_COLOR = new Float32Array([1, 1, 1]);  // linear
 const PARAMS = new Float32Array([0, 0, 0]);     // height scale (m), sun glow, on (1) / off (0)
 
-const H = 220;            // the haze's scale height: e-fold every 220 m up
-const GLOW = 0.035;       // how bright the haze gets toward the sun
+// height: the haze's scale height (e-fold every 220 m up); glow: how bright it gets toward the sun
+export const ATMO = { height: 220, glow: 0.035 };
 const EXT = '0.8, 0.95, 1.2';   // per-channel share of the fog: red gets through, blue is lost first
 
 const PARS_VERTEX = /* glsl */ `
@@ -94,5 +94,5 @@ export function setAtmosphere(sunDir, sunColor, on = true) {
   SUN.set([sunDir.x, sunDir.y, sunDir.z]);
   const c = new THREE.Color(sunColor);
   SUN_COLOR.set([c.r, c.g, c.b]);
-  PARAMS.set([H, GLOW, on ? 1 : 0]);
+  PARAMS.set([ATMO.height, ATMO.glow, on ? 1 : 0]);
 }

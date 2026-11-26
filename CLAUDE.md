@@ -27,6 +27,10 @@ Live: https://sniper-slice.netlify.app · repo: github.com/Dhardesh-crypto/snipe
 - Materials: every loaded model goes through `src/world/materials.js` `normalize()` once at load
   (shine by kind, the brightness fixes in `materials.json`, the sky's share). Don't set roughness,
   metalness or envMapIntensity in a loader; a material's envMapIntensity only counts with its own envMap.
+- Developer panel: `?dev` in the dev server or a `vite build --mode dev` build (README, "Developer
+  panel"; `src/dev/panel.js`). The user tunes the look, the camera and play there and pastes "Copy values" JSON:
+  each value is filed under the file and object it belongs in. Keep it out of the normal build (main.js
+  gates the import on `import.meta.env`); a new setting gets its control where the game keeps it, never a copied number.
 - Verify in the browser with numbers and pictures before calling something done.
 
 ## Assets

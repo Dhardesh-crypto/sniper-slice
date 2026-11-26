@@ -73,6 +73,45 @@ npm run dev    # then open the URL Vite prints
 | M | Map |
 | Esc | Pause |
 
+## Developer panel
+
+A tuning panel for adjusting the game by hand while it runs (`src/dev/panel.js`, lil-gui). It appears
+only with `?dev` in the address, and only in the dev server (`npm run dev`, then
+`http://localhost:5179/?dev`) or a dev build (`npx vite build --mode dev`). The normal `npm run build`
+leaves the panel and lil-gui out entirely, so `?dev` does nothing on the live site.
+
+- **Look:** sun (strength, colour, angle, shadow bias), sky fill and reflections, sky, fog and haze,
+  tone mapping, exposure, colour grade, ambient occlusion and bloom. **Find the tint** has a switch for
+  each effect (AO, bloom, grade, output, haze, fog, sky reflections, sky dome, lights) and for each
+  part of the scene, so you can turn them off one at a time.
+- **Camera:** field of view, the shoulder camera's offsets for each stance (right, height, follow
+  distance), pivot height and smoothing, and a free camera (WASD, Q/E down/up, Shift faster, the mouse looks round while the game has it).
+- **Play:** god mode, refill health and ammo, spawn a guard at the crosshair or where you click,
+  clear all enemies (the mission's target is spared unless you tick "…the target too"), time scale,
+  pause, sight cones (green calm, yellow suspicious, red alerted; the range for a man standing in the
+  open), sound rings, restart, go to any mission, load a checkpoint or save.
+- **Keys:** `` ` `` frees the mouse without the pause menu, so the game keeps running while you use the
+  panel (click the game to go back, Esc for the menu). `\` hides or shows the panel.
+
+**Saving.** "Save" keeps your values in this browser and puts them back each time you load with
+`?dev`. "Reset" goes back to the values in the code. Light and fog are saved per mission; the
+rest applies to every mission. "Download overrides file" writes `dev-overrides.json`. Put it in the project
+root (it's git-ignored) and the dev server and dev builds load it before your browser's saved values.
+
+**Moving tuned values into the code.** Press "Copy values" and paste the JSON to Claude, or copy it
+in by hand. It lists only the values you changed, grouped by the file and object each belongs in, e.g.
+
+```json
+{ "mission": "vineyard", "conditions": "briefed",
+  "changed": { "src/missions/vineyard.js · map.light": { "sunIntensity": 3.2, "sun": "0xffd8a8" },
+               "src/player/camera-rig.js · OFFSETS": { "stand": [0.7, 0.3, 3.6] } } }
+```
+
+`map.light` and `map.fog` go into that mission's `map` in `src/missions/<mission>.js` (keys missing
+there fall back to `LIGHT` in `src/world/world.js`). Check `conditions` first: under rain, mist, overcast
+or dusk the game has already changed that run's light, so values tuned then don't belong in the mission
+file as they are. To tune the briefed light, reload until the panel's title shows no weather.
+
 ## Project layout
 
 `src/core` loop helpers, input, audio, post-processing · `src/world` terrain, compound, characters,

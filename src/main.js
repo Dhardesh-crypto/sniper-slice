@@ -89,6 +89,11 @@ import { Flamers } from './world/flamer.js';
 import { asset } from './core/version.js';
 
 const FIXED_DT = 1 / 60;
+// The developer panel (src/dev/panel.js): with ?dev in the address, in the dev server or a
+// `vite build --mode dev` build only. The normal build folds this to false and leaves the module
+// (and lil-gui) out entirely.
+const devPanel = (import.meta.env.DEV || import.meta.env.MODE === 'dev') && new URLSearchParams(location.search).has('dev') ? import('./dev/panel.js') : null;
+let dev = null;   // (installed at the end of this file: its hooks are in step and onLockChange)
 
 const canvas = document.getElementById('view');
 installAtmosphere();   // (before any shader is built)
@@ -608,7 +613,7 @@ input.onLockChange = (locked) => {
   if (!locked) items.cancelThrow();
   // Keys pressed in the menu (F9, R, H, G...) must not all go off on the first step after Resume.
   if (locked) input.consume();
-  menu.classList.toggle('hidden', locked || mapView.open || over || benchOpen);
+  menu.classList.toggle('hidden', locked || dev?.cursor || mapView.open || over || benchOpen);   // (the dev panel's free cursor: no menu)
   if (locked && !started) {
     started = true;
     document.body.classList.add('started');
@@ -623,7 +628,7 @@ input.onLockChange = (locked) => {
     if (!loadedSlot && !new URLSearchParams(location.search).has('nofly')) startFlyover(train); else train();
   }
   // Pause while the menu is up (not for the map, which pauses on its own).
-  menuPaused = !locked && !mapView.open && !over && !benchOpen;
+  menuPaused = !locked && !dev?.cursor && !mapView.open && !over && !benchOpen;
   if (!locked && !benchOpen && document.querySelector('.tab.on')?.dataset.tab === 'loadout') renderMenuLoadout();
   if (audio.ctx) menuPaused ? audio.ctx.suspend() : audio.ctx.resume();
 };
@@ -862,6 +867,7 @@ function frame(time) {
 function step(realDt, draw = true) {
   fps += (1 / Math.max(realDt, 1e-4) - fps) * 0.05;
   input.poll(realDt, { aiming: arsenal.aiming });   // the pad's buttons become keys (core/gamepad.js)
+  dev?.preStep(realDt);   // (the dev panel's free camera takes the mouse and the moving keys)
 
   if (input.wasPressed('KeyM') && !killCam.active && (input.locked || mapView.open)) {
     input.pressed.delete('KeyM');
@@ -921,7 +927,7 @@ function step(realDt, draw = true) {
   if (slowmoT > 0) slowmoT = Math.max(0, slowmoT - realDt);
   const targetScale = items.wheelOpen || arsenal.wwheelOpen ? 0.2 : slowmoT > 0.2 ? 0.25 : 1; // the item wheel slows time too
   timeScale += (targetScale - timeScale) * (1 - Math.exp(-(slowmoT > 0.2 ? 30 : 6) * realDt));
-  const dt = realDt * timeScale;
+  const dt = realDt * timeScale * (dev?.timeScale ?? 1);
 
   if (!paused && (!menuPaused || forceRun) && (!benchOpen || forceRun)) {
     acc += dt;
@@ -955,6 +961,7 @@ function step(realDt, draw = true) {
     fpBlend,
   });
   driving.frame(camera);   // at the wheel: the chase camera
+  dev?.frame(realDt);      // (the dev panel: its free camera, sight cones and sound rings)
   if (Math.abs(camera.fov - arsenal.fov) > 1e-3) {
     camera.fov = arsenal.fov;
     camera.updateProjectionMatrix();
@@ -1111,3 +1118,5 @@ window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, 
     }
   },
 };
+if (devPanel) dev = (await devPanel).install({ ...window.game, scene, missionId, missionFile: { radar: 'coast' }[missionId] ?? missionId,
+  missions: Object.keys(MISSION_MODULES), chooseMission, pause: window.game.pause });
