@@ -1513,8 +1513,14 @@ the light, the camera, the sight cones), instead of one AI round trip per number
 - [x] Checked in the dev server by script, sound off (`?dev&mute&nofly`): every button and the free
   cursor; save, reload and reset; the overrides file. 37/37 tests; smoke test on all nine missions with
   `?dev`. Not played by hand.
-- [ ] To check: `world.relight()` (nightfall) disposes the old environment while materials still hold it
-  as their own envMap (materials.js); it probably should move them to the new one, as the panel's rebake does.
+- [x] Fixed 27 Nov: `world.relight()` (nightfall) freed the old sky bake while materials still held it as
+  their own envMap. Worse than noted: copies of normalized materials (every tree, dog, vehicle: 34 of
+  104 on Vineyard) were out of reach of setEnvironment, so even the panel's rebake missed them, and no
+  material got dusk's stronger reflections. Now `world.bakeEnv` bakes into one render target for good
+  (a kept CubeCamera + PMREMGenerator.fromCubemap into the same target), so the texture every material
+  holds never changes; setEnvironment also walks the scene for copies and scales each strength by the
+  change (keeps values set on purpose, ruins.js's 0.2). Checked: 104/104 on the one texture after
+  dusk and after the panel's rebake, all scaled ×1.35; the bake within 1% of the old fromScene's.
 
 ## 27 November 2026: livelier guards
 

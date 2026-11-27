@@ -129,20 +129,27 @@ export function surfaceStats(m, meshes = []) {
   };
 }
 
-// The scene's environment map and strength (world.js sets them once the sky is made), and every
-// material normalized so far, which gets the map then.
+// The scene's environment map and strength (world.js sets them once the sky is made, and again
+// when evening changes the light), and every material normalized so far. One new to the map gets
+// its kind's share of the strength; one that has it already is scaled by the change, so a value
+// set on purpose after normalize (ruins.js's dusty parts) keeps its place. Copies of a normalized
+// material (every tree, dog, vehicle) aren't in the set: the ones in the scene (root) are found by
+// their look. (The map itself stays one texture for good: world.bakeEnv bakes into one target.)
 const ENV = { texture: null, intensity: 0.22 };
-const waiting = new Set();
-export function setEnvironment(texture, intensity) {
+const given = new Set();
+export function setEnvironment(texture, intensity, root) {
+  const k = intensity / ENV.intensity;
   ENV.texture = texture; ENV.intensity = intensity;
-  for (const m of waiting) applyEnv(m);
-  waiting.clear();
+  const seen = new Set();
+  const one = (m) => { if (seen.has(m)) return; seen.add(m); applyEnv(m, k); };
+  for (const m of given) one(m);
+  root?.traverse((o) => { for (const m of [].concat(o.material ?? [])) if (m.userData.look) one(m); });
 }
-function applyEnv(m) {
+function applyEnv(m, k = 1) {
   if (!('envMapIntensity' in m)) return;
-  m.envMap = ENV.texture;
+  if (m.envMap === ENV.texture) { m.envMapIntensity *= k; return; }
+  m.envMap = ENV.texture; m.needsUpdate = true;
   m.envMapIntensity = (m.userData.look?.env ?? 1) * ENV.intensity;
-  m.needsUpdate = true;
 }
 
 // The one step. kind: a key of KINDS; key: the asset's name (its brightness fix in
@@ -171,7 +178,8 @@ export function normalize(m, kind, key, meshes = []) {
   }
   if (m.color) m.color.multiplyScalar(m.userData.look.fix);
   if ((kind === 'prop' || kind === 'vehicle') && m.map?.image?.width <= 768) addDetail(m);   // (a low-resolution prop: the shared detail)
-  if (ENV.texture) applyEnv(m); else waiting.add(m);
+  if (!given.has(m)) { given.add(m); m.addEventListener('dispose', () => given.delete(m)); }
+  if (ENV.texture) applyEnv(m);
   return m;
 }
 

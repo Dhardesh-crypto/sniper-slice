@@ -62,23 +62,14 @@ export function install(g) {
     post.setGrade(L.warmth, L.saturation);
     renderer.shadowMap.needsUpdate = true;
   };
-  // The reflections are the sky baked into a cube: baked again when a slider that changes the sky
-  // is let go. Materials keep their own envMap (materials.js), so each is moved to the new one.
+  // The reflections are the sky baked into a cube: baked again (world.bakeEnv, which moves every
+  // material to the new bake) when a slider that changes the sky is let go.
   const applyEnv = () => {
     const k = hunt.reflections ? L.env : 0;
     scene.environmentIntensity = k;
     scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) if (m.envMap && 'envMapIntensity' in m) m.envMapIntensity = (m.userData.look?.env ?? 1) * k; });
   };
-  const rebake = () => {
-    const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
-    envScene.add(world.sky.clone());
-    const old = scene.environment, tex = pmrem.fromScene(envScene, 0, 1, 5000).texture;
-    pmrem.dispose();
-    scene.environment = tex;
-    scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) if (m.envMap === old) m.envMap = tex; });
-    old?.dispose?.();
-    applyEnv();
-  };
+  const rebake = () => { world.bakeEnv(L.env); applyEnv(); };
   const look = gui.addFolder('Look');
   const where = `${missionFile} · map.light`;
   const sun = look.addFolder('Sun');

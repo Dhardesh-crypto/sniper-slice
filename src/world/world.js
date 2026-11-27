@@ -147,14 +147,7 @@ export class World {
     u.sunPosition.value.copy(this.sunDir);
     scene.add(sky);
 
-    // Environment lighting from the sky itself.
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const envScene = new THREE.Scene();
-    envScene.add(sky.clone());
-    scene.environment = pmrem.fromScene(envScene, 0, 1, 5000).texture;
-    scene.environmentIntensity = L.env;
-    setEnvironment(scene.environment, L.env);   // (every loaded model's material gets it as its own, at its kind's share: materials.js)
-    pmrem.dispose();
+    this.bakeEnv(L.env);                  // environment lighting from the sky itself
 
     const fog = activeMap().fog;          // a misty map brings the fog in close
     scene.fog = fog?.density ? new THREE.FogExp2(fog.color, fog.density) : new THREE.Fog(fog?.color ?? 0xb9c6cc, fog?.near ?? 320, fog?.far ?? 1600);
@@ -173,6 +166,30 @@ export class World {
     this.sun = sun;
   }
 
+  // The reflections: the sky as it stands, rendered into a cube and filtered into a PMREM. Every
+  // loaded model's material holds that map as its own envMap (materials.js), and copies of those
+  // materials (each tree, dog, vehicle) hold it too, out of anyone's reach; so a new bake goes into
+  // the same render target, never a new one: the texture they all hold just changes. (The
+  // generator is kept too: only the one that made the target has the buffers to refill it.)
+  bakeEnv(intensity) {
+    const renderer = this.renderer;
+    if (!this.envCube) {
+      this.envCube = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+      this.envCam = new THREE.CubeCamera(1, 5000, this.envCube);
+      this.envScene = new THREE.Scene();
+      this.pmrem = new THREE.PMREMGenerator(renderer);
+    }
+    this.envScene.clear();
+    this.envScene.add(this.sky.clone());
+    const target = renderer.getRenderTarget();
+    this.envCam.update(renderer, this.envScene);
+    this.envTarget = this.pmrem.fromCubemap(this.envCube.texture, this.envTarget ?? null);
+    renderer.setRenderTarget(target);
+    this.scene.environment = this.envTarget.texture;
+    this.scene.environmentIntensity = intensity;
+    setEnvironment(this.envTarget.texture, intensity, this.scene);
+  }
+
   // The light changed during play (evening falls: main.js nightfall, after the map's light and fog
   // were set to dusk's): the sun, the sky and what it lights, the haze, all moved to the map's
   // settings as they stand now. The sky is baked again for the reflections, so this costs a moment:
@@ -183,13 +200,7 @@ export class World {
     renderer.toneMappingExposure = L.exposure;
     u.turbidity.value = L.turbidity; u.rayleigh.value = L.rayleigh; u.cloudCoverage.value = L.clouds;
     u.sunPosition.value.copy(this.sunDir);
-    const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
-    envScene.add(this.sky.clone());
-    scene.environment?.dispose?.();
-    scene.environment = pmrem.fromScene(envScene, 0, 1, 5000).texture;
-    scene.environmentIntensity = L.env;
-    setEnvironment(scene.environment, L.env);
-    pmrem.dispose();
+    this.bakeEnv(L.env);
     const fog = activeMap().fog;
     if (scene.fog?.isFog) { scene.fog.color.set(fog?.color ?? 0xb9c6cc); scene.fog.near = fog?.near ?? 320; scene.fog.far = fog?.far ?? 1600; }
     else if (scene.fog) scene.fog.color.set(fog?.color ?? 0xb9c6cc);
