@@ -23,6 +23,25 @@ const JOG_TO = 3.6;               // m/s: a jog up to here, a run above
 // plays it from THROW_FROM (the wind-up, as the player's avatar does) at THROW_RATE, and the grenade
 // leaves his hand THROW_RELEASE seconds of clip time in (where the arm comes over).
 const THROW_FROM = 1.55, THROW_RATE = 1.8, THROW_RELEASE = 2.45, THROW_END = 3.6;           // the duck clip played a little faster than it was made: a blast is sudden
+const _la = new THREE.Vector3(), _ls = new THREE.Vector3(), _lq = new THREE.Quaternion(), _lq2 = new THREE.Quaternion(), _lq3 = new THREE.Quaternion();   // (life scratch)
+
+// His life between the clips (life(), on top of whatever clip is playing, like the flinch): standing,
+// his weight goes from foot to foot and his head turns to look about; now and then he stretches his
+// back. Each man walks his round at his own pace and stops on it now and then (guards.js). Turns start
+// easing in, not at full rate. Alerted from calm, he starts: a jolt, his head snaps to it before his
+// body comes round, and he drops into a crouch for a moment. (The dev panel's Guards folder tunes these.)
+export const LIFE = {
+  weightShift: 0.035,   // rad: the hips' roll from foot to foot (the spine takes it back, his head stays over his feet)
+  headLook: 0.6,        // rad: how far his head turns to look about, standing (a third of it walking)
+  stretch: 0.14,        // rad: his back arched in a stretch, every half minute or so at ease
+  startle: 0.26,        // rad: the jolt back when he's alerted from calm
+  startleDuck: 0.6,     // s: the crouch after it, when it's an alarm
+  turnAccel: 14,        // rad/s²: how quickly a turn picks up speed
+  paceSpread: 0.15,     // each man's walk 1 ± this of the patrol pace
+  pauseChance: 0.35,    // a stop at a waypoint that has none of its own
+  pauseMin: 1.5, pauseMax: 4.5,   // s
+  dash: 1.2,            // × the run, to cover under fire
+};
 
 export class Soldier {
   // stance: 'alert' (rifle at low ready, both hands) or 'easy' (relaxed, rifle slung).
@@ -68,6 +87,9 @@ export class Soldier {
     this.kick = 0;
     this.crouch = 0;             // 0..1, ducking behind cover
     this.crouchTarget = 0;
+    this.pace = 1 + (Math.random() * 2 - 1) * LIFE.paceSpread;   // (his own walking pace)
+    this.lifeK = 0; this.turnV = 0;
+    this.lifeS = { shift: Math.random() * 6.3, shiftRate: 2 * Math.PI / (5 + Math.random() * 4), head: 0, headTo: 0, headT: 1 + Math.random() * 4, stretchT: 20 + Math.random() * 30, stretch: -1 };
     this.applyStance();
     this.char.mixer.setTime(Math.random() * 4); // don't breathe in unison
     this.root.updateMatrixWorld(true);
@@ -291,6 +313,13 @@ export class Soldier {
   // Awareness changed (from the stealth system): face the news, rifle up when wary.
   react(state, stimulus) {
     if (!this.alive || this.downed) return;
+    const was = this.awareState ?? 'calm';
+    this.awareState = state;
+    // Startled out of calm (or from wary into the alarm): a jolt, and for an alarm a duck.
+    if (state !== 'calm' && state !== was && !this.riding && !this.manning && !this.surrendered && this.coverT <= 0) {
+      this.startle = { t: 0, dur: 0.45, k: was === 'calm' ? 1 : 0.6 };
+      if (state === 'alerted' && this.gait === 'stand' && !this.officer) this.duckT = Math.max(this.duckT ?? 0, LIFE.startleDuck * (0.8 + Math.random() * 0.4));
+    }
     if (state === 'calm') {
       this.targetYaw = this.homeYaw;
       if (this.stance !== this.baseStance) { this.stance = this.baseStance; this.applyStance(0.4); }
@@ -531,7 +560,11 @@ export class Soldier {
       let d = this.targetYaw - this.root.rotation.y;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       // Quick through a big turn, easing in as he comes round (not a turret's constant rate).
-      this.root.rotation.y += Math.sign(d) * Math.min(Math.abs(d), THREE.MathUtils.clamp(Math.abs(d) * 5, 1.2, this.gait === 'run' ? 6 : 5) * dt);   // (rad/s: 5× the angle left, 1.2 to 5)
+      // (and picking up into it, not at full rate from a standstill: turnV eases toward that rate)
+      const want = Math.sign(d) * THREE.MathUtils.clamp(Math.abs(d) * 5, 1.2, this.gait === 'run' ? 6 : 5);   // (rad/s: 5× the angle left, 1.2 to 5)
+      const dv = want - this.turnV, acc = LIFE.turnAccel * (Math.sign(want) !== Math.sign(this.turnV) ? 2 : 1) * dt;
+      this.turnV = Math.abs(d) < 1e-3 ? 0 : this.turnV + THREE.MathUtils.clamp(dv, -acc, acc);
+      this.root.rotation.y += Math.sign(this.turnV) * Math.min(Math.abs(d), Math.abs(this.turnV) * dt);
       // Turning where he stands: he steps round (his walk's legs, paced to the turn) instead of
       // spinning on his heels, and settles back into his stance once he faces the way.
       const free = this.gait === 'stand' && this.reactT <= 0 && this.coverT <= 0 && !this.downed && !this.riding && !this.manning && !this.dragging && !this.surrendered && !this.aimDir && this.activity !== 'kneelWork';
@@ -545,6 +578,8 @@ export class Soldier {
         if (free) this.applyStance(0.25);
       }
     }
+    // (life()'s turns undone first: a bone no clip drives, the hips under a legs-only clip, would gather them)
+    if (this._lifeRest) { for (const [bone, q] of this._lifeRest) bone.quaternion.copy(q); this._lifeRest = null; }
     this.char.update(dt);
     if (this.drop) this.updateDrop(dt);
     if (!this.alive && (this.rag || this.fall || this.fly || this.deathT < 1)) this.updateFall(dt);
@@ -575,6 +610,7 @@ export class Soldier {
     const feetDown = this.alive && this.near && this.floorAt && !this.riding && !this.manning && !this.downed && !this.grabClip && !this.fallV && this.coverT <= 0;
     this.feetK = (this.feetK ?? 0) + ((feetDown ? 1 : 0) - (this.feetK ?? 0)) * Math.min(1, 8 * dt);
     if (this.feetK > 0.01) { const y = this.root.position.y; this.char.footIK((x, z) => this.floorAt(x, z, y + 0.6), this.feetK); }
+    this.life(dt);   // (after the crouch and the feet, which keep their own undo of what's under it: see the top of update)
     this.kick = Math.max(0, this.kick - dt * 4);
     // Bleeding from a body wound (applyHit).
     if (this.alive && this.bleed > 0) {
@@ -590,6 +626,59 @@ export class Soldier {
     else if (this.alive && (this.stance === 'alert' || this.gait === 'run')) this.keepRifleClear(null, this.gait === 'run' ? 'port' : 'low');
     else if (this.alive && this.stance === 'easy') this.char.slingRifle();
     this.root.updateMatrixWorld(true);
+  }
+
+  // His life on top of the clip (LIFE, above): bones turned about world axes, as the flinch is.
+  life(dt) {
+    const L = this.lifeS;
+    const free = this.alive && this.reactT <= 0 && this.coverT <= 0 && !this.downed && !this.riding && !this.manning && !this.dragging
+      && !this.surrendered && !this.grabClip && !this.aimDir && !this.throwing && this.activity !== 'kneelWork';
+    const still = free && this.gait === 'stand' && !this.stepping;
+    this.lifeK += ((free ? 1 : 0) - this.lifeK) * Math.min(1, 3 * dt);
+    const st = this.startle;
+    if (st) { st.t += dt; if (st.t >= st.dur) this.startle = null; }
+    if (this.lifeK < 0.01 && !st) return;
+    const b = this.char.bones, yaw = this.root.rotation.y;
+    const fwd = _la.set(Math.sin(yaw), 0, Math.cos(yaw)), side = _ls.crossVectors(fwd, UP);   // (about `side`, + leans him back)
+    const rest = this._lifeRest ??= [];
+    const turn = (bone, axis, angle) => {
+      if (!bone?.parent || Math.abs(angle) < 1e-4) return;
+      if (!rest.some(r => r[0] === bone)) rest.push([bone, bone.quaternion.clone()]);
+      const pq = bone.parent.getWorldQuaternion(_lq);
+      bone.quaternion.premultiply(_lq2.copy(pq).invert().multiply(_lq3.setFromAxisAngle(axis, angle)).multiply(pq));
+    };
+    // From foot to foot, slowly, each man at his own rate.
+    L.shift += L.shiftRate * dt;
+    const shift = LIFE.weightShift * Math.sin(L.shift) * (still ? 1 : 0) * this.lifeK * (1 - this.crouch);
+    turn(b.Hips, fwd, shift);
+    turn(b.Spine, fwd, -shift * 1.5);
+    // Looking about: a new way to look every couple of seconds, half the time back to the front.
+    // (startled, his head goes to it at once, ahead of his body)
+    if ((L.headT -= dt) <= 0) {
+      L.headT = (still ? 1.8 : 3) + Math.random() * 3.5;
+      L.headTo = Math.random() < 0.45 ? 0 : (Math.random() < 0.5 ? -1 : 1) * (0.45 + Math.random() * 0.55) * LIFE.headLook * (still ? 1 : 0.35);
+    }
+    let to = L.headTo * this.lifeK, rate = 2.2;
+    if (st || this.awareState === 'alerted') { let d = this.targetYaw - yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); to = THREE.MathUtils.clamp(d, -0.9, 0.9); rate = st ? 14 : 6; }
+    L.head += (to - L.head) * Math.min(1, rate * dt);
+    turn(b.neck, UP, L.head * 0.55);
+    turn(b.Head, UP, L.head * 0.45);
+    // A stretch now and then at ease: his back arched and his head up, a second and a half.
+    if (still && this.stance === 'easy' && L.stretch < 0 && (L.stretchT -= dt) <= 0) { L.stretch = 0; L.stretchT = 25 + Math.random() * 35; }
+    if (L.stretch >= 0) {
+      L.stretch += dt;
+      const k = Math.sin(Math.min(1, L.stretch / 1.6) * Math.PI) * (still ? 1 : 0);
+      turn(b.Spine02, side, LIFE.stretch * k);
+      turn(b.neck, side, LIFE.stretch * 0.6 * k);
+      if (L.stretch >= 1.6) L.stretch = -1;
+    }
+    // The start: back and up in a twentieth of a second, easing out.
+    if (st) {
+      const k = (st.t < 0.06 ? st.t / 0.06 : Math.max(0, 1 - (st.t - 0.06) / (st.dur - 0.06)) ** 2) * st.k;
+      turn(b.Spine01, side, LIFE.startle * k);
+      turn(b.neck, side, -LIFE.startle * 0.5 * k);
+    }
+    b.Hips?.updateMatrixWorld(true);
   }
 
   // The rifle shouldered along `aim` (or carried), but never through a wall: up against one he

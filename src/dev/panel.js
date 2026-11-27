@@ -19,7 +19,7 @@ import { activeMap } from '../world/terrain.js';
 import { setAtmosphere, ATMO } from '../world/atmosphere.js';
 import { OFFSETS, PIVOT_H, RIG } from '../player/camera-rig.js';
 import { SIGHT } from '../stealth/stealth.js';
-import { Soldier } from '../world/soldier.js';
+import { Soldier, LIFE } from '../world/soldier.js';
 import { AMMO, HEAVY_AMMO } from '../weapons/defs.js';
 
 const KEY = 'sniper-slice.dev.tuning';
@@ -185,6 +185,13 @@ export function install(g) {
   });
   cam.add(free, 'speed', 1, 200, 1).name('free camera speed');
   cam.close();
+
+  // ---- Guards: their life between the clips (world/soldier.js LIFE) ----
+  const life = gui.addFolder('Guards (life)').close(), lifeWhere = 'src/world/soldier.js · LIFE';
+  for (const [k, lo, hi, step, label] of [['weightShift', 0, 0.12, 0.005, 'weight shift (rad)'], ['headLook', 0, 1.2, 0.05, 'head looks (rad)'], ['stretch', 0, 0.4, 0.01, 'stretch (rad)'],
+    ['startle', 0, 0.6, 0.01, 'startle jolt (rad)'], ['startleDuck', 0, 2, 0.05, 'startle crouch (s)'], ['turnAccel', 2, 40, 1, 'turn pick-up (rad/s²)'],
+    ['paceSpread', 0, 0.4, 0.01, 'pace spread (new men)'], ['pauseChance', 0, 1, 0.05, 'patrol stop chance'], ['pauseMin', 0, 10, 0.1, 'stop min (s)'], ['pauseMax', 0, 15, 0.1, 'stop max (s)'], ['dash', 1, 1.6, 0.05, 'dash to cover ×run']])
+    track(life.add(LIFE, k, lo, hi, step).name(label), `life.${k}`, lifeWhere);
 
   // ---- Play ----
   const play = gui.addFolder('Play');

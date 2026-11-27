@@ -15,7 +15,7 @@
 // The siren brings every guard in and a truck with four more. Cut its wire and it can't sound.
 import * as THREE from 'three';
 import { NavGrid } from './nav.js';
-import { Soldier, DRAG_SPEED } from '../world/soldier.js';
+import { Soldier, DRAG_SPEED, LIFE } from '../world/soldier.js';
 import { vehicleModel } from '../world/vehicle-models.js';
 import { roadCenterZ, COMPOUND, activeMap } from '../world/terrain.js';
 import { Zones, PHONE_DELAY, PATROL } from '../mission/zones.js';
@@ -182,10 +182,13 @@ export class GuardAI {
           const wp = b.route[b.routeI];
           if (b.waitT > 0) {
             this.stop(s);
-            if ((b.waitT -= dt) <= 0) b.routeI = (b.routeI + 1) % b.route.length;
-          } else if (this.goTo(s, wp, s.officer ? WALK * 0.8 : WALK, dt)) {
+            // (a stop of his own: half the time he has a look round while he's at it)
+            if (b.pauseLook) { s.nextActivity = 'lookAround'; if ((b.lookT += dt) > 1.8) { b.lookT = 0; s.targetYaw = s.root.rotation.y + (Math.random() - 0.5) * 2; } }
+            if ((b.waitT -= dt) <= 0) { b.routeI = (b.routeI + 1) % b.route.length; b.pauseLook = false; b.legPace = s.pace * (0.94 + Math.random() * 0.12); }
+          } else if (this.goTo(s, wp, (s.officer ? WALK * 0.8 : WALK) * (b.legPace ?? s.pace ?? 1), dt)) {   // (each man at his own pace, a little different leg to leg)
             if (wp.wait) b.waitT = wp.wait;
-            else b.routeI = (b.routeI + 1) % b.route.length;
+            else if (!s.officer && Math.random() < LIFE.pauseChance) { b.waitT = LIFE.pauseMin + Math.random() * (LIFE.pauseMax - LIFE.pauseMin); b.pauseLook = Math.random() < 0.5; b.lookT = 0; }   // (he stops a moment: a look round, his breath)
+            else { b.routeI = (b.routeI + 1) % b.route.length; b.legPace = s.pace * (0.94 + Math.random() * 0.12); }
           }
         } else if (!b.fixed && Math.hypot(s.root.position.x - s.home.x, s.root.position.z - s.home.z) > 0.8) {
           this.goTo(s, s.home, WALK, dt);
@@ -402,7 +405,7 @@ export class GuardAI {
       b.cover = this.findCover(s);
     }
     if (b.cover && !b.atCover) {
-      if (!this.goTo(s, b.cover, RUN, dt)) return;
+      if (!this.goTo(s, b.cover, RUN * LIFE.dash, dt)) return;   // (a dash: he's under fire)
       this.stop(s);
       if (s.root.position.distanceTo(b.cover) < 1.5) b.atCover = true;
       else b.cover = null;                  // (goTo gave up on the way: he fights from where he is)

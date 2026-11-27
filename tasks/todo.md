@@ -1515,3 +1515,23 @@ the light, the camera, the sight cones), instead of one AI round trip per number
   `?dev`. Not played by hand.
 - [ ] To check: `world.relight()` (nightfall) disposes the old environment while materials still hold it
   as their own envMap (materials.js); it probably should move them to the new one, as the panel's rebake does.
+
+## 27 November 2026: livelier guards
+
+- [x] Asked for together with Slackwater's: "make the movements of the enemies more lively". The guards
+  already flinched where a round struck, ducked from near misses and covered from blasts; what they
+  lacked was life between those moments. `soldier.js` `LIFE` (tuned in the dev panel's "Guards (life)"):
+  standing, his weight goes foot to foot (hips roll, the spine takes it back) and his head looks about
+  (a third as far walking); at ease he stretches his back now and then; turns pick up speed
+  (`turnAccel`) instead of starting at full rate. Alerted from calm he starts: a jolt back, his head
+  snaps to it ahead of his body, a crouch for half a second or so, then off. Patrols (`guards.js`):
+  each man walks at his own pace (±15%), a little different leg to leg, and stops at a waypoint that
+  has no stop of its own one time in three (1.5–4.5 s, half the time with a look round); under fire
+  he dashes to cover at 1.2× the run.
+- [x] On top of the existing clips, as the flinch is: bones turned about world axes after the clip,
+  the crouch and the feet, and undone before the next frame's clip (a bone no clip drives, the hips
+  under a legs-only clip, gathered the turns: the first capture had a guard tip over). No rig or clip
+  changed, so the 11-point rigging checklist has nothing to redo; frames checked from a 3/4 view
+  (`tasks/guard-life-idle.jpg`, `tasks/guard-life-startle.jpg`).
+- [x] Vineyard, a minute of play: paces 0.87–1.15, 1–4 stops a minute on each round, heads up to
+  0.6 rad. 37/37 tests; smoke test muted on vineyard, town and bridge. Not played by hand.
