@@ -86,6 +86,12 @@ leaves the panel and lil-gui out entirely, so `?dev` does nothing on the live si
   part of the scene, so you can turn them off one at a time.
 - **Camera:** field of view, the shoulder camera's offsets for each stance (right, height, follow
   distance), pivot height and smoothing, and a free camera (WASD, Q/E down/up, Shift faster, the mouse looks round while the game has it).
+- **Guards (life):** the guards' weight shifts, head looks, stretches, startle, turn pick-up, patrol
+  pace and stops, and the dash to cover (`soldier.js` `LIFE`).
+- **Weather:** force a run's weather (restarts: as drawn, briefed, overcast, rain, mist, dusk, storm),
+  the lightning-flash setting, and in a storm its strikes (how often, how near, how bright, how far
+  the guards see at a flash, how long thunder covers a shot, the rumble), with Strike now and Strike
+  near, ahead (`storm.js` `STORM`).
 - **Play:** god mode, refill health and ammo, spawn a guard at the crosshair or where you click,
   clear all enemies (the mission's target is spared unless you tick "…the target too"), time scale,
   pause, sight cones (green calm, yellow suspicious, red alerted; the range for a man standing in the

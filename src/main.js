@@ -60,6 +60,7 @@ import { initTurrets, tickTurrets, turretCrews } from './world/turrets.js';
 import { initExhaust, tickExhaust } from './world/exhaust.js';
 import { initGroundMarks, tickGroundMarks } from './world/groundmarks.js';
 import { Weather } from './world/weather.js';
+import { Storm } from './world/storm.js';
 import { addAnimals, startle, tickAnimals, herdEvents } from './world/animals.js';
 import { activeMap } from './world/terrain.js';
 import { Items } from './player/items.js';
@@ -156,7 +157,7 @@ M.map.id ??= missionId;                          // (its far country: textures/h
 const conditions = pickConditions(M.map, runSeed, settings.season); // this run's weather: as briefed, or overcast, rain, mist; and maybe winter
 useMap(M.map);
 document.querySelector('#menu .sub').textContent = M.subtitle + (conditions.label ? ` · ${conditions.label}` : '');
-if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
+if (M.briefing) document.getElementById('briefing').innerHTML = M.briefing + (conditions.label ? `<p><b>Conditions today:</b> ${conditions.label.toLowerCase()}. ${conditions.kind === 'overcast' ? 'Flat light, the far hills hazy.' : conditions.kind === 'dusk' ? 'The light is going; the searchlights are on and the guards carry torches. Keep out of the beams (a torch finds you even in tall grass), or shoot the lamps out.' : conditions.kind === 'storm' ? 'They see less far in the rain, and the thunder covers a shot fired while it rolls: watch for the flash and count. But a flash lights everything up: lie low when the sky goes white.' : 'They see less far than usual; ' + (conditions.kind === 'rain' ? 'the rain also covers some of your noise.' : 'the mist lifts nothing before noon.')}</p>` : '');
 // (a mission whose evening falls while you're in it says so: nightfall, below)
 if (M.def?.evening && conditions.kind === 'briefed') document.getElementById('briefing').insertAdjacentHTML('beforeend', `<p><b>The light:</b> evening falls about ${Math.round(M.def.evening.at / 60)} minutes in. By day they see you from further off, but you see everything: look the place over. At dusk they see a quarter less far, and the searchlights and torches are lit: that is the time for the shot, if you keep out of the beams.</p>`);
 document.getElementById('briefing').insertAdjacentHTML('afterbegin', storyLine(missionId));   // (the story so far: missions/story.js)
@@ -168,7 +169,7 @@ input.settings = settings;   // (the pad's vibration setting)
 const audio = new Audio();
 audio.volume = settings.volume;
 audio.musicVolume = settings.music;
-audio.plan = { weapons: ['rifle', 'pistol', 'heavy'].map(slot => new Profile().loadout[slot]).filter(Boolean), sea: M.map.waterLevel != null };   // (which samples the first wave fetches: core/audio.js loadSamples)
+audio.plan = { weapons: ['rifle', 'pistol', 'heavy'].map(slot => new Profile().loadout[slot]).filter(Boolean), sea: M.map.waterLevel != null, storm: !!M.map.weather?.storm };   // (which samples the first wave fetches: core/audio.js loadSamples)
 const world = new World(scene, renderer, M.site);
 dressSite(world);
 await usePhotoTextures(scene, M.map.wallStyle);                   // the photographs over the drawn textures
@@ -180,7 +181,7 @@ const rig = new CameraRig(world);
 const fx = new Particles(scene, 600);   // (tank exhausts keep a few dozen in the air)
 // This run's wind, drawn from its seed: still in a morning mist, fresh under rain clouds.
 {
-  const r = seeded(runSeed ^ 0x3171d), [lo, hi] = { mist: [0.4, 1.6], dusk: [0.8, 3], overcast: [2, 5], rain: [3, 7] }[conditions.kind] ?? [1, 5.5];
+  const r = seeded(runSeed ^ 0x3171d), [lo, hi] = { mist: [0.4, 1.6], dusk: [0.8, 3], overcast: [2, 5], rain: [3, 7], storm: [6, 11] }[conditions.kind] ?? [1, 5.5];
   world.windAngle = r() * Math.PI * 2; world.windBase = lo + (hi - lo) * r(); world.updateWind();
 }
 fx.wind = world.wind; fx.snow = !!activeMap().winter;   // (puffs drift downwind; in winter the ground throws up snow)
@@ -227,6 +228,7 @@ initTurrets({ scene, world, player, stealth, audio, fx, hud, explosions });   //
 initExhaust({ fx, player });          // fumes from every running engine
 initGroundMarks(scene);               // tracks and tyre marks in the soft ground
 const weather = new Weather({ scene, camera, fx, audio, player, world });   // rain, mist, spray (per mission)
+const storm = activeMap().weather?.storm ? new Storm({ scene, world, renderer, camera, audio, player, fx, explosions, settings }) : null;   // lightning and thunder (a storm's run)
 world.decals = new Decals({ scene, world });   // bullet holes, blood
 world.casings = new Casings({ scene, world, audio }); // spent brass, ringing as it lands
 for (const [kind, x, z, r, n] of activeMap().animals ?? []) addAnimals(scene, kind, x, z, r, n);   // cows, goats, deer
@@ -385,7 +387,7 @@ const endScreen = document.getElementById('end');
 // The mission is over (won, failed or dead): every running loop stops, the music too.
 function silence() {
   audio.setSiren(0); audio.setTruck(0); audio.setEngine(0); audio.loopSample('column', 'army_truck', 0);
-  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0);
+  audio.setTankTracks(0); audio.setTurret(0); audio.setRain(0); audio.setStorm(0);
   audio.stopMusic();
 }
 mission.onComplete = (sum) => {
@@ -560,6 +562,7 @@ bind('set-killcam', 'killCam', () => '');
 bind('set-quality', 'quality', () => '');
 bind('set-aim', 'aimMode', () => '');
 bind('set-season', 'season', () => '');
+bind('set-flashes', 'flashes', () => '');
 document.getElementById('set-season')?.addEventListener('change', () => setTimeout(() => location.reload(), 60));   // (the map is built for its season: start again)
 
 // The story: before the first start, Ellis's orders on a dispatch card (read out); a loaded game
@@ -801,6 +804,7 @@ function tick(dt) {
   flags.tick(dt);
   seashore.tick(dt);
   weather.tick(dt);
+  storm?.tick(dt);
   world.decals.tick(dt);
   world.casings.tick(dt);
   tickAnimals(dt, player);
@@ -824,7 +828,7 @@ function tick(dt) {
     for (const at of spots) stealth.disturbance(at);   // (a quiet shot he didn't hear: he sees the birds go up)
   }
   if (stealth.lastShot && stealth.time - stealth.lastShot.t < 0.05) birdT = 35;
-  if (birdT <= 0) { birdT = 3 + Math.random() * 7; if (!stealth.alarm) audio.birdCall(); }
+  if (birdT <= 0) { birdT = 3 + Math.random() * 7; if (!stealth.alarm && !storm) audio.birdCall(); }   // (no birdsong in a storm)
   world.tick(dt);
   if (player.dead && !deathScreen.classList.contains('on')) {
     deathScreen.classList.add('on');
@@ -1091,7 +1095,7 @@ async function loadLater() {
 window.game = { audio, thoughts, seashore, footprints, flags, airwar, disguise, driving,
   beltGrenades, assets, rockets, interactions, turretCrews, guns, dogs, patrol, searchlights, flashlights, birds,
   counterfire, clues, alarms, orders,
-  flyover, conditions, activeMap, nightfall,
+  flyover, conditions, activeMap, nightfall, storm,
   THREE, world, player, arsenal, avatar, rig, camera, settings, hud, renderer, input, killCam, post, mapView, search, setMap, carry, masking, stealth, ai, mission, hotspots, takedown, scaleResolution, explosions, tank, items, saves, profile, pickups, applyLoadout, openBench, closeBench, tutorial, padNav,
   get timeScale() { return timeScale; },
   pause(v = true) { paused = v; },

@@ -241,7 +241,7 @@ export class Stealth {
     const eye = s.headPosition(this.v.c).setY(s.headPosition(this.v.c).y - 0.25);
     const glint = this.glint?.toward(eye) ?? 0;                 // your scope flashing in the sun (glint.js): seen far off, and through grass
     if (this.concealed && !lit && glint < 0.2 && d > CONCEAL_SIGHT[this.player.stance] * (this.player.moving ? 1.5 : 1)) return 0;
-    let range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1) * this.sightK;   // (rain and mist hide you further off)
+    let range = SIGHT.range * (eye.y - s.root.position.y > 4 ? 1.3 : 1) * (a.state === 'alerted' ? 1.3 : 1) * (activeMap().sightScale ?? 1) * this.sightK * (1 + (this.world.flashSight ?? 0));   // (rain and mist hide you further off; a lightning flash shows you up: storm.js)
     if (glint > 0) { range = Math.max(range, 340 * glint); vis = Math.max(vis, 0.5 * glint); }
     if (d > range * Math.sqrt(vis) + 3) return 0;
     const to = chest.clone().sub(eye);

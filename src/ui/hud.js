@@ -92,7 +92,7 @@ export class Hud {
     }
     // Masking indicator under the wind readout.
     const el = this.el.mask ?? (this.el.mask = document.getElementById('mask'));
-    const names = { generator: 'GENERATOR', plane: 'AIRCRAFT', artillery: 'ARTILLERY' };
+    const names = { generator: 'GENERATOR', plane: 'AIRCRAFT', artillery: 'ARTILLERY', thunder: 'THUNDER' };
     if (st.mask.amount > 0.5) {
       put(el, `SOUND MASKED · ${names[st.mask.source] ?? String(st.mask.source).toUpperCase()}`);
       el.className = 'on';

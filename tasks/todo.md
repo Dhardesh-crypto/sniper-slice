@@ -1535,3 +1535,32 @@ the light, the camera, the sight cones), instead of one AI round trip per number
   (`tasks/guard-life-idle.jpg`, `tasks/guard-life-startle.jpg`).
 - [x] Vineyard, a minute of play: paces 0.87–1.15, 1–4 stops a minute on each round, heads up to
   0.6 rad. 37/37 tests; smoke test muted on vineyard, town and bridge. Not played by hand.
+
+## 27 November 2026: acid (not in the game) and thunderstorms
+
+- [x] Acid attack: asked for with Slackwater's ("the acid attack should look more realistic"). Searched the
+  code, tools, notes and README for acid or a corrosive effect: Sniper Slice has none, so none was made.
+- [x] Thunderstorm, a run's conditions beside overcast, rain, mist and dusk (`conditions.js` 'storm',
+  weight 0.08): heavy rain, the sun all but gone, a slate sky, close grey-blue haze, a gale (6–11 m/s),
+  guards seeing 0.68 as far. The Sky shader only draws fair-weather clouds on blue, so `storm.js` adds a
+  thunderhead dome inside its box (1900 m, drawn just after it, no depth), the haze's colour at the
+  horizon, drifting with the wind. In winter a storm is heavy snow (no thunder).
+- [x] Lightning every 7–18 s (`STORM`): two to four strokes in half a second light the scene (a sky light,
+  a key from the strike's side, the exposure, the haze and the dome from inside toward the strike); a
+  forked bolt (white core, soft blue glow, crossed ribbons) when it's within 2.6 km; three in ten close
+  (45–420 m), half of those ground strikes: a white light on the spot, sparks, smoke downwind, a scorch
+  that fades in a minute; a guard within 14 m ducks, within 4 m he's knocked back. No birdsong in a storm.
+- [x] Thunder in SuperCollider (`tools/music/thunder.scd`, `thunder.py`; filtered noise, no tones or bells):
+  three close strikes (crack, tear, roll), four far rolls, two ground-strike snaps, a 30 s rumble-and-wind
+  loop. Each arrives a second per 343 m after its flash (checked: 1.00 s at 343 m), close ones crack, far
+  ones only roll, duller with distance. Fetched only on a storm's run. `tasks/storm-thunder-spectra.jpg`.
+- [x] How it plays (chosen): thunder covers a shot. While a roll is overhead (2.8 s close, less far off)
+  your shot is masked as under a plane, "SOUND MASKED · THUNDER" on the HUD: a rifle heard at 48 m instead
+  of 294 m in plain rain. The flash comes first, so you count and fire on the thunder. And a flash shows
+  you up: at its height the guards see half again as far (`world.flashSight` in stealth.js).
+- [x] Reduced flashes (Settings, "Lightning flashes"; `settings.flashes`): one soft glow a quarter as
+  bright, no flicker, no strike nearer than 160 m. Checked: one rise, peak 0.25 (full: four strokes, 0.98).
+- [x] Dev panel "Weather": force the weather (restarts), the flash setting, every `STORM` value, Strike
+  now, Strike near ahead. Pictures: `tasks/storm-strikes.jpg`, `tasks/storm-ground-strike.jpg`,
+  `tasks/storm-dev-panel.jpg`. A storm run with the alarm and shots: no console errors, frame median 1.3 ms.
+  37/37 tests; smoke test muted. Not played by hand; the thunder not listened to by a person.

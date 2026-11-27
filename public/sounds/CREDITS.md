@@ -4,6 +4,8 @@ Most sounds here were generated with ElevenLabs Sound Effects (via fal.ai) for t
 
 The air war (`bombers_drone`, `strafe_50cal`, `flak_burst`, `flak88_fire`, `plane_crash`, `radio_static`): ElevenLabs Sound Effects (`plane_crash` trimmed to 3.2 s, fading out from 1.8 s).
 
+The storm (`thunder_near_1`–`3`, `thunder_far_1`–`4`, `lightning_strike_1`–`2`, `storm_bed`) was synthesised for this game in SuperCollider (`tools/music/thunder.scd`, rendered by `tools/music/thunder.py`): filtered noise only, no samples; the rendered audio is ours.
+
 The shore (`sea_waves`, `sea_distant`, `gull_1`–`gull_3`): ElevenLabs Sound Effects.
 
 The campaign's story (`story_<mission>_intro.mp3` / `_outro.mp3`: Major Ellis's orders and reports) was read with ElevenLabs Multilingual v2 text-to-speech, voice George (English).

@@ -59,6 +59,10 @@ const lines = (kind, n) => Array.from({ length: n }, (_, i) => `th_${kind}_${i +
 export const THOUGHTS = { scan: lines('scan', 5), guard: lines('guard', 5), target: lines('target', 3), fuel: lines('fuel', 3), vehicle: lines('vehicle', 3),
   siren: lines('siren', 1), generator: lines('generator', 1), neartarget: lines('neartarget', 3), nearobj: lines('nearobj', 3), nearexit: lines('nearexit', 2), alarm: lines('alarm', 3) };
 EXTRA.push(...Object.values(THOUGHTS).flat());
+// The storm (written in SuperCollider: tools/music/thunder.py): close strikes, far rolls, bolts into the
+// ground near you, and its rumble and wind as a loop. Fetched only on a storm's run (plan.storm).
+const THUNDER = { near: ['thunder_near_1', 'thunder_near_2', 'thunder_near_3'], far: ['thunder_far_1', 'thunder_far_2', 'thunder_far_3', 'thunder_far_4'], strike: ['lightning_strike_1', 'lightning_strike_2'] };
+EXTRA.push(...Object.values(THUNDER).flat(), 'storm_bed');
 // The music's level under the effects at 100% on the music slider.
 const MUSIC_LEVEL = 0.5;
 const SAMPLES = [...new Set([...Object.values(SHOTS), ...Object.values(SUPPRESSED)].map(([n]) => n).concat(Object.values(RELOADS), ['bolt'], EXTRA))];
@@ -123,12 +127,12 @@ export class Audio {
         this.samples[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
       } catch { /* missing or undecodable: the synthesised sound stays */ }
     };
-    const { weapons = Object.keys(SHOTS), sea = true } = this.plan ?? {};
+    const { weapons = Object.keys(SHOTS), sea = true, storm = false } = this.plan ?? {};
     const first = new Set(['bolt', 'bullet_crack_1', 'bullet_crack_2', 'bullet_whiz', 'bullet_ricochet', 'bullet_dirt', ...CASINGS,
       ...Object.values(SUPPRESSED).map(([n]) => n), ...weapons.flatMap(id => [SHOTS[id]?.[0], RELOADS[id]])].filter(n => n && SAMPLES.includes(n)));
     await Promise.all([...first].map(get));
     const soon = (n) => (/^(explosion|vo_|th_scan|th_guard|dog_|tank_|army_|mg42)/.test(n) ? 0 : 1);
-    const rest = SAMPLES.filter(n => !first.has(n) && (sea || !/^(sea_|gull_)/.test(n))).sort((a, b) => soon(a) - soon(b));
+    const rest = SAMPLES.filter(n => !first.has(n) && (sea || !/^(sea_|gull_)/.test(n)) && (storm || !/^(thunder_|lightning_|storm_)/.test(n))).sort((a, b) => soon(a) - soon(b));
     for (let i = 0; i < rest.length; i += 4) {
       await Promise.all(rest.slice(i, i + 4).map(get));
       await new Promise(r => setTimeout(r, 40));
@@ -731,6 +735,20 @@ export class Audio {
     });
     if (g && Math.abs((this.rainSet ?? -1) - level) > 1e-3) { this.rainSet = level; g.gain.setTargetAtTime(level * 0.09, this.ctx.currentTime, 1); }
   }
+
+  // Thunder `distance` m off, as it arrives (storm.js times it): a close one cracks and rolls, a far one
+  // only rolls, duller and quieter the further; a ground strike near you snaps first. Until the
+  // recordings are in, a low burst of noise.
+  thunder(distance, ground = false) {
+    const near = distance < 900, pick = (l) => l[Math.floor(Math.random() * l.length)];
+    const k = near ? 1 - 0.45 * distance / 900 : Math.min(0.5, Math.max(0.12, 0.55 - distance / 9000));
+    const played = this.sample(pick(near ? THUNDER.near : THUNDER.far), { gain: 1.1 * k, filter: near ? 12000 - distance * 7 : Math.max(450, 2400 - distance * 0.4), wet: 0.25 });
+    if (!played) this.noiseBurst({ dur: near ? 3 : 4.5, type: 'lowpass', freq: near ? 900 : 300, gain: 0.5 * k, attack: near ? 0.01 : 0.4, wet: 0.3 });
+    if (ground && distance < 450) this.sample(pick(THUNDER.strike), { gain: 1.2 * (1 - distance / 600), filter: 14000 - distance * 18, wet: 0.2 });
+  }
+
+  // The storm's rumble and wind, always under it (level 0–1).
+  setStorm(level) { this.loopSample('storm', 'storm_bed', level * 0.6); }
 
   // A synthesised engine drone (the run-up on the airfield; a truck until its recording loads).
   setEngine(level) {

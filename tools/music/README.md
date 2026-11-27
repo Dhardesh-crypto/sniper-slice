@@ -21,6 +21,13 @@ Each mission has a calm loop and an alarm loop in the same key, tempo (64 bpm) a
 Needs SuperCollider (`/opt/homebrew/bin/brew install --cask supercollider`) and the lemo-opuscar
 `vsco2ce` and `vcsl` sample libraries. `build/` is scratch (git-ignored).
 
+The storm's thunder (`thunder.scd`, `thunder.py`: close strikes, far rolls, ground strikes and the
+rumble-and-wind loop for `world/storm.js`) is rendered the same way, from filtered noise only:
+
+```bash
+~/Documents/Valexos/Research/lemo-opuscar-main/.venv/bin/python tools/music/thunder.py
+```
+
 No bells in the music: no glockenspiel, tubular bells, vibraphone or chimes; the synths use no FM
 or ringing sines.
 

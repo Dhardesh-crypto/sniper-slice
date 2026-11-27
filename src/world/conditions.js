@@ -13,6 +13,7 @@ const KINDS = {
   rain: { weight: 0.12, label: 'Rain' },
   mist: { weight: 0.15, label: 'Morning mist' },
   dusk: { weight: 0.17, label: 'Dusk' },
+  storm: { weight: 0.08, label: 'Thunderstorm' },   // rain, a dark sky, a gale, and lightning (storm.js)
 };
 
 // Winter, on top of whatever the weather is: drawn for one run in four, or set in the menu
@@ -28,12 +29,13 @@ export function pickConditions(map, seed, season = 'random') {
     warmth: (L.warmth ?? 1) * (c.kind === 'dusk' ? 0.8 : 0.3), saturation: (L.saturation ?? 1.08) * 0.92 };   // (snow light is cold: the grade cools)
   const fog = new THREE.Color(map.fog?.color ?? 0xb9c6cc).lerp(new THREE.Color(0xd2d9e2), 0.6);
   map.fog = { ...map.fog, color: fog.getHex(), near: Math.min(map.fog?.near ?? 400, 260), far: Math.min(map.fog?.far ?? 1600, 1400) };
-  const snowing = c.kind === 'overcast' || c.kind === 'rain' ? (c.kind === 'rain' ? 0.9 : 0.5) : 0;
+  const snowing = c.kind === 'overcast' || c.kind === 'rain' || c.kind === 'storm' ? (c.kind === 'overcast' ? 0.5 : 0.9) : 0;
   map.weather = { ...map.weather, rain: 0, snow: snowing };
-  if (snowing) map.sightScale = (map.sightScale ?? 1) * (c.kind === 'rain' ? 0.85 : 0.95);
+  if (snowing) map.sightScale = (map.sightScale ?? 1) * (c.kind === 'overcast' ? 0.95 : 0.85);
   else map.sightScale = (map.sightScale ?? 1) * 1.1;   // (a dark uniform on snow shows from far off)
-  const label = c.kind === 'rain' ? 'Winter, heavy snow' : c.kind === 'overcast' ? 'Winter, snowing' : c.label ? `Winter, ${c.label.toLowerCase()}` : 'Winter';
-  return { kind: c.kind, label, winter: true, snowing };
+  if (c.kind === 'storm') map.weather.storm = 0;   // (no thunder in the snow: a storm in winter is a blizzard)
+  const label = c.kind === 'rain' || c.kind === 'storm' ? 'Winter, heavy snow' : c.kind === 'overcast' ? 'Winter, snowing' : c.label ? `Winter, ${c.label.toLowerCase()}` : 'Winter';
+  return { kind: c.kind === 'storm' ? 'rain' : c.kind, label, winter: true, snowing };   // (a blizzard is briefed and blown as heavy rain's snow)
 }
 
 // Dusk, as settings for a map: the sun on the hills, the sky going from orange to blue; the
@@ -58,6 +60,9 @@ function pickWeather(map, seed) {
   const allowed = Object.keys(KINDS).filter(k => k === 'briefed' || (!map.fog?.density && !map.weather?.rain && !(k === 'mist' && map.weather?.mist)));
   let r = rnd() * allowed.reduce((s, k) => s + KINDS[k].weight, 0), kind = allowed[0];
   for (const k of allowed) { if ((r -= KINDS[k].weight) <= 0) { kind = k; break; } }
+  // (Dev: sessionStorage 'sniper-slice.weather' forces one: the dev panel's weather menu sets it.)
+  const forced = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sniper-slice.weather');
+  if (forced && KINDS[forced]) kind = forced;
   if (kind === 'briefed') return { kind, label: null };
 
   const L = { ...LIGHT, ...map.light };
@@ -73,6 +78,17 @@ function pickWeather(map, seed) {
     map.horizonFade = wet ? 0.85 : 0.45;
     map.sightScale = wet ? 0.75 : 0.95;
     if (wet) map.weather = { ...map.weather, rain: 0.75 };
+  } else if (kind === 'storm') {
+    // Under a thunderhead: the sun all but gone, the sky low and slate-dark, the haze close and
+    // grey-blue, the rain heavy (and a gale: main.js). The lightning lights it up (storm.js).
+    map.light = { ...L, clouds: 1, sun: 0xc8d0dc, sunIntensity: L.sunIntensity * 0.1, turbidity: L.turbidity + 6, rayleigh: (L.rayleigh ?? 2) * 0.5,
+      hemi: (L.hemi ?? 0.5) * 0.85, hemiSky: 0x8c96a4, hemiGround: 0x4a4a46, env: (L.env ?? 0.22) * 0.5, exposure: (L.exposure ?? 0.85) - 0.15,
+      warmth: (L.warmth ?? 1) * 0.3, saturation: (L.saturation ?? 1.08) * 0.78 };   // (the reflections were baked from the clear sky: kept low)
+    fog.lerp(new THREE.Color(0x6e7884), 0.85).multiplyScalar(0.8);
+    map.fog = { color: fog.getHex(), near: 70, far: 620 };
+    map.horizonFade = 0.92;
+    map.sightScale = 0.68;
+    map.weather = { ...map.weather, rain: 1, storm: 1 };
   } else if (kind === 'dusk') {
     Object.assign(map, duskOf(map));
   } else {

@@ -20,6 +20,7 @@ import { setAtmosphere, ATMO } from '../world/atmosphere.js';
 import { OFFSETS, PIVOT_H, RIG } from '../player/camera-rig.js';
 import { SIGHT } from '../stealth/stealth.js';
 import { Soldier, LIFE } from '../world/soldier.js';
+import { STORM } from '../world/storm.js';
 import { AMMO, HEAVY_AMMO } from '../weapons/defs.js';
 
 const KEY = 'sniper-slice.dev.tuning';
@@ -192,6 +193,25 @@ export function install(g) {
     ['startle', 0, 0.6, 0.01, 'startle jolt (rad)'], ['startleDuck', 0, 2, 0.05, 'startle crouch (s)'], ['turnAccel', 2, 40, 1, 'turn pick-up (rad/s²)'],
     ['paceSpread', 0, 0.4, 0.01, 'pace spread (new men)'], ['pauseChance', 0, 1, 0.05, 'patrol stop chance'], ['pauseMin', 0, 10, 0.1, 'stop min (s)'], ['pauseMax', 0, 15, 0.1, 'stop max (s)'], ['dash', 1, 1.6, 0.05, 'dash to cover ×run']])
     track(life.add(LIFE, k, lo, hi, step).name(label), `life.${k}`, lifeWhere);
+
+  // ---- Weather: force a run's conditions (restarts), and the storm's lightning (world/storm.js STORM) ----
+  const wx = gui.addFolder('Weather').close();
+  const W = { weather: sessionStorage.getItem('sniper-slice.weather') ?? 'as drawn', flashes: settings.flashes ?? 'full' };
+  wx.add(W, 'weather', ['as drawn', 'briefed', 'overcast', 'rain', 'mist', 'dusk', 'storm']).name('weather (restarts)').onChange(v => {
+    if (v === 'as drawn') sessionStorage.removeItem('sniper-slice.weather'); else sessionStorage.setItem('sniper-slice.weather', v);
+    setTimeout(() => location.reload(), 60);
+  });
+  wx.add(W, 'flashes', ['full', 'reduced']).name('lightning flashes').onChange(v => { settings.flashes = v; });   // (the player's own setting: Settings)
+  if (g.storm) {
+    const stormWhere = 'src/world/storm.js · STORM';
+    track(wx.add(STORM.every, 0, 1, 60, 0.5).name('strikes every (min s)'), 'storm.every.0', stormWhere, 'global', 'every', STORM.every);
+    track(wx.add(STORM.every, 1, 1, 90, 0.5).name('strikes every (max s)'), 'storm.every.1', stormWhere, 'global', 'every', STORM.every);
+    for (const [k, lo, hi, step, label] of [['closeShare', 0, 1, 0.05, 'close strikes share'], ['groundShare', 0, 1, 0.05, 'ground strikes (of close)'], ['flash', 0, 2, 0.05, 'flash brightness ×'],
+      ['reveal', 0, 2, 0.05, 'flash: guards see further'], ['mask', 0, 6, 0.1, 'thunder covers a shot (s)'], ['rumble', 0, 1.5, 0.05, 'rumble bed level']])
+      track(wx.add(STORM, k, lo, hi, step).name(label), `storm.${k}`, stormWhere);
+    wx.add({ go() { g.storm.strike(); } }, 'go').name('Strike now');
+    wx.add({ go() { const f = camera.getWorldDirection(new THREE.Vector3()); g.storm.strike(80 + Math.random() * 120, true, Math.atan2(f.z, f.x) + (Math.random() - 0.5) * 0.5); } }, 'go').name('Strike near, ahead (ground)');
+  }
 
   // ---- Play ----
   const play = gui.addFolder('Play');
