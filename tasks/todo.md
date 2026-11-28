@@ -1268,6 +1268,16 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
       0.6 m apart at 100 m, 1.5 m apart at 200 m; at 300 m, 0.4 m apart, two died and the round
       passed under the third. A pistol round stops in the first man. Not played by hand.
 
+## 7 November 2026: StableGen 0.5.0
+
+- [x] Installed StableGen 0.5.0 in Blender (0.4.0 copied aside); stablegen-texture.py runs on it unattended, unchanged.
+- [x] Its "softer seams": the Vineyard farmhouse redone on it came out practically the same as the 0.4.0 skin (the
+      ARCHITECTURE preset takes each texel from the most square-on camera, so there's little blending to soften). The
+      old skin stays. ComfyUI for the skins: `ComfyUI-Installs/ComfyUI/ComfyUI/.venv/bin/python main.py --port 8188`
+      (the standalone-env Python has no torch).
+- Not tried: PBR maps (would need normal maps on the skins in the game), TRELLIS.2 meshes (Meta's DINOv3 licence),
+  SkinTokens rigging (needs an NVIDIA card).
+
 ## 2026-11-07 · Music rewritten in SuperCollider
 
 - [x] Replaced the MusicGen loops (CC-BY-NC weights: couldn't ship in a sold game) with music written
@@ -1282,17 +1292,7 @@ Not done: playing it by hand. Rifle in hands while crawling keeps both hands on 
 - [x] User listened: disliked the violin and wind/brass solos. Every melody is now piano (Salamander,
       CC BY 3.0, credited), the alarms' violin tremolo became repeated piano chords, forest lost its
       violins. Rebuilt all 18; seams still continuous.
-- [x] User approved the piano versions.
-
-## 7 November 2026: StableGen 0.5.0
-
-- [x] Installed StableGen 0.5.0 in Blender (0.4.0 copied aside); stablegen-texture.py runs on it unattended, unchanged.
-- [x] Its "softer seams": the Vineyard farmhouse redone on it came out practically the same as the 0.4.0 skin (the
-      ARCHITECTURE preset takes each texel from the most square-on camera, so there's little blending to soften). The
-      old skin stays. ComfyUI for the skins: `ComfyUI-Installs/ComfyUI/ComfyUI/.venv/bin/python main.py --port 8188`
-      (the standalone-env Python has no torch).
-- Not tried: PBR maps (would need normal maps on the skins in the game), TRELLIS.2 meshes (Meta's DINOv3 licence),
-  SkinTokens rigging (needs an NVIDIA card).
+- [x] User approved the piano versions. Committed c0d74d8, pushed and deployed 2026-11-07.
 
 ## 8 November 2026: the idle's legs stand still
 
@@ -1476,6 +1476,7 @@ Plan: richer missions spread over more varied land (approved 11 Nov). Structure 
 - [ ] Zones: an alarm, a route grid and starts per zone; locked starts. Built with the Forest rebuild, where there is something to prove it on.
 - [ ] Terrain kit and biomes (proposed as its own session).
 - [ ] Forest rebuilt as the pilot; then Vineyard, Bridge, Harbour, Radar, Railway, Airfield, Flak, Town.
+- [ ] In the Forest pilot (agreed 11 Nov, ideas taken from WorldX, none of its code): guards with a day (a short routine each and a tie or two to other men: the cook who brings the sentry coffee, two who always talk at the gate), written by hand or drafted once offline, never a model call in play; a talk overheard can reveal an objective (`revealedBy`). And the zone's letters, side-quest text and guard chatter drafted with a model at build time, then edited by hand.
 - [x] Re-rigged with the bone fix: the sniper (his trailing strip) and the greatcoat men (26 Nov, section below).
 
 ## 26 November 2026: the sniper and the greatcoat men re-rigged with the bone fix
